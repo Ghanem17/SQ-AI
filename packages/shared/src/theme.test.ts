@@ -8,6 +8,8 @@ import { themes, type ColorTokens } from './theme.ts';
 const textPairs: [keyof ColorTokens, keyof ColorTokens][] = [
   ['text', 'bg'],
   ['text', 'tile'],
+  ['text', 'card'],
+  ['muted', 'card'],
   ['muted', 'bg'],
   ['muted', 'tile'],
   ['placeholder', 'tile'],
@@ -27,7 +29,12 @@ const textPairs: [keyof ColorTokens, keyof ColorTokens][] = [
 ];
 
 // Input underlines and similar controls need 3:1 against their surface.
-const uiPairs: [keyof ColorTokens, keyof ColorTokens][] = [['fieldLine', 'tile']];
+const uiPairs: [keyof ColorTokens, keyof ColorTokens][] = [
+  ['fieldLine', 'tile'],
+  ['lineStrong', 'card'],
+  ['chart', 'card'],
+  ['primary', 'card'],
+];
 
 for (const [name, tokens] of Object.entries(themes)) {
   for (const [fg, bg] of textPairs) {

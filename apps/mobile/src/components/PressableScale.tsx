@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { Platform, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -14,11 +14,12 @@ export function tapHaptic() {
   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
 }
 
-// A pressable that shrinks slightly while held, on the UI thread.
+// A pressable that dips slightly while held. Short and linear, no bounce, so
+// the app feels precise rather than playful.
 export function PressableScale({
   style,
   haptic = true,
-  pressedScale = 0.97,
+  pressedScale = 0.985,
   onPressIn,
   onPressOut,
   onPress,
@@ -27,8 +28,9 @@ export function PressableScale({
   ...rest
 }: Props) {
   const scale = useSharedValue(1);
+  const dim = useSharedValue(1);
   const reduceMotion = useReducedMotion();
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
+  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }], opacity: dim.get() }));
 
   return (
     <AnimatedPressable
@@ -36,11 +38,13 @@ export function PressableScale({
       disabled={disabled}
       accessibilityState={{ ...accessibilityState, disabled: !!disabled }}
       onPressIn={(e) => {
-        if (!reduceMotion) scale.set(withSpring(pressedScale, { damping: 18, stiffness: 400 }));
+        if (!reduceMotion) scale.set(withTiming(pressedScale, { duration: 90 }));
+        dim.set(withTiming(0.86, { duration: 90 }));
         onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        scale.set(withSpring(1, { damping: 14, stiffness: 300 }));
+        scale.set(withTiming(1, { duration: 140 }));
+        dim.set(withTiming(1, { duration: 140 }));
         onPressOut?.(e);
       }}
       onPress={(e) => {

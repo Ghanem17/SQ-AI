@@ -46,7 +46,15 @@
           "forcesRTL": true
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "يستخدم SQ AI الكاميرا لتصوير لقطات الريل.",
+          "microphonePermission": "يستخدم SQ AI الميكروفون لتسجيل صوت اللقطة.",
+          "recordAudioAndroid": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

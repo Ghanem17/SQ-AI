@@ -6,7 +6,7 @@ import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { useTheme } from '@/theme/theme';
 
-type Variant = 'primary' | 'secondary' | 'hero' | 'outline';
+type Variant = 'primary' | 'secondary' | 'hero' | 'outline' | 'ghost';
 
 type Props = {
   label: string;
@@ -22,13 +22,14 @@ type Props = {
   colors?: { bg: string; fg: string };
 };
 
-export function Button({ label, onPress, variant = 'primary', icon, disabled, loading, style, height = 56, accessibilityHint, colors: custom }: Props) {
+export function Button({ label, onPress, variant = 'primary', icon, disabled, loading, style, height = 50, accessibilityHint, colors: custom }: Props) {
   const { c } = useTheme();
   const colors: Record<Variant, { bg: string; fg: string; border?: string }> = {
     primary: { bg: c.primary, fg: c.onPrimary },
-    secondary: { bg: c.tile, fg: c.text },
+    secondary: { bg: c.card, fg: c.text, border: c.line },
     hero: { bg: c.heroBtn, fg: c.heroBtnText },
-    outline: { bg: 'transparent', fg: c.primary, border: c.primary },
+    outline: { bg: 'transparent', fg: c.primary, border: c.lineStrong },
+    ghost: { bg: 'transparent', fg: c.primary },
   };
   const { bg, fg, border }: { bg: string; fg: string; border?: string } = custom ?? colors[variant];
   const inactive = disabled || loading;
@@ -43,13 +44,13 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
       onPress={onPress}
       style={[
         styles.base,
-        { height, backgroundColor: bg, opacity: disabled ? 0.45 : 1 },
-        border ? { borderWidth: 2, borderColor: border } : null,
+        { height, backgroundColor: bg, opacity: disabled ? 0.4 : 1 },
+        border ? { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: border } : null,
         style,
       ]}>
       <View style={styles.row}>
-        {loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} color={fg} size={18} strokeWidth={2} /> : null}
-        <AppText weight="semibold" size={16} color={fg}>
+        {loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} color={fg} size={17} strokeWidth={2} /> : null}
+        <AppText weight="semibold" size={15} color={fg}>
           {label}
         </AppText>
       </View>
@@ -58,6 +59,6 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
 }
 
 const styles = StyleSheet.create({
-  base: { borderRadius: radius.control + 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  base: { borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

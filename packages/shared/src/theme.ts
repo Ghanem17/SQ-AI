@@ -23,9 +23,14 @@ export const brand = {
 
 export type ColorTokens = {
   bg: string;
+  // Raised surfaces: cards sit on the page with a hairline border.
+  card: string;
+  // Recessed surfaces: inputs, segmented controls, quiet fills.
   tile: string;
   avatar: string;
   line: string;
+  // Stronger hairline for inputs and selected outlines.
+  lineStrong: string;
   track: string;
   text: string;
   muted: string;
@@ -54,52 +59,60 @@ export type ColorTokens = {
   navText: string;
   navActive: string;
   onNavActive: string;
+  chart: string;
+  chartSoft: string;
 };
 
 export const light: ColorTokens = {
   bg: '#FFFFFF',
-  tile: '#F4EDE7',
-  avatar: '#E8DDCF',
-  line: '#E8E0D6',
-  track: '#E2D6C6',
-  text: '#0B2226',
-  muted: '#4F524F',
-  placeholder: '#676A67',
+  card: '#FFFFFF',
+  tile: '#F6F4F1',
+  avatar: '#ECE6DE',
+  line: '#E7E3DD',
+  lineStrong: '#7E827F',
+  track: '#ECE8E2',
+  text: '#0E1E21',
+  muted: '#575C5B',
+  placeholder: '#6A6F6D',
   hero: '#173E45',
   heroText: '#F4EDE7',
-  heroMuted: '#C9D6D4',
+  heroMuted: '#C2D1CF',
   heroBtn: '#F4EDE7',
   heroBtnText: '#173E45',
   primary: '#173E45',
-  onPrimary: '#F4EDE7',
-  priSoft: '#DCEBEC',
+  onPrimary: '#FFFFFF',
+  priSoft: '#E5EEEF',
   onPriSoft: '#173E45',
-  okSoft: '#E6EFE9',
-  ok: '#3F5C4D',
-  badSoft: '#F8E5E1',
+  okSoft: '#E8F0EB',
+  ok: '#2F5A43',
+  badSoft: '#F8E7E3',
   bad: '#9E3B2F',
-  accSoft: '#EADBC3',
-  acc: '#5E4A2C',
-  fieldLine: '#9C8259',
+  accSoft: '#F3EADC',
+  acc: '#6A5332',
+  fieldLine: '#7E827F',
   sandTile: '#CBAF87',
   onSandTile: '#0B2226',
   greenTile: '#3F5C4D',
   onGreenTile: '#F4EDE7',
-  nav: '#173E45',
-  navText: '#E3EEEE',
-  navActive: '#CBAF87',
-  onNavActive: '#0B2226',
+  nav: '#FFFFFF',
+  navText: '#5D6261',
+  navActive: '#173E45',
+  onNavActive: '#FFFFFF',
+  chart: '#173E45',
+  chartSoft: '#CBAF87',
 };
 
 export const dark: ColorTokens = {
-  bg: '#0B2226',
-  tile: '#102E33',
-  avatar: '#173E45',
-  line: '#1D4249',
-  track: '#24525A',
-  text: '#F4EDE7',
-  muted: '#A9B3B1',
-  placeholder: '#8FA09D',
+  bg: '#091416',
+  card: '#0F1F22',
+  tile: '#132629',
+  avatar: '#1A3337',
+  line: '#1F3539',
+  lineStrong: '#6E8784',
+  track: '#1F3539',
+  text: '#EEF1F0',
+  muted: '#A3AFAD',
+  placeholder: '#8D9A98',
   hero: '#173E45',
   heroText: '#F4EDE7',
   heroMuted: '#B9C9C7',
@@ -107,33 +120,37 @@ export const dark: ColorTokens = {
   heroBtnText: '#0B2226',
   primary: '#CBAF87',
   onPrimary: '#0B2226',
-  priSoft: '#24525A',
+  priSoft: '#1D3A3F',
   onPriSoft: '#E3EEEE',
-  okSoft: '#1E3329',
-  ok: '#BFD6C9',
-  badSoft: '#3D1F1B',
+  okSoft: '#16291F',
+  ok: '#A9CDB7',
+  badSoft: '#331A17',
   bad: '#F2B8AE',
-  accSoft: '#3E3220',
-  acc: '#E9DCC6',
-  fieldLine: '#CBAF87',
+  accSoft: '#2C2417',
+  acc: '#E3D2B4',
+  fieldLine: '#6E8784',
   sandTile: '#CBAF87',
   onSandTile: '#0B2226',
   greenTile: '#3F5C4D',
   onGreenTile: '#F4EDE7',
-  nav: '#173E45',
-  navText: '#E3EEEE',
+  nav: '#0F1F22',
+  navText: '#A3AFAD',
   navActive: '#CBAF87',
   onNavActive: '#0B2226',
+  chart: '#CBAF87',
+  chartSoft: '#3E5C60',
 };
 
 export const themes = { light, dark } as const;
 export type SchemeName = keyof typeof themes;
 
+// Tight corners read as precise and trustworthy; nothing is pill-shaped
+// except avatars and small status dots.
 export const radius = {
-  tile: 28,
-  card: 24,
-  control: 16,
-  chip: 12,
+  tile: 14,
+  card: 12,
+  control: 10,
+  chip: 6,
   pill: 999,
 } as const;
 
@@ -155,12 +172,12 @@ export const font = {
 } as const;
 
 export const typeScale = {
-  caption: 12,
-  small: 13,
+  caption: 11.5,
+  small: 12.5,
   body: 14,
-  bodyLg: 16,
-  title: 21,
-  headline: 26,
-  display: 34,
-  metric: 40,
+  bodyLg: 15,
+  title: 17,
+  headline: 22,
+  display: 28,
+  metric: 30,
 } as const;

@@ -32,12 +32,13 @@ type Slide = {
   Art: ComponentType<{ active: boolean }>;
 };
 
-// Each slide carries its own brand colors, the same in light and dark mode.
+// One calm brand surface for every slide, the same in light and dark mode.
+const deep = { bg: brand.tealDeep, fg: brand.cream, muted: brand.creamOnDeep, buttonBg: brand.sand, buttonFg: brand.ink };
 const slides: Slide[] = [
-  { bg: brand.teal, fg: brand.cream, muted: brand.creamOnTeal, buttonBg: brand.cream, buttonFg: brand.teal, Art: CameraArt },
-  { bg: brand.cream, fg: brand.ink, muted: brand.inkOnCream, buttonBg: brand.teal, buttonFg: brand.cream, Art: PublishArt },
-  { bg: brand.sand, fg: brand.ink, muted: brand.inkOnSand, buttonBg: brand.teal, buttonFg: brand.cream, Art: ChatArt },
-  { bg: brand.tealDeep, fg: brand.cream, muted: brand.creamOnDeep, buttonBg: brand.sand, buttonFg: brand.ink, Art: CostArt },
+  { ...deep, Art: CameraArt },
+  { ...deep, Art: PublishArt },
+  { ...deep, Art: ChatArt },
+  { ...deep, Art: CostArt },
 ];
 
 const LAST = slides.length - 1;
@@ -168,10 +169,10 @@ function SlideView({
         <slide.Art active={active} />
       </Animated.View>
       <View style={styles.text}>
-        <AppText weight="bold" size={30} lineHeight={40} color={slide.fg} center>
+        <AppText weight="semibold" size={26} lineHeight={36} color={slide.fg} center>
           {copy.title}
         </AppText>
-        <AppText size={16} lineHeight={27} color={slide.muted} center>
+        <AppText size={15} lineHeight={25} color={slide.muted} center>
           {copy.body}
         </AppText>
       </View>
@@ -182,7 +183,7 @@ function SlideView({
 function Dot({ index, position, color }: { index: number; position: SharedValue<number>; color: string }) {
   const style = useAnimatedStyle(() => {
     const d = Math.min(1, Math.abs(position.value - index));
-    return { width: 26 - 18 * d, opacity: 1 - 0.6 * d };
+    return { width: 22 - 14 * d, opacity: 1 - 0.6 * d };
   });
   return <Animated.View style={[styles.dot, { backgroundColor: color }, style]} />;
 }
@@ -196,6 +197,6 @@ const styles = StyleSheet.create({
   text: { gap: 10 },
   footer: { paddingHorizontal: 24, paddingBottom: 12, gap: 22 },
   dots: { flexDirection: 'row', gap: 6, justifyContent: 'center' },
-  dot: { height: 8, borderRadius: 4 },
+  dot: { height: 4, borderRadius: 2 },
   next: { alignSelf: 'stretch' },
 });

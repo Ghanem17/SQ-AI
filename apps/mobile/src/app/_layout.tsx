@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider, useSession } from '@/state/session';
+import { StudioProvider } from '@/state/studio';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -41,9 +42,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.fill}>
       <SafeAreaProvider>
         <SessionProvider>
-          <ThemeProvider>
-            <AppShell fontsReady={fontsLoaded || fontError != null} />
-          </ThemeProvider>
+          <StudioProvider>
+            <ThemeProvider>
+              <AppShell fontsReady={fontsLoaded || fontError != null} />
+            </ThemeProvider>
+          </StudioProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -64,9 +67,14 @@ function AppShell({ fontsReady }: { fontsReady: boolean }) {
   return (
     <View style={[styles.fill, { backgroundColor: c.bg }]}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'fade' }}>
-        <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_left' }}>
+        <Stack.Screen name="index" options={{ animation: 'none' }} />
+        <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+        <Stack.Screen name="auth" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="assistant" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="capture" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        <Stack.Screen name="reel/receipt" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </View>
   );

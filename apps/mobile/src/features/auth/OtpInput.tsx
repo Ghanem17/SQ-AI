@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import { Pressable, StyleSheet, TextInput, type TextInputInstance } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { OTP_LENGTH, radius, sanitizeOtp } from '@sq/shared';
 import { AppText } from '@/components/AppText';
@@ -72,21 +72,21 @@ function Box({ char, active, state }: { char: string | undefined; active: boolea
 
   useEffect(() => {
     if (char && !reduceMotion) {
-      pop.set(withSequence(withTiming(1.12, { duration: 90 }), withSpring(1, { damping: 10, stiffness: 260 })));
+      pop.set(withSequence(withTiming(1.06, { duration: 80 }), withTiming(1, { duration: 120 })));
     }
   }, [char, reduceMotion, pop]);
 
   const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
 
-  const border = state === 'ok' ? c.ok : state === 'wrong' ? c.bad : active ? c.primary : c.tile;
-  const background = state === 'ok' ? c.okSoft : state === 'wrong' ? c.badSoft : c.tile;
+  const border = state === 'ok' ? c.ok : state === 'wrong' ? c.bad : active ? c.primary : char ? c.lineStrong : c.line;
+  const background = state === 'ok' ? c.okSoft : state === 'wrong' ? c.badSoft : c.card;
 
   return (
     <Animated.View style={[styles.box, { borderColor: border, backgroundColor: background }, style]}>
       {state === 'ok' ? (
         <Icon name="check" color={c.ok} size={20} strokeWidth={3} />
       ) : (
-        <AppText weight="bold" size={24} lineHeight={30} color={state === 'wrong' ? c.bad : c.text}>
+        <AppText weight="semibold" size={22} lineHeight={28} color={state === 'wrong' ? c.bad : c.text}>
           {char ?? ''}
         </AppText>
       )}
@@ -96,6 +96,6 @@ function Box({ char, active, state }: { char: string | undefined; active: boolea
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, justifyContent: 'center', direction: 'ltr' },
-  box: { width: 48, height: 58, borderRadius: radius.control, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  box: { width: 44, height: 52, borderRadius: radius.control, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   hidden: { opacity: 0.02 },
 });

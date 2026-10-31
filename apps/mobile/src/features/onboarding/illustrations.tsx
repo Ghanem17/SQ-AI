@@ -3,14 +3,13 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
-  FadeInDown,
+  FadeIn,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -24,47 +23,45 @@ const copy = ar.onboarding.illustrations;
 
 type ArtProps = { active: boolean };
 
-// 1. Guided camera: the dashed guide turns around the plate and a check pops in.
+// 1. Guided camera: a viewfinder with thirds and a product frame; the
+// "ready" status appears once the plate sits inside the frame.
 export function CameraArt({ active }: ArtProps) {
   const reduceMotion = useReducedMotion();
-  const spin = useSharedValue(0);
   const pop = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
     if (!active || reduceMotion) return;
-    spin.set(withRepeat(withTiming(360, { duration: 9000, easing: Easing.linear }), -1));
-    pop.set(
-      withRepeat(
-        withSequence(withDelay(700, withSpring(1, { damping: 9, stiffness: 180 })), withDelay(1600, withTiming(0, { duration: 200 }))),
-        -1,
-      ),
-    );
-    return () => {
-      cancelAnimation(spin);
-      cancelAnimation(pop);
-    };
-  }, [active, reduceMotion, spin, pop]);
+    pop.set(withRepeat(withSequence(withDelay(800, withTiming(1, { duration: 220 })), withDelay(1800, withTiming(0, { duration: 200 }))), -1));
+    return () => cancelAnimation(pop);
+  }, [active, reduceMotion, pop]);
 
-  const guide = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value}deg` }] }));
-  const check = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }], opacity: pop.value }));
+  const status = useAnimatedStyle(() => ({ opacity: pop.value, transform: [{ translateY: (1 - pop.value) * 6 }] }));
 
   return (
     <View style={styles.stage}>
-      <View style={[styles.phone, { borderColor: brand.cream }]}>
-        <Animated.View style={[styles.guide, { borderColor: brand.sand }, guide]} />
-        <View style={[styles.plate, { backgroundColor: brand.cream }]}>
-          <View style={[styles.plateRing, { borderColor: brand.sand }]}>
-            <View style={styles.rolls}>
-              {Array.from({ length: 6 }, (_, i) => (
-                <View key={i} style={[styles.roll, { backgroundColor: i % 2 ? brand.green : brand.greenBrand }]} />
-              ))}
-            </View>
+      <View style={[styles.phone, { borderColor: brand.tealLine, backgroundColor: brand.teal }]}>
+        <View style={[styles.gridV, { left: '33.3%' }]} />
+        <View style={[styles.gridV, { left: '66.6%' }]} />
+        <View style={[styles.gridH, { top: '33.3%' }]} />
+        <View style={[styles.gridH, { top: '66.6%' }]} />
+        <View style={styles.frame}>
+          <View style={[styles.corner, styles.tl]} />
+          <View style={[styles.corner, styles.tr]} />
+          <View style={[styles.corner, styles.bl]} />
+          <View style={[styles.corner, styles.br]} />
+          <View style={[styles.plate, { borderColor: brand.creamOnTeal }]}>
+            <View style={[styles.plateInner, { backgroundColor: brand.greenBrand }]} />
           </View>
         </View>
-        <View style={[styles.level, { backgroundColor: brand.greenLight }]} />
-        <Animated.View style={[styles.check, { backgroundColor: brand.greenLight }, check]}>
-          <Icon name="check" color={brand.ink} size={22} strokeWidth={3} />
+        <Animated.View style={[styles.ready, status]}>
+          <View style={[styles.readyDot, { backgroundColor: brand.greenLight }]} />
+          <AppText size={11.5} color={brand.cream}>
+            {copy.plate}
+          </AppText>
         </Animated.View>
+        <View style={[styles.rec, { borderColor: brand.cream }]}>
+          <View style={styles.recInner} />
+        </View>
       </View>
     </View>
   );
@@ -83,7 +80,7 @@ function PlatformChip({ name, order, active }: { name: string; order: number; ac
     lit.set(
       withRepeat(
         withSequence(
-          withDelay(500 + order * 450, withSpring(1, { damping: 10 })),
+          withDelay(500 + order * 450, withTiming(1, { duration: 220 })),
           withDelay(1800 - order * 450, withTiming(0, { duration: 250 })),
         ),
         -1,
@@ -92,8 +89,8 @@ function PlatformChip({ name, order, active }: { name: string; order: number; ac
     return () => cancelAnimation(lit);
   }, [active, reduceMotion, order, lit]);
 
-  const chip = useAnimatedStyle(() => ({ transform: [{ scale: 0.9 + 0.1 * lit.value }], opacity: 0.55 + 0.45 * lit.value }));
-  const tick = useAnimatedStyle(() => ({ transform: [{ scale: lit.value }] }));
+  const chip = useAnimatedStyle(() => ({ opacity: 0.5 + 0.5 * lit.value }));
+  const tick = useAnimatedStyle(() => ({ opacity: lit.value }));
 
   return (
     <Animated.View style={[styles.platform, { backgroundColor: brand.teal }, chip]}>
@@ -113,11 +110,11 @@ export function PublishArt({ active }: ArtProps) {
 
   useEffect(() => {
     if (!active || reduceMotion) return;
-    float.set(withRepeat(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }), -1, true));
+    float.set(withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }), -1, true));
     return () => cancelAnimation(float);
   }, [active, reduceMotion, float]);
 
-  const reel = useAnimatedStyle(() => ({ transform: [{ translateY: -10 * float.value }] }));
+  const reel = useAnimatedStyle(() => ({ transform: [{ translateY: -4 * float.value }] }));
 
   return (
     <View style={styles.stage}>
@@ -158,7 +155,7 @@ export function ChatArt({ active }: ArtProps) {
     };
   }, [playing]);
 
-  const enter = reduceMotion ? undefined : FadeInDown.springify().damping(14);
+  const enter = reduceMotion ? undefined : FadeIn.duration(220);
   return (
     <View style={[styles.stage, styles.chat]}>
       {shown >= 1 && (
@@ -183,7 +180,7 @@ export function ChatArt({ active }: ArtProps) {
         </Animated.View>
       )}
       {shown >= 4 && (
-        <Animated.View entering={reduceMotion ? undefined : FadeInDown.springify().damping(9)} style={[styles.order, { backgroundColor: brand.green }]}>
+        <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(220)} style={[styles.order, { backgroundColor: brand.green }]}>
           <Icon name="check" color={brand.cream} size={16} strokeWidth={3} />
           <AppText weight="semibold" size={14} color={brand.cream}>
             {copy.newOrder}
@@ -250,30 +247,38 @@ function Bar({ height, grow, highlight }: { height: number; grow: SharedValue<nu
   return <Animated.View style={[styles.bar, { backgroundColor: highlight ? brand.sand : brand.thumb }, style]} />;
 }
 
+const C = 18;
 const styles = StyleSheet.create({
   stage: { height: 300, alignItems: 'center', justifyContent: 'center' },
-  phone: { width: 190, height: 260, borderRadius: 34, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
-  guide: { position: 'absolute', width: 160, height: 160, borderRadius: 80, borderWidth: 2, borderStyle: 'dashed' },
-  plate: { width: 118, height: 118, borderRadius: 59, alignItems: 'center', justifyContent: 'center' },
-  plateRing: { width: 96, height: 96, borderRadius: 48, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  rolls: { flexDirection: 'row', flexWrap: 'wrap', width: 66, gap: 5, justifyContent: 'center' },
-  roll: { width: 18, height: 28, borderRadius: 9 },
-  level: { position: 'absolute', bottom: 36, width: 120, height: 3, borderRadius: 2 },
-  check: { position: 'absolute', top: 18, end: 18, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  reel: { width: 96, height: 160, borderRadius: 22, padding: 12, justifyContent: 'flex-end', gap: 6, alignItems: 'center' },
-  play: { position: 'absolute', top: 50, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  reelBar: { alignSelf: 'stretch', height: 6, borderRadius: 3 },
+  phone: { width: 180, height: 270, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  gridV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(244,237,231,0.16)' },
+  gridH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(244,237,231,0.16)' },
+  frame: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
+  corner: { position: 'absolute', width: C, height: C, borderColor: brand.sand },
+  tl: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 },
+  tr: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 },
+  bl: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
+  br: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2 },
+  plate: { width: 84, height: 84, borderRadius: 42, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  plateInner: { width: 54, height: 54, borderRadius: 27 },
+  ready: { position: 'absolute', top: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  readyDot: { width: 6, height: 6, borderRadius: 3 },
+  rec: { position: 'absolute', bottom: 16, width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  recInner: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#D9443A' },
+  reel: { width: 100, height: 170, borderRadius: 12, padding: 12, justifyContent: 'flex-end', gap: 6, alignItems: 'center' },
+  play: { position: 'absolute', top: 58, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  reelBar: { alignSelf: 'stretch', height: 5, borderRadius: 2 },
   reelBarShort: { width: '60%', alignSelf: 'flex-start' },
-  platformRow: { flexDirection: 'row', gap: 10, marginTop: 26 },
-  platform: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, alignItems: 'center' },
-  tick: { position: 'absolute', top: -8, end: -8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  platformRow: { flexDirection: 'row', gap: 8, marginTop: 24 },
+  platform: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  tick: { position: 'absolute', top: -7, end: -7, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   chat: { alignItems: 'stretch', justifyContent: 'flex-end', gap: 8, paddingHorizontal: 8 },
-  bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleIn: { alignSelf: 'flex-start', borderRadius: 20, borderBottomEndRadius: 6 },
-  bubbleOut: { alignSelf: 'flex-end', borderRadius: 20, borderBottomStartRadius: 6 },
-  order: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, marginTop: 6 },
-  costCard: { width: 260, borderRadius: 28, padding: 20, gap: 4 },
+  bubble: { maxWidth: '82%', paddingHorizontal: 12, paddingVertical: 9 },
+  bubbleIn: { alignSelf: 'flex-start', borderRadius: 14, borderBottomEndRadius: 4 },
+  bubbleOut: { alignSelf: 'flex-end', borderRadius: 14, borderBottomStartRadius: 4 },
+  order: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, marginTop: 6 },
+  costCard: { width: 260, borderRadius: 14, padding: 18, gap: 4, borderWidth: 1, borderColor: brand.tealLine },
   tabular: { fontVariant: ['tabular-nums'] },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 100, marginTop: 10 },
-  bar: { flex: 1, borderRadius: 10 },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 100, marginTop: 10 },
+  bar: { flex: 1, borderRadius: 3 },
 });

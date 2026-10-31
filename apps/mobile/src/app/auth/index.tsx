@@ -4,14 +4,14 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
-  FadeInDown,
   FadeOut,
-  FadeOutUp,
   LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
+  withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -52,8 +52,7 @@ export default function AuthScreen() {
   // selected tab whatever the layout direction.
   useEffect(() => {
     if (!activeFrame) return;
-    const spring = { damping: 18, stiffness: 220 };
-    indicatorX.set(reduceMotion ? activeFrame.x : withSpring(activeFrame.x, spring));
+    indicatorX.set(reduceMotion ? activeFrame.x : withTiming(activeFrame.x, { duration: 200, easing: Easing.out(Easing.cubic) }));
     indicatorW.set(activeFrame.width);
   }, [activeFrame, reduceMotion, indicatorX, indicatorW]);
 
@@ -99,7 +98,7 @@ export default function AuthScreen() {
         pathname: '/auth/verify',
         params: {
           phone: phoneCheck.e164,
-          display: `+${country.dial} ${formatNational(phoneCheck.national, country)}`,
+          display: `+${country.dial} ${formatNational(phoneCheck.national, country)}`.replace(/ /g, '\u00A0'),
           mode: mode === 0 ? 'signUp' : 'signIn',
           name: name.trim(),
         },
@@ -109,28 +108,33 @@ export default function AuthScreen() {
     }
   };
 
-  const layout = reduceMotion ? undefined : LinearTransition.springify().damping(18);
+  const layout = reduceMotion ? undefined : LinearTransition.duration(200);
 
   return (
     <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Animated.View entering={reduceMotion ? undefined : FadeInDown.springify().damping(16)} style={[styles.hero, { backgroundColor: c.hero }]}>
-            <View style={[styles.logo, { backgroundColor: brand.sand }]}>
-              <AppText weight="bold" size={15} color={brand.ink} style={styles.ltr}>
+          <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)} style={styles.hero}>
+            <View style={styles.brandRow}>
+              <View style={[styles.logo, { backgroundColor: brand.teal }]}>
+                <AppText weight="bold" size={13} color={brand.cream} style={styles.ltr}>
+                  SQ
+                </AppText>
+              </View>
+              <AppText weight="semibold" size={15} style={styles.ltr}>
                 SQ AI
               </AppText>
             </View>
-            <AppText weight="semibold" size={30} lineHeight={40} color={c.heroText} style={styles.heroTitle}>
+            <AppText weight="semibold" size={26} lineHeight={36} style={styles.heroTitle}>
               {t.welcome}
             </AppText>
-            <AppText size={14.5} lineHeight={24} color={c.heroMuted}>
+            <AppText size={14} lineHeight={22} color={c.muted}>
               {t.subtitle}
             </AppText>
           </Animated.View>
 
           <View accessibilityRole="tablist" style={[styles.segment, { backgroundColor: c.tile }]}>
-            {activeFrame && <Animated.View style={[styles.segIndicator, { backgroundColor: c.primary }, indicatorStyle]} />}
+            {activeFrame && <Animated.View style={[styles.segIndicator, { backgroundColor: c.card, borderColor: c.line }, indicatorStyle]} />}
             {([0, 1] as Mode[]).map((m) => {
               const active = m === mode;
               return (
@@ -145,7 +149,7 @@ export default function AuthScreen() {
                     setSegFrames((prev) => (prev[m]?.x === x && prev[m]?.width === width ? prev : { ...prev, [m]: { x, width } }));
                   }}
                   style={styles.segItem}>
-                  <AppText weight="semibold" size={15} color={active ? c.onPrimary : c.text}>
+                  <AppText weight={active ? 'semibold' : 'regular'} size={14} color={active ? c.text : c.muted}>
                     {m === 0 ? t.tabs.signUp : t.tabs.signIn}
                   </AppText>
                 </PressableScale>
@@ -157,9 +161,9 @@ export default function AuthScreen() {
             <Animated.View style={[styles.form, formStyle]} accessibilityHint={t.swipeHint} layout={layout}>
               {mode === 0 && (
                 <Animated.View
-                  entering={reduceMotion ? undefined : FadeInDown.springify().damping(16)}
-                  exiting={reduceMotion ? undefined : FadeOutUp.duration(160)}
-                  style={[styles.field, { backgroundColor: c.tile }]}>
+                  entering={reduceMotion ? undefined : FadeIn.duration(200)}
+                  exiting={reduceMotion ? undefined : FadeOut.duration(140)}
+                  style={styles.field}>
                   <AppText weight="medium" size={13} color={c.muted} nativeID="name-label">
                     {t.nameLabel}
                   </AppText>
@@ -175,7 +179,7 @@ export default function AuthScreen() {
                     returnKeyType="next"
                     style={[
                       styles.input,
-                      { color: c.text, borderBottomColor: focused === 'name' ? c.primary : c.fieldLine },
+                      { color: c.text, backgroundColor: c.card, borderColor: focused === 'name' ? c.primary : c.fieldLine },
                     ]}
                   />
                   {nameError && (
@@ -186,7 +190,7 @@ export default function AuthScreen() {
                 </Animated.View>
               )}
 
-              <Animated.View layout={layout} style={[styles.field, { backgroundColor: c.tile }]}>
+              <Animated.View layout={layout} style={styles.field}>
                 <AppText weight="medium" size={13} color={c.muted} nativeID="phone-label">
                   {t.phoneLabel}
                 </AppText>
@@ -195,8 +199,8 @@ export default function AuthScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${t.countryLabel}: ${country.nameAr} +${country.dial}`}
                     onPress={() => setPickerOpen(true)}
-                    style={[styles.country, { backgroundColor: c.bg }]}>
-                    <AppText weight="semibold" size={17}>{`+${country.dial}`}</AppText>
+                    style={[styles.country, { backgroundColor: c.card, borderColor: c.fieldLine }]}>
+                    <AppText weight="medium" size={16}>{`+${country.dial}`}</AppText>
                     <Icon name="chevronDown" color={c.muted} size={14} strokeWidth={2} />
                   </PressableScale>
                   <TextInput
@@ -214,7 +218,7 @@ export default function AuthScreen() {
                     style={[
                       styles.input,
                       styles.phoneInput,
-                      { color: c.text, borderBottomColor: focused === 'phone' ? c.primary : c.fieldLine },
+                      { color: c.text, backgroundColor: c.card, borderColor: focused === 'phone' ? c.primary : c.fieldLine },
                     ]}
                   />
                 </View>
@@ -244,8 +248,8 @@ export default function AuthScreen() {
           </View>
 
           <View style={styles.socialRow}>
-            <Button label={t.google} variant="secondary" height={52} onPress={() => setSocialNote(true)} />
-            <Button label={t.apple} variant="secondary" height={52} onPress={() => setSocialNote(true)} />
+            <Button label={t.google} variant="secondary" onPress={() => setSocialNote(true)} />
+            <Button label={t.apple} variant="secondary" onPress={() => setSocialNote(true)} />
           </View>
           {socialNote && (
             <Animated.View entering={FadeIn} exiting={FadeOut} style={[styles.note, { backgroundColor: c.accSoft }]}>
@@ -255,7 +259,7 @@ export default function AuthScreen() {
             </Animated.View>
           )}
 
-          <AppText size={12.5} color={c.muted} center>
+          <AppText size={12} color={c.placeholder} center>
             {t.terms}
           </AppText>
         </ScrollView>
@@ -276,29 +280,31 @@ export default function AuthScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { padding: 16, gap: 12, paddingBottom: 32 },
-  hero: { borderRadius: radius.tile, padding: 22, gap: 8, minHeight: 210 },
-  heroTitle: { marginTop: 'auto' },
-  logo: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  content: { paddingHorizontal: 20, paddingTop: 16, gap: 14, paddingBottom: 32 },
+  hero: { gap: 6, paddingTop: 8, paddingBottom: 10 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 22 },
+  heroTitle: {},
+  logo: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   ltr: { writingDirection: 'ltr' },
-  segment: { flexDirection: 'row', borderRadius: 20, padding: 4, height: 56 },
-  segIndicator: { position: 'absolute', top: 4, bottom: 4, left: 0, borderRadius: 16 },
-  segItem: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
-  form: { gap: 10 },
-  field: { borderRadius: radius.tile, paddingHorizontal: 18, paddingVertical: 16, gap: 8 },
+  segment: { flexDirection: 'row', borderRadius: radius.control, padding: 3, height: 44 },
+  segIndicator: { position: 'absolute', top: 3, bottom: 3, left: 0, borderRadius: radius.control - 3, borderWidth: StyleSheet.hairlineWidth * 2 },
+  segItem: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control - 3 },
+  form: { gap: 14 },
+  field: { gap: 6 },
   input: {
     fontFamily: 'ReadexPro_400Regular',
-    fontSize: 18,
-    minHeight: 46,
-    borderBottomWidth: 2,
-    paddingVertical: 6,
+    fontSize: 16,
+    height: 50,
+    borderWidth: 1,
+    borderRadius: radius.control,
+    paddingHorizontal: 14,
     textAlign: 'right',
   },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 10, direction: 'ltr' },
-  country: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 46, paddingHorizontal: 12, borderRadius: 14 },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'ltr' },
+  country: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 50, paddingHorizontal: 12, borderRadius: radius.control, borderWidth: 1 },
   phoneInput: { flex: 1, textAlign: 'left', writingDirection: 'ltr' },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
-  rule: { flex: 1, height: 1 },
-  socialRow: { gap: 10 },
-  note: { borderRadius: 16, padding: 12 },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth },
+  socialRow: { gap: 8 },
+  note: { borderRadius: radius.control, padding: 12 },
 });

@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View, type TextInputInstance } from 'react-native';
-import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 
 import { isCompleteOtp } from '@sq/shared';
 import { AppText } from '@/components/AppText';
@@ -74,12 +74,14 @@ export default function VerifyScreen() {
 
   return (
     <Screen edges={['top', 'bottom']} style={styles.body}>
-      <PressableScale accessibilityRole="button" accessibilityLabel={ar.common.back} onPress={() => router.back()} style={[styles.back, { backgroundColor: c.tile }]}>
-        <Icon name="back" color={c.text} size={20} strokeWidth={2} />
-      </PressableScale>
+      <View style={styles.topRow}>
+        <PressableScale accessibilityRole="button" accessibilityLabel={ar.common.back} onPress={() => router.back()} style={[styles.back, { borderColor: c.line }]}>
+          <Icon name="back" color={c.text} size={20} strokeWidth={2} />
+        </PressableScale>
+      </View>
 
-      <Animated.View entering={reduceMotion ? undefined : FadeInDown.springify().damping(16)} style={styles.head}>
-        <AppText weight="semibold" size={28} lineHeight={38}>
+      <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)} style={styles.head}>
+        <AppText weight="semibold" size={24} lineHeight={34}>
           {t.title}
         </AppText>
         <AppText size={15} lineHeight={25} color={c.muted}>
@@ -135,11 +137,12 @@ export default function VerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 20, paddingTop: 12, gap: 22 },
-  back: { alignSelf: 'flex-start', width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  body: { paddingHorizontal: 20, paddingTop: 12, gap: 20 },
+  topRow: { flexDirection: 'row' },
+  back: { width: 42, height: 42, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   head: { gap: 6 },
   status: { minHeight: 24 },
-  demo: { alignSelf: 'center', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
+  demo: { alignSelf: 'center', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   links: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   link: { minHeight: 44, justifyContent: 'center' },
 });
