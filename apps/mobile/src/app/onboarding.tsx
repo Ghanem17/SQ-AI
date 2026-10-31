@@ -41,6 +41,10 @@ const slides: Slide[] = [
 ];
 
 const LAST = slides.length - 1;
+// Plain arrays for the UI thread: worklets cannot call JS callbacks or capture
+// the slide objects, which hold React components.
+const SLIDE_STOPS = slides.map((_, i) => i);
+const SLIDE_COLORS = slides.map((s) => s.bg);
 const SPRING = { damping: 20, stiffness: 160, mass: 0.9 };
 
 function rubberBand(value: number) {
@@ -90,11 +94,7 @@ export default function Onboarding() {
   };
 
   const background = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      position.value,
-      slides.map((_, i) => i),
-      slides.map((s) => s.bg),
-    ),
+    backgroundColor: interpolateColor(position.value, SLIDE_STOPS, SLIDE_COLORS),
   }));
 
   const slide = slides[index];
