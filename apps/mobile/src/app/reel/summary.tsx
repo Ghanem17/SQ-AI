@@ -10,7 +10,6 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Card, Divider, KeyValue, Note, ScrollScreen, SectionTitle, TopBar, ui } from '@/components/ui';
 import { describeWhen } from '@/features/reel/when';
-import { todayShots } from '@/mock/data';
 import { useStudio, type Order } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
@@ -42,7 +41,7 @@ export default function SummaryScreen() {
         </>
       }>
       <Card>
-        <Row label="اللقطات" value={`${draft.captured.length || todayShots.length} من ${todayShots.length}`} onEdit={() => router.navigate('/(tabs)/camera')} />
+        <Row label="اللقطات" value={`${draft.captured.length || draft.shots.length} من ${draft.shots.length}`} onEdit={() => router.navigate('/(tabs)/camera')} />
         <Divider />
         <Row label="الجودة" value={`${tiers[draft.tier].name} · ${tiers[draft.tier].resolution}`} onEdit={() => router.navigate('/reel/quality')} />
         <Divider />

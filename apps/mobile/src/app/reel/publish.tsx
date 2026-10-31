@@ -8,7 +8,9 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Badge, Card, Chip, Note, RadioCard, ScrollScreen, SectionTitle, TopBar, ui } from '@/components/ui';
+import { VoicePreview } from '@/features/reel/VoicePreview';
 import { dayDate, dayLabel, timeLabel } from '@/features/reel/when';
+import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
 import { bestTime } from '@/mock/data';
 import { defaultCaption, useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -31,6 +33,33 @@ export default function PublishScreen() {
   const { draft, updateDraft } = useStudio();
   const [editing, setEditing] = useState(false);
   const [captionIndex, setCaptionIndex] = useState(0);
+  const [writing, setWriting] = useState(false);
+  const [captionNote, setCaptionNote] = useState<string | null>(null);
+  const business = useBusiness();
+  const status = useAiStatus();
+
+  // A fresh caption from Claude; without the key, the next sample one.
+  const rewrite = async () => {
+    setEditing(false);
+    setWriting(true);
+    try {
+      const { caption } = await postJson<{ caption: string }>('/api/caption', {
+        business,
+        title: draft.title,
+        platforms: draft.platforms.map((p) => platformNames[p]),
+        previous: draft.caption,
+      });
+      updateDraft({ caption });
+      setCaptionNote(null);
+    } catch (err) {
+      const next = (captionIndex + 1) % captions.length;
+      setCaptionIndex(next);
+      updateDraft({ caption: captions[next] });
+      setCaptionNote(err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed);
+    } finally {
+      setWriting(false);
+    }
+  };
   const custom = draft.when.kind === 'custom' ? draft.when : { kind: 'custom' as const, day: 0, hour: 20, minute: 30 };
 
   const toggle = (p: Platform) => {
@@ -53,21 +82,17 @@ export default function PublishScreen() {
       <SectionTitle title="الكابشن" />
       <Card>
         <View style={ui.between}>
-          <Badge label="كتبه المساعد" tone="pri" icon="sparkle" />
+          <Badge label={status === 'online' ? 'Claude' : 'كتبه المساعد'} tone="pri" icon="sparkle" />
           <View style={styles.capActions}>
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel="اكتب كابشن آخر"
-              onPress={() => {
-                const next = (captionIndex + 1) % captions.length;
-                setCaptionIndex(next);
-                updateDraft({ caption: captions[next] });
-                setEditing(false);
-              }}
+              disabled={writing}
+              onPress={rewrite}
               style={styles.capBtn}>
               <Icon name="refresh" color={c.primary} size={16} />
               <AppText size={12.5} weight="medium" color={c.primary}>
-                نسخة أخرى
+                {writing ? 'يكتب…' : 'نسخة أخرى'}
               </AppText>
             </PressableScale>
             <PressableScale accessibilityRole="button" accessibilityLabel="عدّل الكابشن" onPress={() => setEditing((e) => !e)} style={styles.capBtn}>
@@ -93,9 +118,15 @@ export default function PublishScreen() {
           </AppText>
         )}
         <AppText size={12} color={c.placeholder}>
-          تيك توك ويوتيوب يأخذان نسخة أقصر تلقائيًا.
+          {captionNote ? `نسخة تجريبية · ${captionNote}` : 'تيك توك ويوتيوب يأخذان نسخة أقصر تلقائيًا.'}
         </AppText>
       </Card>
+
+      {draft.tier !== 'basic' && (
+        <Card>
+          <VoicePreview caption={draft.caption} />
+        </Card>
+      )}
 
       <SectionTitle title="وقت النشر" />
       <RadioCard selected={draft.when.kind === 'best'} onPress={() => updateDraft({ when: { kind: 'best' } })} label="أفضل وقت">

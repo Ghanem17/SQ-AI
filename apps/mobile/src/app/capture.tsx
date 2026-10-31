@@ -11,7 +11,6 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { todayShots } from '@/mock/data';
 import { useStudio } from '@/state/studio';
 
 type Phase = 'ready' | 'countdown' | 'recording' | 'done';
@@ -24,9 +23,10 @@ const scrim = 'rgba(0,0,0,0.45)';
 // length so every clip fits the edit.
 export default function CaptureScreen() {
   const { shot: shotParam } = useLocalSearchParams<{ shot?: string }>();
-  const index = Math.max(0, Math.min(todayShots.length - 1, Number(shotParam ?? 0) || 0));
-  const shot = todayShots[index];
   const { draft, updateDraft } = useStudio();
+  const shots = draft.shots;
+  const index = Math.max(0, Math.min(shots.length - 1, Number(shotParam ?? 0) || 0));
+  const shot = shots[index];
 
   const [camPerm, requestCam] = useCameraPermissions();
   const [micPerm, requestMic] = useMicrophonePermissions();
@@ -110,7 +110,7 @@ export default function CaptureScreen() {
   }
 
   const progress = phase === 'recording' ? elapsed / shot.seconds : phase === 'done' ? 1 : 0;
-  const nextIndex = todayShots.findIndex((_, i) => i !== index && !draft.captured.includes(i));
+  const nextIndex = shots.findIndex((_, i) => i !== index && !draft.captured.includes(i));
 
   return (
     <View style={styles.root}>
@@ -149,7 +149,7 @@ export default function CaptureScreen() {
           </PressableScale>
           <View style={styles.topText}>
             <AppText weight="semibold" size={14} color={white} center>
-              اللقطة {index + 1} من {todayShots.length}
+              اللقطة {index + 1} من {shots.length}
             </AppText>
             <AppText size={12} color="rgba(255,255,255,0.8)" center>
               {shot.title}

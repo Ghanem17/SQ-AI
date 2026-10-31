@@ -11,18 +11,17 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, TopBar, ui } from '@/components/ui';
-import { todayShots } from '@/mock/data';
-import { useSession } from '@/state/session';
+import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
+import { todayShots, type Shot } from '@/mock/data';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
 type Idea = { title: string; hook: string; why: string };
+type ApiReply = { text?: string; ideas?: Idea[]; shots?: Shot[] };
 
 type Entry =
   | { id: number; from: 'me'; text: string }
-  | { id: number; from: 'ai'; text: string }
-  | { id: number; from: 'ai'; kind: 'ideas'; ideas: Idea[] }
-  | { id: number; from: 'ai'; kind: 'shots'; idea: Idea };
+  | { id: number; from: 'ai'; text: string; ideas?: Idea[]; shots?: Shot[]; idea?: Idea; offline?: string };
 
 const shopIdeas: Idea[] = [
   { title: 'صحن الدولمة من المطبخ للطاولة', hook: '«دولمة اليوم طالعة قبل ساعة»', why: 'ريلز الأكل الطازج جابتلك أرخص طلبات الشهر' },
@@ -39,74 +38,98 @@ const creatorIdeas: Idea[] = [
 const tips =
   'ثلاث قواعد تفرق كثيرًا:\n1. صوّر قرب شباك، والضوء يجي من الجنب مو من الخلف.\n2. ثبّت الموبايل بيدين أو على كوب، وتحرك ببطء.\n3. أول ثانيتين أهم شي: ابدأ بأقرب لقطة وأشهى منظر.';
 
+// What the model has seen so far, as plain chat turns.
+function history(entries: Entry[]) {
+  return entries.slice(1).map((e) => {
+    if (e.from === 'me') return { role: 'user' as const, content: e.text };
+    const parts = [e.text];
+    if (e.ideas) parts.push(`الأفكار: ${e.ideas.map((i) => i.title).join('، ')}`);
+    if (e.shots) parts.push(`اللقطات: ${e.shots.map((s) => s.title).join('، ')}`);
+    return { role: 'assistant' as const, content: parts.filter(Boolean).join('\n') };
+  });
+}
+
 // The assistant for "I don't know what to film": quick prompts, ideas tied to
-// the account's own numbers, and a shot list that opens the camera.
+// the account, and a shot list that opens the camera. Uses Claude through
+// OpenRouter when the key is set, and sample answers otherwise.
 export default function AssistantScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
-  const { accountType } = useSession();
+  const business = useBusiness();
+  const status = useAiStatus();
   const { startDraft } = useStudio();
-  const ideas = accountType === 'creator' ? creatorIdeas : shopIdeas;
+  const sampleIdeas = business.kind === 'creator' ? creatorIdeas : shopIdeas;
   const [entries, setEntries] = useState<Entry[]>([
-    { id: 0, from: 'ai', text: 'أهلًا، أنا مساعد SQ. أقترح عليك ماذا تصوّر حسب خطة شهرك وأداء الريلز السابقة، وأحوّل الفكرة لقائمة لقطات جاهزة.' },
+    { id: 0, from: 'ai', text: 'أهلًا، أنا مساعد SQ. أقترح عليك ماذا تصوّر، وأحوّل الفكرة لقائمة لقطات جاهزة تفتح الكاميرا مباشرة.' },
   ]);
   const [text, setText] = useState('');
-  const [typing, setTyping] = useState(false);
+  const [busy, setBusy] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   const nextId = useRef(1);
 
   useEffect(() => {
     const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: !reduceMotion }), 50);
     return () => clearTimeout(t);
-  }, [entries, typing, reduceMotion]);
+  }, [entries, busy, reduceMotion]);
 
-  const reply = (make: () => Entry) => {
-    setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      setEntries((e) => [...e, make()]);
-    }, 900);
-  };
-
-  const ask = (q: string) => {
-    const body = q.trim();
-    if (!body || typing) return;
-    setEntries((e) => [...e, { id: nextId.current++, from: 'me', text: body }]);
+  const send = async (userText: string, idea?: Idea) => {
+    const body = userText.trim();
+    if (!body || busy) return;
+    const mine: Entry = { id: nextId.current++, from: 'me', text: body };
+    const next = [...entries, mine];
+    setEntries(next);
     setText('');
+    setBusy(true);
     const id = nextId.current++;
-    if (/كيف|نصيح|ضو|إضاء|اضاء/.test(body)) reply(() => ({ id, from: 'ai', text: tips }));
-    else reply(() => ({ id, from: 'ai', kind: 'ideas', ideas }));
-  };
-
-  const choose = (idea: Idea) => {
-    setEntries((e) => [...e, { id: nextId.current++, from: 'me', text: `خلينا نصوّر: ${idea.title}` }]);
-    const id = nextId.current++;
-    reply(() => ({ id, from: 'ai', kind: 'shots', idea }));
+    try {
+      const reply = await postJson<ApiReply>('/api/assistant', { business, messages: history(next) });
+      setEntries((e) => [...e, { id, from: 'ai', text: reply.text ?? '', ideas: reply.ideas, shots: reply.shots, idea }]);
+    } catch (err) {
+      // Sample answers keep the flow usable without a key; the reason shows.
+      const offline = err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed;
+      const fallback: Entry = idea
+        ? { id, from: 'ai', text: 'هذه قائمة لقطات مقترحة:', shots: todayShots, idea, offline }
+        : /كيف|نصيح|ضو|إضاء|اضاء/.test(body)
+          ? { id, from: 'ai', text: tips, offline }
+          : { id, from: 'ai', text: 'هذه ثلاث أفكار مناسبة لك هذا الأسبوع:', ideas: sampleIdeas, offline };
+      setEntries((e) => [...e, fallback]);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const prompts = ['شو أصوّر اليوم؟', 'فكرة لعرض نهاية الأسبوع', 'كيف أصوّر الأكل بشكل أحلى؟'];
 
   return (
     <Screen edges={['top']}>
-      <TopBar title="المساعد" subtitle="أفكار وقوائم لقطات" mode="close" />
+      <TopBar
+        title="المساعد"
+        subtitle="أفكار وقوائم لقطات"
+        mode="close"
+        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'offline' ? <Badge label="ردود تجريبية" /> : undefined}
+      />
       <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
           {entries.map((e) => (
-            <Animated.View key={e.id} entering={reduceMotion ? undefined : FadeIn.duration(220)}>
+            <Animated.View key={e.id} entering={reduceMotion ? undefined : FadeIn.duration(220)} style={styles.block}>
               {e.from === 'me' ? (
                 <View style={[styles.bubble, styles.me, { backgroundColor: c.primary }]}>
                   <AppText size={14} lineHeight={22} color={c.onPrimary}>
                     {e.text}
                   </AppText>
                 </View>
-              ) : 'kind' in e && e.kind === 'ideas' ? (
-                <View style={styles.block}>
-                  <AppText size={14} lineHeight={22}>
-                    هذه ثلاث أفكار مناسبة لك هذا الأسبوع:
-                  </AppText>
-                  {e.ideas.map((idea) => (
-                    <Card key={idea.title} onPress={() => choose(idea)} accessibilityLabel={idea.title}>
+              ) : (
+                <>
+                  {!!e.text && (
+                    <View style={[styles.bubble, styles.ai, { backgroundColor: c.tile }]}>
+                      <AppText size={14} lineHeight={22}>
+                        {e.text}
+                      </AppText>
+                    </View>
+                  )}
+                  {e.ideas?.map((idea) => (
+                    <Card key={idea.title} onPress={() => send(`خلينا نصوّر: ${idea.title}. أعطني قائمة اللقطات.`, idea)} accessibilityLabel={idea.title}>
                       <AppText weight="semibold" size={14.5}>
                         {idea.title}
                       </AppText>
@@ -122,55 +145,52 @@ export default function AssistantScreen() {
                       </AppText>
                     </Card>
                   ))}
-                </View>
-              ) : 'kind' in e && e.kind === 'shots' ? (
-                <View style={styles.block}>
-                  <AppText size={14} lineHeight={22}>
-                    ممتاز. هذه قائمة اللقطات، كل لقطة بين 3 و4 ثوانٍ:
-                  </AppText>
-                  <Card>
-                    <AppText weight="semibold" size={14.5}>
-                      {e.idea.title}
+                  {e.shots && e.shots.length > 0 && (
+                    <Card>
+                      {e.idea && (
+                        <AppText weight="semibold" size={14.5}>
+                          {e.idea.title}
+                        </AppText>
+                      )}
+                      {e.shots.map((s, i) => (
+                        <View key={`${s.title}${i}`} style={styles.shot}>
+                          <View style={[styles.num, { backgroundColor: c.tile }]}>
+                            <AppText size={12} weight="semibold" color={c.muted}>
+                              {i + 1}
+                            </AppText>
+                          </View>
+                          <View style={ui.flex}>
+                            <AppText size={13.5} weight="medium">
+                              {s.title}
+                            </AppText>
+                            <AppText size={12} color={c.muted}>
+                              {s.hint}
+                            </AppText>
+                          </View>
+                          <Badge label={`${s.seconds} ث`} />
+                        </View>
+                      ))}
+                      <Button
+                        label="ابدأ التصوير"
+                        icon="camera"
+                        height={44}
+                        onPress={() => {
+                          startDraft(e.idea?.title ?? 'ريل جديد', e.shots);
+                          router.dismissTo('/(tabs)/camera');
+                        }}
+                      />
+                    </Card>
+                  )}
+                  {e.offline && (
+                    <AppText size={11.5} color={c.placeholder}>
+                      رد تجريبي · {e.offline}
                     </AppText>
-                    {todayShots.map((s, i) => (
-                      <View key={s.title} style={styles.shot}>
-                        <View style={[styles.num, { backgroundColor: c.tile }]}>
-                          <AppText size={12} weight="semibold" color={c.muted}>
-                            {i + 1}
-                          </AppText>
-                        </View>
-                        <View style={ui.flex}>
-                          <AppText size={13.5} weight="medium">
-                            {s.title}
-                          </AppText>
-                          <AppText size={12} color={c.muted}>
-                            {s.hint}
-                          </AppText>
-                        </View>
-                        <Badge label={`${s.seconds} ث`} />
-                      </View>
-                    ))}
-                    <Button
-                      label="ابدأ التصوير"
-                      icon="camera"
-                      height={44}
-                      onPress={() => {
-                        startDraft(e.idea.title);
-                        router.dismissTo('/(tabs)/camera');
-                      }}
-                    />
-                  </Card>
-                </View>
-              ) : (
-                <View style={[styles.bubble, styles.ai, { backgroundColor: c.tile }]}>
-                  <AppText size={14} lineHeight={22}>
-                    {'text' in e ? e.text : ''}
-                  </AppText>
-                </View>
+                  )}
+                </>
               )}
             </Animated.View>
           ))}
-          {typing && (
+          {busy && (
             <View style={[styles.bubble, styles.ai, styles.typing, { backgroundColor: c.tile }]}>
               <AppText size={13} color={c.muted}>
                 يكتب…
@@ -182,7 +202,7 @@ export default function AssistantScreen() {
         <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.bg, paddingBottom: insets.bottom + 8 }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prompts} keyboardShouldPersistTaps="handled">
             {prompts.map((p) => (
-              <PressableScale key={p} accessibilityRole="button" onPress={() => ask(p)} style={[styles.prompt, { borderColor: c.line }]}>
+              <PressableScale key={p} accessibilityRole="button" disabled={busy} onPress={() => send(p)} style={[styles.prompt, { borderColor: c.line }]}>
                 <AppText size={12.5} color={c.text}>
                   {p}
                 </AppText>
@@ -196,21 +216,18 @@ export default function AssistantScreen() {
               placeholder="اسأل عن فكرة أو نصيحة تصوير"
               placeholderTextColor={c.placeholder}
               style={[styles.input, { color: c.text, backgroundColor: c.tile }]}
-              onSubmitEditing={() => ask(text)}
+              onSubmitEditing={() => send(text)}
               returnKeyType="send"
             />
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel="أرسل"
-              disabled={!text.trim() || typing}
-              onPress={() => ask(text)}
+              disabled={!text.trim() || busy}
+              onPress={() => send(text)}
               style={[styles.send, { backgroundColor: text.trim() ? c.primary : c.tile }]}>
               <Icon name="send" color={text.trim() ? c.onPrimary : c.placeholder} size={18} />
             </PressableScale>
           </View>
-          <AppText size={11} color={c.placeholder} center>
-            نسخة تجريبية · الردود جاهزة مسبقًا حتى ربط Claude في المرحلة الثانية
-          </AppText>
         </View>
       </KeyboardAvoidingView>
     </Screen>
@@ -219,11 +236,11 @@ export default function AssistantScreen() {
 
 const styles = StyleSheet.create({
   thread: { padding: 16, gap: 12 },
+  block: { gap: 8 },
   bubble: { maxWidth: '86%', paddingHorizontal: 12, paddingVertical: 9, borderRadius: radius.tile },
   me: { alignSelf: 'flex-end', borderBottomLeftRadius: 4 },
   ai: { alignSelf: 'flex-start', borderBottomRightRadius: 4 },
   typing: { paddingVertical: 6 },
-  block: { gap: 8 },
   why: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   shot: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
   num: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },

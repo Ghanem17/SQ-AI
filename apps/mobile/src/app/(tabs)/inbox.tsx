@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { formatIQD, platformNames } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { Icon } from '@/components/Icon';
 import { Appear, Avatar, Badge, Card, ListRow, Note, PageTitle, PlatformTag, ScrollScreen, Segmented, Stat, ui } from '@/components/ui';
 import { tagTone } from '@/features/inbox/tags';
 import { collabs, conversations, tagLabels, type Collab } from '@/mock/data';
@@ -33,6 +34,21 @@ function Inbox() {
           <Stat label="زمن الرد" value="40 ث" delta="متوسط" good />
           <Stat label="طلبات مسجلة" value="11" delta="من المحادثات" good />
         </View>
+      </Card>
+
+      <Card onPress={() => router.push('/test-chat')} accessibilityLabel="جرّب الرد على زبون" style={styles.try}>
+        <View style={[styles.tryIcon, { backgroundColor: c.priSoft }]}>
+          <Icon name="sparkle" color={c.onPriSoft} size={17} />
+        </View>
+        <View style={ui.flex}>
+          <AppText weight="medium" size={14.5}>
+            جرّب الرد على زبون
+          </AppText>
+          <AppText size={12.5} color={c.muted}>
+            اكتب كأنك زبون وشوف كيف يرد المساعد ويسجّل الطلب
+          </AppText>
+        </View>
+        <Icon name="chevronLeft" color={c.placeholder} size={18} />
       </Card>
 
       <Segmented
@@ -158,4 +174,6 @@ const styles = StyleSheet.create({
   trail: { alignItems: 'flex-end', gap: 4 },
   unread: { minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  try: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tryIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });

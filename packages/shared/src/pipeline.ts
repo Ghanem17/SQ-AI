@@ -20,7 +20,7 @@ export const pipeline: Step[] = [
   { id: 'idea', name: 'اقتراح الفكرة', detail: 'من خطة الشهر وأداء الريلز السابقة', tools: ['claude'] },
   { id: 'shotList', name: 'قائمة اللقطات', detail: 'زوايا وإضاءة ومدة كل لقطة', tools: ['claude'] },
   { id: 'qualityCheck', name: 'فحص اللقطة', detail: 'الإضاءة والاهتزاز والإطار، على الموبايل', tools: [] },
-  { id: 'edit', name: 'المونتاج', detail: 'حسب مستوى الجودة المختار', tools: ['shotstack', 'whisper', 'suno'] },
+  { id: 'edit', name: 'المونتاج', detail: 'حسب مستوى الجودة المختار', tools: ['ffmpeg', 'lyria', 'elevenlabs'] },
   {
     id: 'caption',
     name: 'الكابشن والهاشتاغات',

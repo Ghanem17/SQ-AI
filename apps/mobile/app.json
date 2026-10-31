@@ -23,7 +23,7 @@
       "package": "com.samaqasioun.sqai"
     },
     "web": {
-      "output": "single",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -54,7 +54,8 @@
           "microphonePermission": "يستخدم SQ AI الميكروفون لتسجيل صوت اللقطة.",
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

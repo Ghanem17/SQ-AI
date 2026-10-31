@@ -6,11 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { promotionCost, reelPrice, type Platform, type PlanSize, type PromoLevel, type Tier } from '@sq/shared';
+import { todayShots, type Shot } from '@/mock/data';
 
 export type PublishWhen = { kind: 'best' } | { kind: 'now' } | { kind: 'custom'; day: number; hour: number; minute: number };
 
 export type Draft = {
   title: string;
+  shots: Shot[];
   captured: number[];
   tier: Tier;
   platforms: Platform[];
@@ -61,7 +63,7 @@ type Saved = { orders: Order[]; plan: Plan; automation: Automation };
 
 type Studio = Saved & {
   draft: Draft;
-  startDraft: (title: string) => void;
+  startDraft: (title: string, shots?: Shot[]) => void;
   updateDraft: (patch: Partial<Draft>) => void;
   placeOrder: () => Order;
   savePlan: (plan: Plan) => void;
@@ -74,8 +76,9 @@ const STORAGE_KEY = 'sq.studio.v1';
 export const defaultCaption =
   'دولمة بيت الريف، محشية على أصولها ومطبوخة على نار هادئة 🍋\nاطلبها الآن عبر الواتساب، التوصيل لكل مناطق بغداد.\n#بغداد #مطاعم_بغداد #دولمة';
 
-const newDraft = (title: string): Draft => ({
+const newDraft = (title: string, shots: Shot[] = todayShots): Draft => ({
   title,
+  shots: shots.length ? shots : todayShots,
   captured: [],
   tier: 'pro',
   platforms: ['instagram', 'facebook'],
@@ -140,7 +143,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     ...saved,
     draft,
     spentThisMonth,
-    startDraft: (title) => setDraft(newDraft(title)),
+    startDraft: (title, shots) => setDraft(newDraft(title, shots)),
     updateDraft: (patch) => setDraft((prev) => ({ ...prev, ...patch })),
     placeOrder: () => {
       const order: Order = {

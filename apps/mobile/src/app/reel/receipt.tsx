@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { formatIQD, promoLevels, promotionCost, reelPrice, tierOrder, tiers, tools, toolsCost, type Tier } from '@sq/shared';
+import { formatIQD, promoLevels, promotionCost, reelPrice, tierOrder, tiers, tools, toolsCost, viaLabels, type Tier } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Card, Divider, KeyValue, Note, ScrollScreen, Segmented, TopBar, ui } from '@/components/ui';
 import { useStudio } from '@/state/studio';
@@ -53,7 +53,7 @@ export default function ReceiptScreen() {
                 {item.task}
               </AppText>
               <AppText size={12} color={c.muted}>
-                {item.tools.map((t) => `${tools[t].name} (${tools[t].vendor})`).join('، ')}
+                {item.tools.map((t) => `${tools[t].name} · ${viaLabels[tools[t].via]}`).join('، ')}
               </AppText>
             </View>
             <AppText size={13.5} weight="medium" style={ui.tabular}>
@@ -83,6 +83,9 @@ export default function ReceiptScreen() {
         </Card>
       )}
 
+      <Note icon="layers">
+        كل نماذج الذكاء الاصطناعي تعمل عبر حساب OpenRouter واحد، والمونتاج على سيرفرنا بأداة ffmpeg المجانية، لذلك كلفة الأدوات منخفضة ورسوم الخدمة هي معظم السعر.
+      </Note>
       <Note>
         الأسعار تجريبية وتُحسب من كلفة كل أداة لكل ريل. عند تغيّر أسعار المزودين يتغير السعر هنا تلقائيًا، وترى ذلك قبل أي طلب.
       </Note>

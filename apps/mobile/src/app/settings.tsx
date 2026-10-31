@@ -6,6 +6,7 @@ import { formatIQD, platformNames, tiers, type AccountType, type Platform, type 
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Avatar, Badge, Card, ListRow, PlatformTag, ScrollScreen, SectionTitle, Segmented, TopBar, ui } from '@/components/ui';
+import { useAiStatus } from '@/lib/ai';
 import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -16,6 +17,7 @@ export default function SettingsScreen() {
   const { c } = useTheme();
   const { themePreference, setThemePreference, signOut, displayName, phone, accountType, chooseAccountType } = useSession();
   const { plan, automation, orders } = useStudio();
+  const ai = useAiStatus();
   const name = displayName ?? (accountType === 'creator' ? 'نور' : 'مطعم بيت الريف');
 
   return (
@@ -49,7 +51,15 @@ export default function SettingsScreen() {
           subtitle={automation.enabled ? `يعمل · سقف ${formatIQD(automation.monthlyCap)}` : 'متوقف'}
           onPress={() => router.push('/automation')}
         />
-        <ListRow icon="receipt" title="الطلبات" subtitle={orders.length ? `${orders.length} طلبات في هذا الجهاز` : 'لا توجد طلبات بعد'} last />
+        <ListRow icon="receipt" title="الطلبات" subtitle={orders.length ? `${orders.length} طلبات في هذا الجهاز` : 'لا توجد طلبات بعد'} />
+        <ListRow
+          icon="sparkle"
+          title="الذكاء الاصطناعي"
+          subtitle={ai === 'online' ? 'مربوط عبر OpenRouter' : ai === 'offline' ? 'غير مربوط: أضف مفتاح OpenRouter على الكمبيوتر' : 'جارٍ الفحص…'}
+          trailing={<Badge label={ai === 'online' ? 'متصل' : ai === 'offline' ? 'غير متصل' : '…'} tone={ai === 'online' ? 'ok' : 'neutral'} />}
+          onPress={() => router.push('/test-chat')}
+          last
+        />
       </Card>
 
       <SectionTitle title="الحسابات المربوطة" />

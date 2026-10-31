@@ -1,19 +1,19 @@
 // Reel pricing. Every price is the sum of the AI work it pays for plus the
 // service fee, so the app can always show the customer why a reel costs what
-// it costs. Amounts are Iraqi dinars and are sample values until the pricing
-// is approved.
+// it costs. Tool costs follow OpenRouter's listed rates for one 15-second
+// reel; amounts are Iraqi dinars and are sample values until pricing is
+// approved.
 
 export type Tier = 'basic' | 'pro' | 'premium';
 
 export type ToolId =
   | 'claude'
-  | 'whisper'
-  | 'shotstack'
-  | 'suno'
+  | 'lyria'
   | 'elevenlabs'
-  | 'topaz'
-  | 'flux'
-  | 'runway'
+  | 'geminiImage'
+  | 'veo'
+  | 'fluxUpscale'
+  | 'ffmpeg'
   | 'metaApi'
   | 'tiktokApi'
   | 'youtubeApi'
@@ -21,23 +21,32 @@ export type ToolId =
   | 'metaAds'
   | 'tiktokAds';
 
-export type Tool = { id: ToolId; name: string; vendor: string };
+// How each tool is reached: one OpenRouter key for every AI model, our own
+// server for editing, and each platform's official API for publishing.
+export type ToolVia = 'openrouter' | 'server' | 'platform';
+
+export type Tool = { id: ToolId; name: string; vendor: string; via: ToolVia; model?: string };
 
 export const tools: Record<ToolId, Tool> = {
-  claude: { id: 'claude', name: 'Claude', vendor: 'Anthropic' },
-  whisper: { id: 'whisper', name: 'Whisper', vendor: 'OpenAI' },
-  shotstack: { id: 'shotstack', name: 'Shotstack', vendor: 'Shotstack' },
-  suno: { id: 'suno', name: 'Suno', vendor: 'Suno' },
-  elevenlabs: { id: 'elevenlabs', name: 'ElevenLabs', vendor: 'ElevenLabs' },
-  topaz: { id: 'topaz', name: 'Topaz Video AI', vendor: 'Topaz Labs' },
-  flux: { id: 'flux', name: 'FLUX', vendor: 'Black Forest Labs' },
-  runway: { id: 'runway', name: 'Runway', vendor: 'Runway' },
-  metaApi: { id: 'metaApi', name: 'Meta Graph API', vendor: 'Meta' },
-  tiktokApi: { id: 'tiktokApi', name: 'TikTok Content API', vendor: 'TikTok' },
-  youtubeApi: { id: 'youtubeApi', name: 'YouTube Data API', vendor: 'Google' },
-  whatsappApi: { id: 'whatsappApi', name: 'WhatsApp Cloud API', vendor: 'Meta' },
-  metaAds: { id: 'metaAds', name: 'Meta Marketing API', vendor: 'Meta' },
-  tiktokAds: { id: 'tiktokAds', name: 'TikTok Ads API', vendor: 'TikTok' },
+  claude: { id: 'claude', name: 'Claude Sonnet 5.5', vendor: 'Anthropic', via: 'openrouter', model: 'anthropic/claude-sonnet-5.5' },
+  lyria: { id: 'lyria', name: 'Lyria 3', vendor: 'Google', via: 'openrouter', model: 'google/lyria-3-clip-preview' },
+  elevenlabs: { id: 'elevenlabs', name: 'ElevenLabs v4', vendor: 'ElevenLabs', via: 'openrouter', model: 'elevenlabs/eleven-v4-turbo' },
+  geminiImage: { id: 'geminiImage', name: 'Gemini Image', vendor: 'Google', via: 'openrouter', model: 'google/gemini-3.1-flash-image' },
+  veo: { id: 'veo', name: 'Veo 3.1 Fast', vendor: 'Google', via: 'openrouter', model: 'google/veo-3.1-fast' },
+  fluxUpscale: { id: 'fluxUpscale', name: 'FLUX Video Upscale', vendor: 'Black Forest Labs', via: 'openrouter', model: 'black-forest-labs/flux-video-upscale' },
+  ffmpeg: { id: 'ffmpeg', name: 'ffmpeg', vendor: 'سيرفر SQ', via: 'server' },
+  metaApi: { id: 'metaApi', name: 'Meta Graph API', vendor: 'Meta', via: 'platform' },
+  tiktokApi: { id: 'tiktokApi', name: 'TikTok Content API', vendor: 'TikTok', via: 'platform' },
+  youtubeApi: { id: 'youtubeApi', name: 'YouTube Data API', vendor: 'Google', via: 'platform' },
+  whatsappApi: { id: 'whatsappApi', name: 'WhatsApp Cloud API', vendor: 'Meta', via: 'platform' },
+  metaAds: { id: 'metaAds', name: 'Meta Marketing API', vendor: 'Meta', via: 'platform' },
+  tiktokAds: { id: 'tiktokAds', name: 'TikTok Ads API', vendor: 'TikTok', via: 'platform' },
+};
+
+export const viaLabels: Record<ToolVia, string> = {
+  openrouter: 'عبر OpenRouter',
+  server: 'على سيرفرنا',
+  platform: 'واجهة المنصة الرسمية',
 };
 
 export type LineItem = {
@@ -58,10 +67,10 @@ export type TierSpec = {
 };
 
 const base: LineItem[] = [
-  { task: 'كتابة الفكرة والسكربت والكابشن', tools: ['claude'], cost: 1000 },
-  { task: 'تفريغ الصوت والترجمة على الشاشة', tools: ['whisper'], cost: 500 },
-  { task: 'المونتاج والقص التلقائي', tools: ['shotstack'], cost: 2500 },
-  { task: 'موسيقى مرخّصة للريل', tools: ['suno'], cost: 1000 },
+  { task: 'كتابة الفكرة والسكربت والكابشن', tools: ['claude'], cost: 250 },
+  { task: 'الترجمة المكتوبة على الشاشة', tools: ['claude', 'ffmpeg'], cost: 250 },
+  { task: 'المونتاج والقص', tools: ['ffmpeg'], cost: 500 },
+  { task: 'موسيقى مؤلفة للريل', tools: ['lyria'], cost: 750 },
 ];
 
 export const tiers: Record<Tier, TierSpec> = {
@@ -72,7 +81,7 @@ export const tiers: Record<Tier, TierSpec> = {
     deliveryHours: 2,
     resolution: '1080p',
     items: base,
-    serviceFee: 10000,
+    serviceFee: 8250,
   },
   pro: {
     id: 'pro',
@@ -82,27 +91,27 @@ export const tiers: Record<Tier, TierSpec> = {
     resolution: '1080p',
     items: [
       ...base,
-      { task: 'تعليق صوتي بلهجة محلية', tools: ['elevenlabs'], cost: 3000 },
-      { task: 'تصحيح الألوان وتثبيت الاهتزاز', tools: ['topaz'], cost: 4000 },
-      { task: 'تصميم صورة الغلاف', tools: ['flux'], cost: 1500 },
+      { task: 'تعليق صوتي بالعربي', tools: ['elevenlabs'], cost: 250 },
+      { task: 'تصحيح الألوان وتثبيت الاهتزاز', tools: ['ffmpeg'], cost: 250 },
+      { task: 'تصميم صورة الغلاف', tools: ['geminiImage'], cost: 250 },
     ],
-    serviceFee: 21500,
+    serviceFee: 17500,
   },
   premium: {
     id: 'premium',
     name: 'متقدم',
-    summary: 'لقطات مولّدة بالذكاء الاصطناعي ودقة 4K ونسختان للمقارنة',
+    summary: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي ودقة 4K ونسختان للمقارنة',
     deliveryHours: 24,
     resolution: '4K',
     items: [
       ...base,
-      { task: 'تعليق صوتي بلهجة محلية', tools: ['elevenlabs'], cost: 3000 },
-      { task: 'تصحيح الألوان والرفع إلى 4K', tools: ['topaz'], cost: 7000 },
-      { task: 'تصميم صورة الغلاف', tools: ['flux'], cost: 1500 },
-      { task: 'لقطات افتتاحية مولّدة بالذكاء الاصطناعي', tools: ['runway'], cost: 18000 },
-      { task: 'نسخة ثانية بافتتاحية مختلفة للمقارنة', tools: ['claude', 'shotstack'], cost: 3500 },
+      { task: 'تعليق صوتي بالعربي', tools: ['elevenlabs'], cost: 250 },
+      { task: 'رفع الدقة إلى 4K', tools: ['fluxUpscale'], cost: 1500 },
+      { task: 'تصميم صورة الغلاف', tools: ['geminiImage'], cost: 250 },
+      { task: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي', tools: ['veo'], cost: 2500 },
+      { task: 'نسخة ثانية بافتتاحية مختلفة للمقارنة', tools: ['claude', 'ffmpeg'], cost: 500 },
     ],
-    serviceFee: 37000,
+    serviceFee: 33250,
   },
 };
 

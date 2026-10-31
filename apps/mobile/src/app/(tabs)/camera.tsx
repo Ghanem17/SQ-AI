@@ -6,7 +6,6 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Appear, Badge, Card, Note, PageTitle, Progress, ScrollScreen, SectionTitle, ui } from '@/components/ui';
-import { todayShots } from '@/mock/data';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
@@ -15,9 +14,10 @@ import { useTheme } from '@/theme/theme';
 export default function CameraTab() {
   const { c } = useTheme();
   const { draft, updateDraft } = useStudio();
+  const shots = draft.shots;
   const done = draft.captured.length;
-  const total = todayShots.length;
-  const next = todayShots.findIndex((_, i) => !draft.captured.includes(i));
+  const total = shots.length;
+  const next = shots.findIndex((_, i) => !draft.captured.includes(i));
   const complete = next === -1;
 
   return (
@@ -35,12 +35,12 @@ export default function CameraTab() {
         </View>
         <Progress value={done / total} />
         <AppText size={12.5} color={c.muted}>
-          المدة المتوقعة للريل 15 ثانية · الإطار عمودي 9:16
+          المدة المتوقعة للريل {shots.reduce((a, x) => a + x.seconds, 0)} ثانية · الإطار عمودي 9:16
         </AppText>
       </Card>
 
       <SectionTitle title="قائمة اللقطات" />
-      {todayShots.map((shot, i) => {
+      {shots.map((shot, i) => {
         const captured = draft.captured.includes(i);
         const isNext = i === next;
         return (
