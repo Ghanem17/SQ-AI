@@ -1,5 +1,6 @@
-import { hasKey, textModel, voiceModel } from '@/server/openrouter';
+import { falVoiceModel, providerName, textModel } from '@/server/ai';
 
 export function GET(): Response {
-  return Response.json({ ai: hasKey(), textModel, voiceModel });
+  const provider = providerName();
+  return Response.json({ ai: provider !== null, provider, textModel, voiceModel: provider === 'fal' ? falVoiceModel : 'elevenlabs/eleven-v4-turbo' });
 }

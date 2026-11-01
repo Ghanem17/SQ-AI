@@ -55,7 +55,7 @@ export default function SettingsScreen() {
         <ListRow
           icon="sparkle"
           title="الذكاء الاصطناعي"
-          subtitle={ai === 'online' ? 'مربوط عبر OpenRouter' : ai === 'offline' ? 'غير مربوط: أضف مفتاح OpenRouter على الكمبيوتر' : 'جارٍ الفحص…'}
+          subtitle={ai === 'online' ? 'مربوط عبر fal.ai' : ai === 'offline' ? 'غير مربوط: أضف مفتاح fal على الكمبيوتر' : 'جارٍ الفحص…'}
           trailing={<Badge label={ai === 'online' ? 'متصل' : ai === 'offline' ? 'غير متصل' : '…'} tone={ai === 'online' ? 'ok' : 'neutral'} />}
           onPress={() => router.push('/test-chat')}
           last

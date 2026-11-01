@@ -1,6 +1,6 @@
 // Reel pricing. Every price is the sum of the AI work it pays for plus the
 // service fee, so the app can always show the customer why a reel costs what
-// it costs. Tool costs follow OpenRouter's listed rates for one 15-second
+// it costs. Tool costs follow fal.ai's listed rates for one 15-second
 // reel; amounts are Iraqi dinars and are sample values until pricing is
 // approved.
 
@@ -12,7 +12,7 @@ export type ToolId =
   | 'elevenlabs'
   | 'geminiImage'
   | 'veo'
-  | 'fluxUpscale'
+  | 'upscale'
   | 'ffmpeg'
   | 'metaApi'
   | 'tiktokApi'
@@ -21,19 +21,20 @@ export type ToolId =
   | 'metaAds'
   | 'tiktokAds';
 
-// How each tool is reached: one OpenRouter key for every AI model, our own
-// server for editing, and each platform's official API for publishing.
-export type ToolVia = 'openrouter' | 'server' | 'platform';
+// How each tool is reached: one fal.ai key for every AI model (Claude goes
+// through fal's OpenRouter router), our own server for editing, and each
+// platform's official API for publishing.
+export type ToolVia = 'fal' | 'server' | 'platform';
 
 export type Tool = { id: ToolId; name: string; vendor: string; via: ToolVia; model?: string };
 
 export const tools: Record<ToolId, Tool> = {
-  claude: { id: 'claude', name: 'Claude Sonnet 5.5', vendor: 'Anthropic', via: 'openrouter', model: 'anthropic/claude-sonnet-5.5' },
-  lyria: { id: 'lyria', name: 'Lyria 3', vendor: 'Google', via: 'openrouter', model: 'google/lyria-3-clip-preview' },
-  elevenlabs: { id: 'elevenlabs', name: 'ElevenLabs v4', vendor: 'ElevenLabs', via: 'openrouter', model: 'elevenlabs/eleven-v4-turbo' },
-  geminiImage: { id: 'geminiImage', name: 'Gemini Image', vendor: 'Google', via: 'openrouter', model: 'google/gemini-3.1-flash-image' },
-  veo: { id: 'veo', name: 'Veo 3.1 Fast', vendor: 'Google', via: 'openrouter', model: 'google/veo-3.1-fast' },
-  fluxUpscale: { id: 'fluxUpscale', name: 'FLUX Video Upscale', vendor: 'Black Forest Labs', via: 'openrouter', model: 'black-forest-labs/flux-video-upscale' },
+  claude: { id: 'claude', name: 'Claude Sonnet 5.5', vendor: 'Anthropic', via: 'fal', model: 'anthropic/claude-sonnet-5.5' },
+  lyria: { id: 'lyria', name: 'Lyria 2', vendor: 'Google', via: 'fal', model: 'fal-ai/lyria2' },
+  elevenlabs: { id: 'elevenlabs', name: 'ElevenLabs v4', vendor: 'ElevenLabs', via: 'fal', model: 'fal-ai/elevenlabs/tts/eleven-v4' },
+  geminiImage: { id: 'geminiImage', name: 'Nano Banana Pro', vendor: 'Google', via: 'fal', model: 'fal-ai/nano-banana-pro' },
+  veo: { id: 'veo', name: 'Veo 3.1 Fast', vendor: 'Google', via: 'fal', model: 'fal-ai/veo3.1/fast' },
+  upscale: { id: 'upscale', name: 'Topaz Video Upscale', vendor: 'Topaz Labs', via: 'fal', model: 'fal-ai/topaz/upscale/video' },
   ffmpeg: { id: 'ffmpeg', name: 'ffmpeg', vendor: 'سيرفر SQ', via: 'server' },
   metaApi: { id: 'metaApi', name: 'Meta Graph API', vendor: 'Meta', via: 'platform' },
   tiktokApi: { id: 'tiktokApi', name: 'TikTok Content API', vendor: 'TikTok', via: 'platform' },
@@ -44,7 +45,7 @@ export const tools: Record<ToolId, Tool> = {
 };
 
 export const viaLabels: Record<ToolVia, string> = {
-  openrouter: 'عبر OpenRouter',
+  fal: 'عبر fal.ai',
   server: 'على سيرفرنا',
   platform: 'واجهة المنصة الرسمية',
 };
@@ -106,7 +107,7 @@ export const tiers: Record<Tier, TierSpec> = {
     items: [
       ...base,
       { task: 'تعليق صوتي بالعربي', tools: ['elevenlabs'], cost: 250 },
-      { task: 'رفع الدقة إلى 4K', tools: ['fluxUpscale'], cost: 1500 },
+      { task: 'رفع الدقة إلى 4K', tools: ['upscale'], cost: 1500 },
       { task: 'تصميم صورة الغلاف', tools: ['geminiImage'], cost: 250 },
       { task: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي', tools: ['veo'], cost: 2500 },
       { task: 'نسخة ثانية بافتتاحية مختلفة للمقارنة', tools: ['claude', 'ffmpeg'], cost: 500 },

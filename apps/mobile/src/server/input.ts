@@ -1,5 +1,5 @@
 import type { Business } from './prompts';
-import type { ChatMessage } from './openrouter';
+import type { ChatMessage } from './ai';
 
 // Request bodies come from the app; keep them small and well-formed before
 // they cost anything upstream.

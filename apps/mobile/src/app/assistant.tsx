@@ -51,7 +51,7 @@ function history(entries: Entry[]) {
 
 // The assistant for "I don't know what to film": quick prompts, ideas tied to
 // the account, and a shot list that opens the camera. Uses Claude through
-// OpenRouter when the key is set, and sample answers otherwise.
+// fal.ai when the key is set, and sample answers otherwise.
 export default function AssistantScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();

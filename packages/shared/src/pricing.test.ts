@@ -61,9 +61,9 @@ test('monthly plans get cheaper per reel as they grow', () => {
   assert.equal(twelve.full - twelve.discount, twelve.total);
 });
 
-test('every AI model goes through OpenRouter with a model id', () => {
+test('every AI model goes through fal with a model id', () => {
   for (const t of Object.values(tools)) {
-    if (t.via === 'openrouter') assert.ok(t.model && t.model.includes('/'), t.id);
+    if (t.via === 'fal') assert.ok(t.model && t.model.includes('/'), t.id);
   }
 });
 

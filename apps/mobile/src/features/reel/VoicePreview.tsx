@@ -8,7 +8,7 @@ import { Segmented, ui } from '@/components/ui';
 import { useAiStatus, voiceUrl } from '@/lib/ai';
 import { useTheme } from '@/theme/theme';
 
-type Voice = 'adam' | 'sarah';
+type Voice = 'brian' | 'sarah';
 
 // Strips hashtags and emoji so the voice reads only the words.
 function spoken(caption: string): string {
@@ -23,11 +23,11 @@ function spoken(caption: string): string {
     .slice(0, 300);
 }
 
-// Plays the caption as a voice-over through ElevenLabs on OpenRouter.
+// Plays the caption as a voice-over through ElevenLabs on fal.ai.
 export function VoicePreview({ caption }: { caption: string }) {
   const { c } = useTheme();
   const status = useAiStatus();
-  const [voice, setVoice] = useState<Voice>('adam');
+  const [voice, setVoice] = useState<Voice>('brian');
   const player = useAudioPlayer(null);
   const playback = useAudioPlayerStatus(player);
   const [requested, setRequested] = useState(false);
@@ -57,7 +57,7 @@ export function VoicePreview({ caption }: { caption: string }) {
       </View>
       <Segmented<Voice>
         options={[
-          { value: 'adam', label: 'صوت رجالي' },
+          { value: 'brian', label: 'صوت رجالي' },
           { value: 'sarah', label: 'صوت نسائي' },
         ]}
         value={voice}
@@ -77,7 +77,7 @@ export function VoicePreview({ caption }: { caption: string }) {
       />
       {status === 'offline' && (
         <AppText size={12} color={c.placeholder}>
-          يعمل بعد إضافة مفتاح OpenRouter على الكمبيوتر.
+          يعمل بعد إضافة مفتاح fal على الكمبيوتر.
         </AppText>
       )}
     </View>

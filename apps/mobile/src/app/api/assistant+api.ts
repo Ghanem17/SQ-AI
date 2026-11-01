@@ -1,4 +1,4 @@
-import { chat, errorResponse, parseJson } from '@/server/openrouter';
+import { chat, errorResponse, parseJson } from '@/server/ai';
 import { readBusiness, readMessages } from '@/server/input';
 import { assistantSystem } from '@/server/prompts';
 

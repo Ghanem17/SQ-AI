@@ -18,7 +18,7 @@ export function apiBase(): string {
 
 export class AiUnavailable extends Error {
   constructor(
-    readonly reason: 'noKey' | 'credit' | 'network' | 'failed',
+    readonly reason: 'noKey' | 'badKey' | 'credit' | 'network' | 'failed',
     message: string,
   ) {
     super(message);
@@ -26,8 +26,9 @@ export class AiUnavailable extends Error {
 }
 
 export const unavailableText: Record<AiUnavailable['reason'], string> = {
-  noKey: 'الذكاء الاصطناعي غير مربوط بعد: أضف مفتاح OpenRouter على الكمبيوتر.',
-  credit: 'رصيد OpenRouter انتهى أو وصل للحد. اشحن الرصيد ثم جرّب.',
+  noKey: 'الذكاء الاصطناعي غير مربوط بعد: أضف مفتاح fal على الكمبيوتر.',
+  badKey: 'مفتاح fal غير صحيح أو ليس له صلاحية تشغيل النماذج.',
+  credit: 'رصيد fal انتهى. اشحن الرصيد من fal.ai ثم جرّب.',
   network: 'تعذر الاتصال بالكمبيوتر الذي يشغّل التطبيق.',
   failed: 'لم يكتمل الطلب. جرّب مرة أخرى.',
 };
@@ -50,11 +51,12 @@ export async function postJson<T>(path: string, body: unknown, timeoutMs = 60000
   }
   if (res.status === 503) throw new AiUnavailable('noKey', 'no key');
   if (res.status === 402) throw new AiUnavailable('credit', 'credit');
+  if (res.status === 401) throw new AiUnavailable('badKey', 'bad key');
   if (!res.ok) throw new AiUnavailable('failed', `status ${res.status}`);
   return (await res.json()) as T;
 }
 
-export function voiceUrl(text: string, voice = 'adam'): string {
+export function voiceUrl(text: string, voice = 'brian'): string {
   return `${apiBase()}/api/voice?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
 }
 
