@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { contrastRatio } from './contrast.ts';
-import { themes, type ColorTokens } from './theme.ts';
+import { palettes, type ColorTokens } from './theme.ts';
 
 // Every text color must stay readable on the surface it is drawn on (WCAG AA).
 const textPairs: [keyof ColorTokens, keyof ColorTokens][] = [
@@ -36,7 +36,9 @@ const uiPairs: [keyof ColorTokens, keyof ColorTokens][] = [
   ['primary', 'card'],
 ];
 
-for (const [name, tokens] of Object.entries(themes)) {
+const all = Object.entries(palettes).flatMap(([p, modes]) => Object.entries(modes).map(([m, tokens]) => [`${p} ${m}`, tokens] as const));
+
+for (const [name, tokens] of all) {
   for (const [fg, bg] of textPairs) {
     test(`${name}: ${fg} on ${bg} meets 4.5:1`, () => {
       const ratio = contrastRatio(tokens[fg], tokens[bg]);
@@ -51,8 +53,9 @@ for (const [name, tokens] of Object.entries(themes)) {
   }
 }
 
-test('light and dark define the same tokens', () => {
-  assert.deepEqual(Object.keys(themes.light).sort(), Object.keys(themes.dark).sort());
+test('every palette and mode defines the same tokens', () => {
+  const keys = Object.keys(palettes.ocean.light).sort();
+  for (const [name, tokens] of all) assert.deepEqual(Object.keys(tokens).sort(), keys, name);
 });
 
 test('contrastRatio rejects malformed colors', () => {

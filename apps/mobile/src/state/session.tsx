@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import type { AccountType, ThemePreference } from '@sq/shared';
+import type { AccountType, PaletteName, ThemePreference } from '@sq/shared';
 
 type SessionData = {
   onboarded: boolean;
@@ -10,6 +10,7 @@ type SessionData = {
   phone: string | null;
   accountType: AccountType | null;
   themePreference: ThemePreference;
+  palette: PaletteName;
 };
 
 type Session = SessionData & {
@@ -18,6 +19,7 @@ type Session = SessionData & {
   signIn: (phone: string, displayName: string | null) => void;
   chooseAccountType: (type: AccountType) => void;
   setThemePreference: (pref: ThemePreference) => void;
+  setPalette: (palette: PaletteName) => void;
   signOut: () => void;
 };
 
@@ -30,6 +32,7 @@ const initial: SessionData = {
   phone: null,
   accountType: null,
   themePreference: 'system',
+  palette: 'ocean',
 };
 
 const SessionContext = createContext<Session | null>(null);
@@ -68,6 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     signIn: (phone, displayName) => update({ signedIn: true, phone, displayName }),
     chooseAccountType: (accountType) => update({ accountType }),
     setThemePreference: (themePreference) => update({ themePreference }),
+    setPalette: (palette) => update({ palette }),
     signOut: () => update({ signedIn: false, phone: null, displayName: null, accountType: null }),
   };
 

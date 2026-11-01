@@ -116,8 +116,8 @@ export default function AuthScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)} style={styles.hero}>
             <View style={styles.brandRow}>
-              <View style={[styles.logo, { backgroundColor: brand.teal }]}>
-                <AppText weight="bold" size={13} color={brand.cream} style={styles.ltr}>
+              <View style={[styles.logo, { backgroundColor: brand.navy }]}>
+                <AppText weight="bold" size={13} color={brand.light} style={styles.ltr}>
                   SQ
                 </AppText>
               </View>

@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 
-import { radius, type AccountType } from '@sq/shared';
+import { paletteNames, radius, type AccountType, type PaletteName } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Icon, type IconName } from '@/components/Icon';
 import { tapHaptic } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { RadioCard, ui } from '@/components/ui';
+import { RadioCard, Segmented, ui } from '@/components/ui';
 import { ar } from '@/i18n/ar';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
@@ -23,7 +23,7 @@ const options: { type: AccountType; icon: IconName; points: string[] }[] = [
 export default function AccountTypeScreen() {
   const { c } = useTheme();
   const reduceMotion = useReducedMotion();
-  const { chooseAccountType } = useSession();
+  const { chooseAccountType, palette, setPalette } = useSession();
   const [selected, setSelected] = useState<AccountType>('shop');
 
   const select = (type: AccountType) => {
@@ -75,6 +75,17 @@ export default function AccountTypeScreen() {
         })}
       </View>
 
+      <View style={styles.colors}>
+        <AppText weight="medium" size={13} color={c.muted}>
+          ألوان التطبيق
+        </AppText>
+        <Segmented<PaletteName>
+          options={(['ocean', 'rose'] as PaletteName[]).map((p) => ({ value: p, label: paletteNames[p] }))}
+          value={palette}
+          onChange={setPalette}
+        />
+      </View>
+
       <View style={styles.footer}>
         <Button
           label={t.continue}
@@ -96,5 +107,6 @@ const styles = StyleSheet.create({
   icon: { width: 40, height: 40, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
   points: { gap: 6, marginTop: 12 },
   point: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  colors: { gap: 8 },
   footer: { marginTop: 'auto', paddingBottom: 8 },
 });

@@ -33,7 +33,7 @@ type Slide = {
 };
 
 // One calm brand surface for every slide, the same in light and dark mode.
-const deep = { bg: brand.tealDeep, fg: brand.cream, muted: brand.creamOnDeep, buttonBg: brand.sand, buttonFg: brand.ink };
+const deep = { bg: brand.navyDeep, fg: brand.light, muted: brand.lightMuted, buttonBg: brand.orange, buttonFg: brand.navyDeep };
 const slides: Slide[] = [
   { ...deep, Art: CameraArt },
   { ...deep, Art: PublishArt },

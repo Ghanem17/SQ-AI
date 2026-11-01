@@ -91,7 +91,7 @@ export default function CaptureScreen() {
     return (
       <Screen edges={['top', 'bottom']} style={styles.perm}>
         <View style={styles.permIcon}>
-          <Icon name="camera" color={brand.teal} size={26} />
+          <Icon name="camera" color={brand.navy} size={26} />
         </View>
         <AppText weight="semibold" size={20} center>
           نحتاج إذن الكاميرا
@@ -157,7 +157,7 @@ export default function CaptureScreen() {
           </View>
           <View style={styles.topTools}>
             <PressableScale accessibilityRole="button" accessibilityLabel="الشبكة" accessibilityState={{ selected: grid }} onPress={() => setGrid((g) => !g)} style={styles.round}>
-              <Icon name="grid" color={grid ? brand.sand : white} size={20} />
+              <Icon name="grid" color={grid ? brand.orange : white} size={20} />
             </PressableScale>
             <PressableScale
               accessibilityRole="button"
@@ -209,7 +209,7 @@ export default function CaptureScreen() {
               />
               <Button
                 label={nextIndex === -1 ? 'اختر جودة الريل' : `اللقطة ${nextIndex + 1}`}
-                colors={{ bg: brand.sand, fg: brand.ink }}
+                colors={{ bg: brand.orange, fg: brand.navyDeep }}
                 style={styles.flex}
                 onPress={() => {
                   if (nextIndex === -1) router.replace('/reel/quality');
@@ -239,7 +239,7 @@ export default function CaptureScreen() {
 function Check({ ok, label }: { ok: boolean; label: string }) {
   return (
     <View style={styles.check}>
-      <View style={[styles.checkDot, { backgroundColor: ok ? '#7BC79A' : brand.sand }]} />
+      <View style={[styles.checkDot, { backgroundColor: ok ? '#7BC79A' : brand.orange }]} />
       <AppText size={12} color={white}>
         {label}
       </AppText>
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.35)' },
   frameWrap: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
   frame: { width: '64%', aspectRatio: 1 },
-  corner: { position: 'absolute', width: C, height: C, borderColor: brand.sand },
+  corner: { position: 'absolute', width: C, height: C, borderColor: brand.orange },
   tl: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 },
   tr: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 },
   bl: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
@@ -273,14 +273,14 @@ const styles = StyleSheet.create({
   bottom: { paddingHorizontal: 16, paddingBottom: 12, gap: 10 },
   hint: { backgroundColor: scrim, borderRadius: radius.control, paddingHorizontal: 14, paddingVertical: 10 },
   bar: { height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', direction: 'ltr' },
-  barFill: { height: 3, backgroundColor: brand.sand },
+  barFill: { height: 3, backgroundColor: brand.orange },
   shutterRow: { alignItems: 'center', paddingTop: 4 },
   shutter: { width: 76, height: 76, borderRadius: 38, borderWidth: 4, borderColor: white, alignItems: 'center', justifyContent: 'center' },
   shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#D9443A' },
   shutterStop: { width: 28, height: 28, borderRadius: 6 },
   doneRow: { flexDirection: 'row', gap: 8, paddingTop: 4 },
   perm: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 12 },
-  permIcon: { width: 56, height: 56, borderRadius: 14, backgroundColor: brand.cream, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  permIcon: { width: 56, height: 56, borderRadius: 14, backgroundColor: brand.light, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   permBody: { opacity: 0.8 },
   permBtn: { alignSelf: 'stretch' },
 });

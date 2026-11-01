@@ -39,7 +39,7 @@ export function CameraArt({ active }: ArtProps) {
 
   return (
     <View style={styles.stage}>
-      <View style={[styles.phone, { borderColor: brand.tealLine, backgroundColor: brand.teal }]}>
+      <View style={[styles.phone, { borderColor: brand.slate, backgroundColor: brand.navy }]}>
         <View style={[styles.gridV, { left: '33.3%' }]} />
         <View style={[styles.gridV, { left: '66.6%' }]} />
         <View style={[styles.gridH, { top: '33.3%' }]} />
@@ -49,17 +49,17 @@ export function CameraArt({ active }: ArtProps) {
           <View style={[styles.corner, styles.tr]} />
           <View style={[styles.corner, styles.bl]} />
           <View style={[styles.corner, styles.br]} />
-          <View style={[styles.plate, { borderColor: brand.creamOnTeal }]}>
-            <View style={[styles.plateInner, { backgroundColor: brand.greenBrand }]} />
+          <View style={[styles.plate, { borderColor: brand.lightMuted }]}>
+            <View style={[styles.plateInner, { backgroundColor: brand.sky }]} />
           </View>
         </View>
         <Animated.View style={[styles.ready, status]}>
           <View style={[styles.readyDot, { backgroundColor: brand.greenLight }]} />
-          <AppText size={11.5} color={brand.cream}>
+          <AppText size={11.5} color={brand.light}>
             {copy.plate}
           </AppText>
         </Animated.View>
-        <View style={[styles.rec, { borderColor: brand.cream }]}>
+        <View style={[styles.rec, { borderColor: brand.light }]}>
           <View style={styles.recInner} />
         </View>
       </View>
@@ -93,12 +93,12 @@ function PlatformChip({ name, order, active }: { name: string; order: number; ac
   const tick = useAnimatedStyle(() => ({ opacity: lit.value }));
 
   return (
-    <Animated.View style={[styles.platform, { backgroundColor: brand.teal }, chip]}>
-      <AppText weight="semibold" size={13} color={brand.cream}>
+    <Animated.View style={[styles.platform, { backgroundColor: brand.navy }, chip]}>
+      <AppText weight="semibold" size={13} color={brand.light}>
         {name}
       </AppText>
-      <Animated.View style={[styles.tick, { backgroundColor: brand.sand }, tick]}>
-        <Icon name="check" color={brand.ink} size={12} strokeWidth={3} />
+      <Animated.View style={[styles.tick, { backgroundColor: brand.orange }, tick]}>
+        <Icon name="check" color={brand.navyDeep} size={12} strokeWidth={3} />
       </Animated.View>
     </Animated.View>
   );
@@ -118,12 +118,12 @@ export function PublishArt({ active }: ArtProps) {
 
   return (
     <View style={styles.stage}>
-      <Animated.View style={[styles.reel, { backgroundColor: brand.teal }, reel]}>
-        <View style={[styles.play, { backgroundColor: brand.cream }]}>
-          <Icon name="play" color={brand.teal} size={20} />
+      <Animated.View style={[styles.reel, { backgroundColor: brand.navy }, reel]}>
+        <View style={[styles.play, { backgroundColor: brand.light }]}>
+          <Icon name="play" color={brand.navy} size={20} />
         </View>
-        <View style={[styles.reelBar, { backgroundColor: brand.sand }]} />
-        <View style={[styles.reelBar, styles.reelBarShort, { backgroundColor: brand.tealLine }]} />
+        <View style={[styles.reelBar, { backgroundColor: brand.orange }]} />
+        <View style={[styles.reelBar, styles.reelBarShort, { backgroundColor: brand.slate }]} />
       </Animated.View>
       <View style={styles.platformRow}>
         {platforms.map((name, i) => (
@@ -159,30 +159,30 @@ export function ChatArt({ active }: ArtProps) {
   return (
     <View style={[styles.stage, styles.chat]}>
       {shown >= 1 && (
-        <Animated.View entering={enter} style={[styles.bubble, styles.bubbleIn, { backgroundColor: brand.cream }]}>
-          <AppText size={14} color={brand.ink}>
+        <Animated.View entering={enter} style={[styles.bubble, styles.bubbleIn, { backgroundColor: brand.light }]}>
+          <AppText size={14} color={brand.navyDeep}>
             {copy.customerAsk}
           </AppText>
         </Animated.View>
       )}
       {shown >= 2 && (
-        <Animated.View entering={enter} style={[styles.bubble, styles.bubbleOut, { backgroundColor: brand.teal }]}>
-          <AppText size={14} color={brand.cream}>
+        <Animated.View entering={enter} style={[styles.bubble, styles.bubbleOut, { backgroundColor: brand.navy }]}>
+          <AppText size={14} color={brand.light}>
             {copy.assistantAnswer}
           </AppText>
         </Animated.View>
       )}
       {shown >= 3 && (
-        <Animated.View entering={enter} style={[styles.bubble, styles.bubbleIn, { backgroundColor: brand.cream }]}>
-          <AppText size={14} color={brand.ink}>
+        <Animated.View entering={enter} style={[styles.bubble, styles.bubbleIn, { backgroundColor: brand.light }]}>
+          <AppText size={14} color={brand.navyDeep}>
             {copy.customerOrder}
           </AppText>
         </Animated.View>
       )}
       {shown >= 4 && (
         <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(220)} style={[styles.order, { backgroundColor: brand.green }]}>
-          <Icon name="check" color={brand.cream} size={16} strokeWidth={3} />
-          <AppText weight="semibold" size={14} color={brand.cream}>
+          <Icon name="check" color={brand.light} size={16} strokeWidth={3} />
+          <AppText weight="semibold" size={14} color={brand.light}>
             {copy.newOrder}
           </AppText>
         </Animated.View>
@@ -225,11 +225,11 @@ export function CostArt({ active }: ArtProps) {
 
   return (
     <View style={styles.stage}>
-      <View style={[styles.costCard, { backgroundColor: brand.teal }]}>
-        <AppText size={13} color={brand.creamOnDeep}>
+      <View style={[styles.costCard, { backgroundColor: brand.navy }]}>
+        <AppText size={13} color={brand.lightMuted}>
           {copy.costLabel}
         </AppText>
-        <AppText weight="bold" size={44} lineHeight={52} color={brand.cream} style={styles.tabular}>
+        <AppText weight="bold" size={44} lineHeight={52} color={brand.light} style={styles.tabular}>
           {formatNumber(shown)}
         </AppText>
         <View style={styles.bars}>
@@ -244,17 +244,17 @@ export function CostArt({ active }: ArtProps) {
 
 function Bar({ height, grow, highlight }: { height: number; grow: SharedValue<number>; highlight: boolean }) {
   const style = useAnimatedStyle(() => ({ height: 12 + (height - 12) * grow.value }));
-  return <Animated.View style={[styles.bar, { backgroundColor: highlight ? brand.sand : brand.thumb }, style]} />;
+  return <Animated.View style={[styles.bar, { backgroundColor: highlight ? brand.orange : brand.thumb }, style]} />;
 }
 
 const C = 18;
 const styles = StyleSheet.create({
   stage: { height: 300, alignItems: 'center', justifyContent: 'center' },
   phone: { width: 180, height: 270, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  gridV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(244,237,231,0.16)' },
-  gridH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(244,237,231,0.16)' },
+  gridV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(241,245,249,0.16)' },
+  gridH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(241,245,249,0.16)' },
   frame: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
-  corner: { position: 'absolute', width: C, height: C, borderColor: brand.sand },
+  corner: { position: 'absolute', width: C, height: C, borderColor: brand.orange },
   tl: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 },
   tr: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 },
   bl: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   bubbleIn: { alignSelf: 'flex-start', borderRadius: 14, borderBottomEndRadius: 4 },
   bubbleOut: { alignSelf: 'flex-end', borderRadius: 14, borderBottomStartRadius: 4 },
   order: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, marginTop: 6 },
-  costCard: { width: 260, borderRadius: 14, padding: 18, gap: 4, borderWidth: 1, borderColor: brand.tealLine },
+  costCard: { width: 260, borderRadius: 14, padding: 18, gap: 4, borderWidth: 1, borderColor: brand.slate },
   tabular: { fontVariant: ['tabular-nums'] },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 100, marginTop: 10 },
   bar: { flex: 1, borderRadius: 3 },
