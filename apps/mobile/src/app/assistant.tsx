@@ -12,7 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, TopBar, ui } from '@/components/ui';
 import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
-import { todayShots, type Shot } from '@/mock/data';
+import { starterShots, type Shot } from '@/features/reel/shots';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
@@ -22,18 +22,6 @@ type ApiReply = { text?: string; ideas?: Idea[]; shots?: Shot[] };
 type Entry =
   | { id: number; from: 'me'; text: string }
   | { id: number; from: 'ai'; text: string; ideas?: Idea[]; shots?: Shot[]; idea?: Idea; offline?: string };
-
-const shopIdeas: Idea[] = [
-  { title: 'صحن الدولمة من المطبخ للطاولة', hook: '«دولمة اليوم طالعة قبل ساعة»', why: 'ريلز الأكل الطازج جابتلك أرخص طلبات الشهر' },
-  { title: 'عرض الغداء العائلي للجمعة', hook: '«غداء لـ 6 أشخاص بـ 45 ألف»', why: 'طلبات الجمعة أعلى بـ 60% من باقي الأيام' },
-  { title: 'خلف الكواليس: تتبيل الكباب', hook: '«سر الكباب عندنا؟ هذا هو»', why: 'فيديوهات التحضير تحصل على حفظ ومشاركة أكثر' },
-];
-
-const creatorIdeas: Idea[] = [
-  { title: 'جرّب 3 مطاعم بـ 20 ألف', hook: '«بـ 20 ألف، وين أطيب عشا ببغداد؟»', why: 'أفضل فيديو عندك هذا الشهر من نفس النوع' },
-  { title: 'فطور الجمعة بأقل من 10 آلاف', hook: '«فطور كامل بـ 9 آلاف، يستاهل؟»', why: 'البحث عن «فطور بغداد» ارتفع هذا الأسبوع' },
-  { title: 'الأغلى ضد الأرخص', hook: '«الفرق بين 5 آلاف و50 ألف»', why: 'المقارنات تحصل على مشاركات أكثر بمرتين' },
-];
 
 const tips =
   'ثلاث قواعد تفرق كثيرًا:\n1. صوّر قرب شباك، والضوء يجي من الجنب مو من الخلف.\n2. ثبّت الموبايل بيدين أو على كوب، وتحرك ببطء.\n3. أول ثانيتين أهم شي: ابدأ بأقرب لقطة وأشهى منظر.';
@@ -51,7 +39,7 @@ function history(entries: Entry[]) {
 
 // The assistant for "I don't know what to film": quick prompts, ideas tied to
 // the account, and a shot list that opens the camera. Uses Claude through
-// fal.ai when the key is set, and sample answers otherwise.
+// fal.ai; without it the assistant says so and offers the starter shot list.
 export default function AssistantScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
@@ -59,7 +47,6 @@ export default function AssistantScreen() {
   const business = useBusiness();
   const status = useAiStatus();
   const { startDraft } = useStudio();
-  const sampleIdeas = business.kind === 'creator' ? creatorIdeas : shopIdeas;
   const [entries, setEntries] = useState<Entry[]>([
     { id: 0, from: 'ai', text: 'أهلًا، أنا مساعد SQ. أقترح عليك ماذا تصوّر، وأحوّل الفكرة لقائمة لقطات جاهزة تفتح الكاميرا مباشرة.' },
   ]);
@@ -86,13 +73,14 @@ export default function AssistantScreen() {
       const reply = await postJson<ApiReply>('/api/assistant', { business, messages: history(next) });
       setEntries((e) => [...e, { id, from: 'ai', text: reply.text ?? '', ideas: reply.ideas, shots: reply.shots, idea }]);
     } catch (err) {
-      // Sample answers keep the flow usable without a key; the reason shows.
+      // Without the AI: general filming tips and the starter shot list are
+      // still true for anyone; ideas are not made up.
       const offline = err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed;
       const fallback: Entry = idea
-        ? { id, from: 'ai', text: 'هذه قائمة لقطات مقترحة:', shots: todayShots, idea, offline }
+        ? { id, from: 'ai', text: 'المساعد غير متاح الآن، فهذه قائمة لقطات أساسية تنفع لأي فكرة:', shots: starterShots[business.kind], idea, offline }
         : /كيف|نصيح|ضو|إضاء|اضاء/.test(body)
           ? { id, from: 'ai', text: tips, offline }
-          : { id, from: 'ai', text: 'هذه ثلاث أفكار مناسبة لك هذا الأسبوع:', ideas: sampleIdeas, offline };
+          : { id, from: 'ai', text: 'ما قدرت أجهّز أفكارًا الآن.', offline };
       setEntries((e) => [...e, fallback]);
     } finally {
       setBusy(false);
@@ -107,7 +95,7 @@ export default function AssistantScreen() {
         title="المساعد"
         subtitle="أفكار وقوائم لقطات"
         mode="close"
-        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'locked' ? <Badge label="يحتاج رمز" tone="acc" /> : status === 'offline' ? <Badge label="ردود تجريبية" /> : undefined}
+        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'locked' ? <Badge label="يحتاج رمز" tone="acc" /> : status === 'offline' ? <Badge label="غير متصل" /> : undefined}
       />
       <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
@@ -183,7 +171,7 @@ export default function AssistantScreen() {
                   )}
                   {e.offline && (
                     <AppText size={11.5} color={c.placeholder}>
-                      رد تجريبي · {e.offline}
+                      {e.offline}
                     </AppText>
                   )}
                 </>

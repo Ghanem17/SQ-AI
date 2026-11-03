@@ -11,17 +11,11 @@ import { Badge, Card, Chip, Note, RadioCard, ScrollScreen, SectionTitle, TopBar,
 import { VoicePreview } from '@/features/reel/VoicePreview';
 import { dayDate, dayLabel, timeLabel } from '@/features/reel/when';
 import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
-import { bestTime } from '@/mock/data';
-import { defaultCaption, useStudio } from '@/state/studio';
+import { bestTimeHint } from '@/features/reel/shots';
+import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
 const publishable: Platform[] = ['instagram', 'facebook', 'tiktok', 'youtube'];
-
-const captions = [
-  defaultCaption,
-  'ورق عنب، رز، لحم، وليمون… الدولمة اللي تعرفها من بيت أهلك 🍋\nاطلب الآن، نوصل لكل بغداد.\n#دولمة #أكل_عراقي #بغداد',
-  'صحن الدولمة اليوم طالع من الطبخ قبل ساعة.\nالكمية محدودة، احجز صحنك على الواتساب.\n#مطاعم_بغداد #دولمة #غداء',
-];
 
 const hours = [10, 12, 13, 15, 17, 19, 20, 21, 22];
 const recommended = new Set([20, 21]);
@@ -32,13 +26,13 @@ export default function PublishScreen() {
   const { c } = useTheme();
   const { draft, updateDraft } = useStudio();
   const [editing, setEditing] = useState(false);
-  const [captionIndex, setCaptionIndex] = useState(0);
   const [writing, setWriting] = useState(false);
   const [captionNote, setCaptionNote] = useState<string | null>(null);
   const business = useBusiness();
   const status = useAiStatus();
 
-  // A fresh caption from Claude; without the key, the next sample one.
+  // A caption from Claude for this reel; if the AI is unavailable the
+  // current text stays and the reason shows under it.
   const rewrite = async () => {
     setEditing(false);
     setWriting(true);
@@ -52,9 +46,6 @@ export default function PublishScreen() {
       updateDraft({ caption });
       setCaptionNote(null);
     } catch (err) {
-      const next = (captionIndex + 1) % captions.length;
-      setCaptionIndex(next);
-      updateDraft({ caption: captions[next] });
       setCaptionNote(err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed);
     } finally {
       setWriting(false);
@@ -82,7 +73,7 @@ export default function PublishScreen() {
       <SectionTitle title="الكابشن" />
       <Card>
         <View style={ui.between}>
-          <Badge label={status === 'online' ? 'Claude' : 'كتبه المساعد'} tone="pri" icon="sparkle" />
+          <Badge label={status === 'online' ? 'Claude' : 'المساعد'} tone="pri" icon="sparkle" />
           <View style={styles.capActions}>
             <PressableScale
               accessibilityRole="button"
@@ -92,7 +83,7 @@ export default function PublishScreen() {
               style={styles.capBtn}>
               <Icon name="refresh" color={c.primary} size={16} />
               <AppText size={12.5} weight="medium" color={c.primary}>
-                {writing ? 'يكتب…' : 'نسخة أخرى'}
+                {writing ? 'يكتب…' : draft.caption ? 'نسخة أخرى' : 'اكتبه بالمساعد'}
               </AppText>
             </PressableScale>
             <PressableScale accessibilityRole="button" accessibilityLabel="عدّل الكابشن" onPress={() => setEditing((e) => !e)} style={styles.capBtn}>
@@ -112,13 +103,17 @@ export default function PublishScreen() {
             style={[styles.input, { color: c.text, borderColor: c.lineStrong, backgroundColor: c.tile }]}
             placeholderTextColor={c.placeholder}
           />
-        ) : (
+        ) : draft.caption ? (
           <AppText size={14} lineHeight={23}>
             {draft.caption}
           </AppText>
+        ) : (
+          <AppText size={13.5} color={c.muted} lineHeight={21}>
+            لسا ما في كابشن. خلّي المساعد يكتبه، أو اضغط «تعديل» واكتبه بنفسك.
+          </AppText>
         )}
         <AppText size={12} color={c.placeholder}>
-          {captionNote ? `نسخة تجريبية · ${captionNote}` : 'تيك توك ويوتيوب يأخذان نسخة أقصر تلقائيًا.'}
+          {captionNote ?? 'تيك توك ويوتيوب يأخذان نسخة أقصر تلقائيًا.'}
         </AppText>
       </Card>
 
@@ -137,10 +132,10 @@ export default function PublishScreen() {
           <Badge label="موصى به" tone="ok" />
         </View>
         <AppText weight="medium" size={13.5}>
-          {bestTime.label}
+          {bestTimeHint.label}
         </AppText>
         <AppText size={12.5} color={c.muted} lineHeight={19}>
-          {bestTime.reason}
+          {bestTimeHint.reason}
         </AppText>
       </RadioCard>
 

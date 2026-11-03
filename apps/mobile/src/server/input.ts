@@ -4,9 +4,10 @@ import type { ChatMessage } from './ai';
 // Request bodies come from the app; keep them small and well-formed before
 // they cost anything upstream.
 export function readBusiness(raw: unknown): Business {
-  const b = (raw ?? {}) as { name?: unknown; kind?: unknown };
-  const name = typeof b.name === 'string' && b.name.trim() ? b.name.trim().slice(0, 60) : 'مطعم بيت الريف';
-  return { name, kind: b.kind === 'creator' ? 'creator' : 'shop' };
+  const b = (raw ?? {}) as { name?: unknown; kind?: unknown; info?: unknown };
+  const name = typeof b.name === 'string' && b.name.trim() ? b.name.trim().slice(0, 60) : 'حسابي';
+  const info = typeof b.info === 'string' ? b.info.trim().slice(0, 2000) : '';
+  return { name, kind: b.kind === 'creator' ? 'creator' : 'shop', info };
 }
 
 export function readMessages(raw: unknown, max = 16): Exclude<ChatMessage, { role: 'system' }>[] {

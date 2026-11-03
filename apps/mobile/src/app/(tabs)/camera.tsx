@@ -6,6 +6,8 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Appear, Badge, Card, Note, PageTitle, Progress, ScrollScreen, SectionTitle, ui } from '@/components/ui';
+import { starterShots } from '@/features/reel/shots';
+import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
@@ -13,12 +15,51 @@ import { useTheme } from '@/theme/theme';
 // once every shot is in, the reel moves on to quality and price.
 export default function CameraTab() {
   const { c } = useTheme();
-  const { draft, updateDraft } = useStudio();
+  const { draft, updateDraft, startDraft } = useStudio();
+  const { accountType } = useSession();
+  const creator = accountType === 'creator';
   const shots = draft.shots;
   const done = draft.captured.length;
   const total = shots.length;
   const next = shots.findIndex((_, i) => !draft.captured.includes(i));
   const complete = next === -1;
+
+  if (!draft.active) {
+    return (
+      <ScrollScreen inTabs>
+        <PageTitle title="التصوير" subtitle="ابدأ ريل جديد" />
+        <Card style={styles.start}>
+          <View style={[styles.startIcon, { backgroundColor: c.priSoft }]}>
+            <Icon name="sparkle" color={c.onPriSoft} size={20} />
+          </View>
+          <AppText weight="semibold" size={16}>
+            ما عندك فكرة؟
+          </AppText>
+          <AppText size={13} color={c.muted} lineHeight={20}>
+            المساعد يقترح ثلاث أفكار تناسب {creator ? 'محتواك' : 'محلك'}، وتختار وحدة فتصير قائمة لقطات جاهزة.
+          </AppText>
+          <Button label="اقترح فكرة" icon="sparkle" onPress={() => router.push('/assistant')} />
+        </Card>
+        <Card style={styles.start}>
+          <View style={[styles.startIcon, { backgroundColor: c.tile }]}>
+            <Icon name="camera" color={c.text} size={20} />
+          </View>
+          <AppText weight="semibold" size={16}>
+            عندك فكرة جاهزة؟
+          </AppText>
+          <AppText size={13} color={c.muted} lineHeight={20}>
+            ابدأ بثلاث لقطات أساسية ({starterShots[creator ? 'creator' : 'shop'].map((s) => s.title).join('، ')}) والكاميرا توجّهك.
+          </AppText>
+          <Button
+            label="ابدأ التصوير"
+            icon="camera"
+            variant="secondary"
+            onPress={() => startDraft(creator ? 'فيديو جديد' : 'ريل جديد', starterShots[creator ? 'creator' : 'shop'])}
+          />
+        </Card>
+      </ScrollScreen>
+    );
+  }
 
   return (
     <ScrollScreen inTabs>
@@ -101,7 +142,7 @@ export default function CameraTab() {
         {done > 0 && (
           <PressableScale accessibilityRole="button" onPress={() => updateDraft({ captured: [] })} style={styles.link}>
             <AppText size={13} color={c.muted}>
-              ابدأ التصوير من جديد
+              أعد كل اللقطات
             </AppText>
           </PressableScale>
         )}
@@ -111,6 +152,8 @@ export default function CameraTab() {
 }
 
 const styles = StyleSheet.create({
+  start: { gap: 8 },
+  startIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   shot: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   num: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   shotText: { gap: 4 },

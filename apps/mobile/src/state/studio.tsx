@@ -6,11 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { promotionCost, reelPrice, type Platform, type PlanSize, type PromoLevel, type Tier } from '@sq/shared';
-import { todayShots, type Shot } from '@/mock/data';
+import { starterShots, type Shot } from '@/features/reel/shots';
 
 export type PublishWhen = { kind: 'best' } | { kind: 'now' } | { kind: 'custom'; day: number; hour: number; minute: number };
 
 export type Draft = {
+  // False until the owner starts a reel.
+  active: boolean;
   title: string;
   shots: Shot[];
   captured: number[];
@@ -64,6 +66,7 @@ type Saved = { orders: Order[]; plan: Plan; automation: Automation };
 type Studio = Saved & {
   draft: Draft;
   startDraft: (title: string, shots?: Shot[]) => void;
+  clearDraft: () => void;
   updateDraft: (patch: Partial<Draft>) => void;
   placeOrder: () => Order;
   savePlan: (plan: Plan) => void;
@@ -73,19 +76,17 @@ type Studio = Saved & {
 
 const STORAGE_KEY = 'sq.studio.v1';
 
-export const defaultCaption =
-  'دولمة بيت الريف، محشية على أصولها ومطبوخة على نار هادئة 🍋\nاطلبها الآن عبر الواتساب، التوصيل لكل مناطق بغداد.\n#بغداد #مطاعم_بغداد #دولمة';
-
-const newDraft = (title: string, shots: Shot[] = todayShots): Draft => ({
+const newDraft = (title: string, shots: Shot[] = starterShots.shop, active = true): Draft => ({
+  active,
   title,
-  shots: shots.length ? shots : todayShots,
+  shots: shots.length ? shots : starterShots.shop,
   captured: [],
   tier: 'pro',
   platforms: ['instagram', 'facebook'],
   when: { kind: 'best' },
   promo: 'none',
   promoDays: 5,
-  caption: defaultCaption,
+  caption: '',
 });
 
 const initialSaved: Saved = {
@@ -102,15 +103,12 @@ const initialSaved: Saved = {
   },
 };
 
-// Spend already recorded this month on the sample account.
-const SAMPLE_SPENT = 186000;
-
 const StudioContext = createContext<Studio | null>(null);
 
 export function StudioProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<Saved>(initialSaved);
   const [ready, setReady] = useState(false);
-  const [draft, setDraft] = useState<Draft>(newDraft('صوّر صحن الدولمة'));
+  const [draft, setDraft] = useState<Draft>(newDraft('', starterShots.shop, false));
 
   useEffect(() => {
     let cancelled = false;
@@ -137,13 +135,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(saved)).catch(() => undefined);
   }, [saved, ready]);
 
-  const spentThisMonth = SAMPLE_SPENT + saved.orders.reduce((sum, o) => sum + o.reelPrice + o.promoCost, 0);
+  // Spend on orders placed this calendar month.
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const spentThisMonth = saved.orders.filter((o) => o.createdAt >= monthStart).reduce((sum, o) => sum + o.reelPrice + o.promoCost, 0);
 
   const value: Studio = {
     ...saved,
     draft,
     spentThisMonth,
     startDraft: (title, shots) => setDraft(newDraft(title, shots)),
+    clearDraft: () => setDraft(newDraft('', starterShots.shop, false)),
     updateDraft: (patch) => setDraft((prev) => ({ ...prev, ...patch })),
     placeOrder: () => {
       const order: Order = {

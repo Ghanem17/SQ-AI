@@ -14,6 +14,9 @@ type SessionData = {
   palette: PaletteName;
   // Code from the account owner that unlocks the hosted AI for testers.
   accessCode: string;
+  // What the business sells, prices, areas and hours, in the owner's words.
+  // The assistant answers customers from this and nothing else.
+  businessInfo: string;
 };
 
 type Session = SessionData & {
@@ -24,6 +27,7 @@ type Session = SessionData & {
   setThemePreference: (pref: ThemePreference) => void;
   setPalette: (palette: PaletteName) => void;
   setAccessCode: (code: string) => void;
+  setBusinessInfo: (info: string) => void;
   signOut: () => void;
 };
 
@@ -38,6 +42,7 @@ const initial: SessionData = {
   themePreference: 'system',
   palette: 'ocean',
   accessCode: '',
+  businessInfo: '',
 };
 
 const SessionContext = createContext<Session | null>(null);
@@ -83,7 +88,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setThemePreference: (themePreference) => update({ themePreference }),
     setPalette: (palette) => update({ palette }),
     setAccessCode: (accessCode) => update({ accessCode: accessCode.trim() }),
-    signOut: () => update({ signedIn: false, phone: null, displayName: null, accountType: null }),
+    setBusinessInfo: (businessInfo) => update({ businessInfo: businessInfo.slice(0, 2000) }),
+    signOut: () => update({ signedIn: false, phone: null, displayName: null, accountType: null, businessInfo: '' }),
   };
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

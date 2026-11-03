@@ -96,7 +96,7 @@ function Row({ label, value, onEdit }: { label: string; value: string; onEdit: (
 
 function Placed({ order }: { order: Order }) {
   const { c } = useTheme();
-  const { startDraft } = useStudio();
+  const { clearDraft } = useStudio();
   const reduceMotion = useReducedMotion();
   const steps = [
     { title: 'استلمنا اللقطات', detail: 'تم رفعها وفحصها', done: true },
@@ -113,7 +113,7 @@ function Placed({ order }: { order: Order }) {
         <Button
           label="العودة للرئيسية"
           onPress={() => {
-            startDraft('صوّر صحن الدولمة');
+            clearDraft();
             router.dismissTo('/(tabs)');
           }}
         />

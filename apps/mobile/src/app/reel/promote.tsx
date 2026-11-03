@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  estimatedOrders,
   estimatedReach,
   formatIQD,
   formatNumber,
@@ -14,21 +13,19 @@ import {
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Card, Divider, KeyValue, Note, RadioCard, ScrollScreen, SectionTitle, Segmented, Stat, Stepper, TopBar, ui } from '@/components/ui';
-import { sampleToday } from '@/mock/today';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
 type Area = 'city' | 'near' | 'all';
 
 // Optional promotion after the reel is published, with an honest estimate of
-// reach and orders based on the account's own cost per order.
+// reach. Orders are estimated once the account has its own results.
 export default function PromoteScreen() {
   const { c } = useTheme();
   const { draft, updateDraft, automation, spentThisMonth } = useStudio();
   const [area, setArea] = useState<Area>('near');
   const spend = promotionCost(draft.promo, draft.promoDays);
   const reach = estimatedReach(spend);
-  const orders = estimatedOrders(spend, sampleToday.costPerOrder);
   const left = Math.max(0, automation.monthlyCap - spentThisMonth);
   const overCap = spend > left;
 
@@ -89,7 +86,7 @@ export default function PromoteScreen() {
           <Card>
             <View style={styles.stats}>
               <Stat label="الوصول" value={`\u2066${formatNumber(reach.low)}–${formatNumber(reach.high)}\u2069`} />
-              <Stat label="طلبات متوقعة" value={`\u2066${orders.low}–${orders.high}\u2069`} />
+              <Stat label="أيام الترويج" value={String(draft.promoDays)} />
             </View>
             <Divider />
             <KeyValue label="ميزانية الترويج" sub={`${formatIQD(promoLevels[draft.promo].daily)} × ${draft.promoDays} أيام`} value={formatIQD(spend)} strong />

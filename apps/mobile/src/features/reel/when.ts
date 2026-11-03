@@ -1,5 +1,5 @@
 import type { PublishWhen } from '@/state/studio';
-import { bestTime } from '@/mock/data';
+import { bestTimeHint } from '@/features/reel/shots';
 
 const dayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
@@ -24,7 +24,7 @@ export function timeLabel(hour: number, minute = 0): string {
 }
 
 export function describeWhen(when: PublishWhen): string {
-  if (when.kind === 'best') return `أفضل وقت · ${bestTime.label}`;
+  if (when.kind === 'best') return `أفضل وقت · ${bestTimeHint.label}`;
   if (when.kind === 'now') return 'فور الموافقة';
   return `${dayLabel(when.day)}، ${timeLabel(when.hour, when.minute)}`;
 }

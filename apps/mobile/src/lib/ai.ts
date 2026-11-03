@@ -32,9 +32,9 @@ export class AiUnavailable extends Error {
 }
 
 export const unavailableText: Record<AiUnavailable['reason'], string> = {
-  noKey: 'الذكاء الاصطناعي غير مربوط بعد: أضف مفتاح fal على الكمبيوتر.',
-  badKey: 'مفتاح fal غير صحيح أو ليس له صلاحية تشغيل النماذج.',
-  credit: 'رصيد fal انتهى. اشحن الرصيد من fal.ai ثم جرّب.',
+  noKey: 'الذكاء الاصطناعي غير متاح الآن. جرّب بعد قليل.',
+  badKey: 'خدمة الذكاء الاصطناعي متوقفة مؤقتًا. أبلغ صاحب الحساب.',
+  credit: 'رصيد الذكاء الاصطناعي انتهى. يحتاج صاحب الحساب لشحن رصيد fal.',
   access: 'أدخل رمز الوصول من الإعدادات لتشغيل الذكاء الاصطناعي.',
   network: 'تعذر الاتصال بالكمبيوتر الذي يشغّل التطبيق.',
   failed: 'لم يكتمل الطلب. جرّب مرة أخرى.',
@@ -101,9 +101,10 @@ export function useAiStatus(): AiStatus {
 }
 
 export function useBusiness() {
-  const { displayName, accountType } = useSession();
+  const { displayName, accountType, businessInfo } = useSession();
   return {
-    name: displayName ?? (accountType === 'creator' ? 'نور' : 'مطعم بيت الريف'),
+    name: displayName ?? 'حسابي',
     kind: accountType === 'creator' ? ('creator' as const) : ('shop' as const),
+    info: businessInfo,
   };
 }

@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const { themePreference, setThemePreference, palette, setPalette, signOut, displayName, phone, accountType, chooseAccountType } = useSession();
   const { plan, automation, orders } = useStudio();
   const ai = useAiStatus();
-  const name = displayName ?? (accountType === 'creator' ? 'نور' : 'مطعم بيت الريف');
+  const name = displayName ?? 'حسابي';
 
   return (
     <ScrollScreen header={<TopBar title="الحساب والإعدادات" />}>
@@ -70,6 +70,9 @@ export default function SettingsScreen() {
           last
         />
       </Card>
+
+      <SectionTitle title={accountType === 'creator' ? 'عن محتواك' : 'معلومات المحل'} />
+      <BusinessInfoCard creator={accountType === 'creator'} />
 
       <SectionTitle title="رمز الوصول" />
       <AccessCodeCard />
@@ -155,6 +158,46 @@ export default function SettingsScreen() {
   );
 }
 
+// What the assistant knows about the business. It replies to customers and
+// suggests ideas from this text only, so it never invents prices.
+function BusinessInfoCard({ creator }: { creator: boolean }) {
+  const { c } = useTheme();
+  const { businessInfo, setBusinessInfo } = useSession();
+  const [draft, setDraft] = useState(businessInfo);
+  const [saved, setSaved] = useState(false);
+  return (
+    <Card>
+      <AppText size={12.5} color={c.muted} lineHeight={19}>
+        {creator
+          ? 'اكتب مجالك وجمهورك ومدينتك وأسلوبك. المساعد يقترح الأفكار على أساسها.'
+          : 'اكتب أصنافك وأسعارها، ومناطق التوصيل وكلفته، وأوقات الدوام. المساعد يرد على الزبائن من هذه المعلومات فقط.'}
+      </AppText>
+      <TextInput
+        value={draft}
+        onChangeText={(v) => {
+          setDraft(v);
+          setSaved(false);
+        }}
+        multiline
+        placeholder={creator ? 'مثال: محتوى أكل وسفر في بغداد، جمهوري 18–30 سنة…' : 'مثال: شاورما لحم 5,000 د.ع، توصيل مجاني للمنصور، الدوام 12 ظهرًا – 12 ليلًا…'}
+        placeholderTextColor={c.placeholder}
+        accessibilityLabel={creator ? 'عن محتواك' : 'معلومات المحل'}
+        style={[styles.infoInput, { color: c.text, backgroundColor: c.tile, borderColor: c.line }]}
+      />
+      <Button
+        label={saved ? 'تم الحفظ' : 'احفظ'}
+        icon={saved ? 'check' : undefined}
+        height={44}
+        disabled={draft === businessInfo && !saved}
+        onPress={() => {
+          setBusinessInfo(draft);
+          setSaved(true);
+        }}
+      />
+    </Card>
+  );
+}
+
 // The code the account owner shares with testers; it unlocks the hosted AI.
 function AccessCodeCard() {
   const { c } = useTheme();
@@ -199,6 +242,7 @@ const styles = StyleSheet.create({
   ltr: { writingDirection: 'ltr', alignSelf: 'flex-start' },
   list: { paddingVertical: 2, gap: 0 },
   signOut: { marginTop: 16 },
+  infoInput: { minHeight: 120, borderRadius: 12, borderWidth: 1, padding: 12, fontFamily: 'ReadexPro_400Regular', fontSize: 14, lineHeight: 22, textAlign: 'right', textAlignVertical: 'top', writingDirection: 'rtl' },
   codeInput: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontFamily: 'ReadexPro_500Medium', fontSize: 15, textAlign: 'left', writingDirection: 'ltr', letterSpacing: 1 },
   palettes: { flexDirection: 'row', gap: 10 },
   palette: { flex: 1, borderRadius: 14, padding: 8, gap: 8 },

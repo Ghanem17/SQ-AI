@@ -48,7 +48,7 @@ export const ar = {
     subtitle: 'سجّل برقم هاتفك، وسنرسل لك رمز تحقق عبر واتساب.',
     tabs: { signUp: 'حساب جديد', signIn: 'تسجيل دخول' },
     nameLabel: 'اسم المحل أو اسمك',
-    namePlaceholder: 'مثال: مطعم بيت الريف',
+    namePlaceholder: 'مثال: اسم محلك أو صفحتك',
     phoneLabel: 'رقم الهاتف',
     phoneHint: 'سنرسل لك رمز تحقق عبر واتساب.',
     countryLabel: 'رمز الدولة',
