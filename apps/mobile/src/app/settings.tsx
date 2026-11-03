@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { formatIQD, paletteNames, palettes, platformNames, tiers, type AccountType, type PaletteName, type Platform, type ThemePreference } from '@sq/shared';
 import { PressableScale } from '@/components/PressableScale';
@@ -56,12 +57,22 @@ export default function SettingsScreen() {
         <ListRow
           icon="sparkle"
           title="الذكاء الاصطناعي"
-          subtitle={ai === 'online' ? 'مربوط عبر fal.ai' : ai === 'offline' ? 'غير مربوط: أضف مفتاح fal على الكمبيوتر' : 'جارٍ الفحص…'}
-          trailing={<Badge label={ai === 'online' ? 'متصل' : ai === 'offline' ? 'غير متصل' : '…'} tone={ai === 'online' ? 'ok' : 'neutral'} />}
+          subtitle={
+            ai === 'online' ? 'مربوط عبر fal.ai' : ai === 'locked' ? 'يحتاج رمز الوصول، أدخله تحت' : ai === 'offline' ? 'الخدمة غير متاحة الآن' : 'جارٍ الفحص…'
+          }
+          trailing={
+            <Badge
+              label={ai === 'online' ? 'متصل' : ai === 'locked' ? 'مقفل' : ai === 'offline' ? 'غير متصل' : '…'}
+              tone={ai === 'online' ? 'ok' : ai === 'locked' ? 'acc' : 'neutral'}
+            />
+          }
           onPress={() => router.push('/test-chat')}
           last
         />
       </Card>
+
+      <SectionTitle title="رمز الوصول" />
+      <AccessCodeCard />
 
       <SectionTitle title="الحسابات المربوطة" />
       <Card style={styles.list}>
@@ -144,11 +155,51 @@ export default function SettingsScreen() {
   );
 }
 
+// The code the account owner shares with testers; it unlocks the hosted AI.
+function AccessCodeCard() {
+  const { c } = useTheme();
+  const { accessCode, setAccessCode } = useSession();
+  const [draft, setDraft] = useState(accessCode);
+  const [saved, setSaved] = useState(false);
+  const changed = draft.trim() !== accessCode;
+  return (
+    <Card>
+      <AppText size={12.5} color={c.muted} lineHeight={19}>
+        الذكاء الاصطناعي محمي برمز يعطيك إياه صاحب الحساب. اكتبه مرة واحدة ويُحفظ على هذا الجهاز.
+      </AppText>
+      <TextInput
+        value={draft}
+        onChangeText={(v) => {
+          setDraft(v);
+          setSaved(false);
+        }}
+        placeholder="مثال: SQ-XXXX-XXXX"
+        placeholderTextColor={c.placeholder}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        accessibilityLabel="رمز الوصول"
+        style={[styles.codeInput, { color: c.text, backgroundColor: c.tile, borderColor: c.line }]}
+      />
+      <Button
+        label={saved ? 'تم الحفظ' : 'احفظ الرمز'}
+        icon={saved ? 'check' : undefined}
+        height={44}
+        disabled={!changed && !saved}
+        onPress={() => {
+          setAccessCode(draft);
+          setSaved(true);
+        }}
+      />
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   ltr: { writingDirection: 'ltr', alignSelf: 'flex-start' },
   list: { paddingVertical: 2, gap: 0 },
   signOut: { marginTop: 16 },
+  codeInput: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontFamily: 'ReadexPro_500Medium', fontSize: 15, textAlign: 'left', writingDirection: 'ltr', letterSpacing: 1 },
   palettes: { flexDirection: 'row', gap: 10 },
   palette: { flex: 1, borderRadius: 14, padding: 8, gap: 8 },
   preview: { height: 72, borderRadius: 9, padding: 10, justifyContent: 'space-between' },

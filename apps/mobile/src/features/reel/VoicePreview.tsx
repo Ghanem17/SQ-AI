@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Segmented, ui } from '@/components/ui';
-import { useAiStatus, voiceUrl } from '@/lib/ai';
+import { useAiStatus, voiceSource } from '@/lib/ai';
 import { useTheme } from '@/theme/theme';
 
 type Voice = 'brian' | 'sarah';
@@ -40,7 +40,7 @@ export function VoicePreview({ caption }: { caption: string }) {
       return;
     }
     await setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
-    player.replace({ uri: voiceUrl(text, voice) });
+    player.replace(voiceSource(text, voice));
     setRequested(true);
     player.play();
   };
@@ -75,9 +75,9 @@ export function VoicePreview({ caption }: { caption: string }) {
         disabled={status !== 'online' || !text}
         onPress={play}
       />
-      {status === 'offline' && (
+      {(status === 'offline' || status === 'locked') && (
         <AppText size={12} color={c.placeholder}>
-          يعمل بعد إضافة مفتاح fal على الكمبيوتر.
+          {status === 'locked' ? 'أدخل رمز الوصول من الإعدادات لتسمع الصوت.' : 'الخدمة غير متاحة الآن.'}
         </AppText>
       )}
     </View>

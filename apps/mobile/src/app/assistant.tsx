@@ -107,7 +107,7 @@ export default function AssistantScreen() {
         title="المساعد"
         subtitle="أفكار وقوائم لقطات"
         mode="close"
-        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'offline' ? <Badge label="ردود تجريبية" /> : undefined}
+        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'locked' ? <Badge label="يحتاج رمز" tone="acc" /> : status === 'offline' ? <Badge label="ردود تجريبية" /> : undefined}
       />
       <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">

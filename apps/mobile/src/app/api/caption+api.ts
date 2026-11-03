@@ -1,8 +1,10 @@
+import { denied, hasAccess } from '@/server/access';
 import { chat, errorResponse, parseJson } from '@/server/ai';
 import { readBusiness } from '@/server/input';
 import { captionSystem } from '@/server/prompts';
 
 export async function POST(request: Request): Promise<Response> {
+  if (!hasAccess(request)) return denied();
   try {
     const body = (await request.json()) as { business?: unknown; title?: unknown; platforms?: unknown; previous?: unknown };
     const title = typeof body.title === 'string' ? body.title.slice(0, 120) : 'ريل جديد';

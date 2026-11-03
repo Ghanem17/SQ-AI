@@ -1,7 +1,9 @@
+import { denied, hasAccess } from '@/server/access';
 import { errorResponse, speech, voices, type VoiceId } from '@/server/ai';
 
 // GET so the audio player can stream it straight from a URL.
 export async function GET(request: Request): Promise<Response> {
+  if (!hasAccess(request)) return denied();
   try {
     const url = new URL(request.url);
     const text = (url.searchParams.get('text') ?? '').trim().slice(0, 400);

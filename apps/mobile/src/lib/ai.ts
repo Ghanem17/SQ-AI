@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { accessHeaders, setAccessCode } from '@/lib/access';
 import { useSession } from '@/state/session';
 
 // Installed builds talk to the hosted server; Expo Go talks to the computer
@@ -23,7 +24,7 @@ export function apiBase(): string {
 
 export class AiUnavailable extends Error {
   constructor(
-    readonly reason: 'noKey' | 'badKey' | 'credit' | 'network' | 'failed',
+    readonly reason: 'noKey' | 'badKey' | 'credit' | 'access' | 'network' | 'failed',
     message: string,
   ) {
     super(message);
@@ -34,6 +35,7 @@ export const unavailableText: Record<AiUnavailable['reason'], string> = {
   noKey: 'الذكاء الاصطناعي غير مربوط بعد: أضف مفتاح fal على الكمبيوتر.',
   badKey: 'مفتاح fal غير صحيح أو ليس له صلاحية تشغيل النماذج.',
   credit: 'رصيد fal انتهى. اشحن الرصيد من fal.ai ثم جرّب.',
+  access: 'أدخل رمز الوصول من الإعدادات لتشغيل الذكاء الاصطناعي.',
   network: 'تعذر الاتصال بالكمبيوتر الذي يشغّل التطبيق.',
   failed: 'لم يكتمل الطلب. جرّب مرة أخرى.',
 };
@@ -45,7 +47,7 @@ export async function postJson<T>(path: string, body: unknown, timeoutMs = 60000
   try {
     res = await fetch(`${apiBase()}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...accessHeaders() },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -57,39 +59,45 @@ export async function postJson<T>(path: string, body: unknown, timeoutMs = 60000
   if (res.status === 503) throw new AiUnavailable('noKey', 'no key');
   if (res.status === 402) throw new AiUnavailable('credit', 'credit');
   if (res.status === 401) throw new AiUnavailable('badKey', 'bad key');
+  if (res.status === 403) throw new AiUnavailable('access', 'access');
   if (!res.ok) throw new AiUnavailable('failed', `status ${res.status}`);
   return (await res.json()) as T;
 }
 
-export function voiceUrl(text: string, voice = 'brian'): string {
-  return `${apiBase()}/api/voice?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
+export function voiceSource(text: string, voice = 'brian') {
+  return { uri: `${apiBase()}/api/voice?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`, headers: accessHeaders() };
 }
 
-export type AiStatus = 'checking' | 'online' | 'offline';
+export type AiStatus = 'checking' | 'online' | 'offline' | 'locked';
 
-let cached: AiStatus | null = null;
+// Checked once per access code per launch.
+const statusByCode = new Map<string, AiStatus>();
 
-// Whether the routes are reachable and have a key. Checked once per launch.
+// Whether the routes are reachable, have a provider key, and accept this
+// tester's access code.
 export function useAiStatus(): AiStatus {
-  const [status, setStatus] = useState<AiStatus>(cached ?? 'checking');
+  const { accessCode: code } = useSession();
+  const [result, setResult] = useState<{ code: string; status: AiStatus } | null>(null);
+  const known = statusByCode.get(code);
+
   useEffect(() => {
-    if (cached) return;
+    if (statusByCode.has(code)) return;
     let alive = true;
-    fetch(`${apiBase()}/api/status`)
-      .then((r) => (r.ok ? (r.json() as Promise<{ ai?: boolean }>) : { ai: false }))
-      .then((d) => {
-        cached = d.ai ? 'online' : 'offline';
-        if (alive) setStatus(cached);
-      })
-      .catch(() => {
-        cached = 'offline';
-        if (alive) setStatus('offline');
+    setAccessCode(code);
+    fetch(`${apiBase()}/api/status`, { headers: accessHeaders() })
+      .then((r) => (r.ok ? (r.json() as Promise<{ ai?: boolean; access?: boolean }>) : { ai: false, access: true }))
+      .then((d): AiStatus => (!d.ai ? 'offline' : d.access === false ? 'locked' : 'online'))
+      .catch((): AiStatus => 'offline')
+      .then((status) => {
+        statusByCode.set(code, status);
+        if (alive) setResult({ code, status });
       });
     return () => {
       alive = false;
     };
-  }, []);
-  return status;
+  }, [code]);
+
+  return known ?? (result?.code === code ? result.status : 'checking');
 }
 
 export function useBusiness() {

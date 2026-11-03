@@ -1,3 +1,4 @@
+import { denied, hasAccess } from '@/server/access';
 import { chat, errorResponse, parseJson } from '@/server/ai';
 import { readBusiness, readMessages } from '@/server/input';
 import { replySystem } from '@/server/prompts';
@@ -5,6 +6,7 @@ import { replySystem } from '@/server/prompts';
 type Reply = { text?: string; order?: { items: string; total: number; area: string }; escalate?: boolean };
 
 export async function POST(request: Request): Promise<Response> {
+  if (!hasAccess(request)) return denied();
   try {
     const body = (await request.json()) as { business?: unknown; messages?: unknown };
     const messages = readMessages(body.messages, 20);

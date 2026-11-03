@@ -61,7 +61,7 @@ export default function TestChatScreen() {
       <TopBar
         title="جرّب الرد على زبون"
         subtitle="اكتب كأنك زبون على واتساب"
-        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'offline' ? <Badge label="غير مربوط" tone="bad" /> : undefined}
+        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'locked' ? <Badge label="يحتاج رمز" tone="acc" /> : status === 'offline' ? <Badge label="غير مربوط" tone="bad" /> : undefined}
       />
       <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
