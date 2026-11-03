@@ -64,7 +64,7 @@ async function upstreamError(res: Response): Promise<AiError> {
     // Non-JSON error bodies carry nothing useful for the app.
   }
   const text = detail.toLowerCase();
-  if (res.status === 402 || /balance|credit|exhausted|insufficient/.test(text)) return new AiError(detail || 'Out of credit', 402);
+  if (res.status === 402 || /balance|credit|exhausted|insufficient|top_up|top up/.test(text)) return new AiError(detail || 'Out of credit', 402);
   if (res.status === 401 || res.status === 403) return new AiError(detail || 'Key rejected', 401);
   return new AiError(detail || `Provider returned ${res.status}`, 502);
 }
