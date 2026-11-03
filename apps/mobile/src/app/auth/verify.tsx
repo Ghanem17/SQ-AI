@@ -25,8 +25,8 @@ function notify(type: Haptics.NotificationFeedbackType) {
 export default function VerifyScreen() {
   const { c } = useTheme();
   const reduceMotion = useReducedMotion();
-  const { phone, display, mode, name } = useLocalSearchParams<{ phone: string; display: string; mode: string; name?: string }>();
-  const { signIn, accountType } = useSession();
+  const { phone, display, mode, name, accountType: pickedType } = useLocalSearchParams<{ phone: string; display: string; mode: string; name?: string; accountType?: string }>();
+  const { signIn, accountType, chooseAccountType } = useSession();
   const inputRef = useRef<TextInputInstance>(null);
 
   const [code, setCode] = useState('');
@@ -52,7 +52,13 @@ export default function VerifyScreen() {
       notify(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
         signIn(phone, mode === 'signUp' && name ? name : null);
-        router.replace(mode === 'signIn' && accountType ? '/(tabs)' : '/auth/account-type');
+        // New accounts chose their type on the sign-up form.
+        if (mode === 'signUp' && (pickedType === 'shop' || pickedType === 'creator')) {
+          chooseAccountType(pickedType);
+          router.replace('/(tabs)');
+        } else {
+          router.replace(accountType ? '/(tabs)' : '/auth/account-type');
+        }
       }, reduceMotion ? 0 : 650);
     } else {
       setState('wrong');

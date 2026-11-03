@@ -1,60 +1,55 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { brand, checkPhone, defaultCountry, formatNational, radius, type Country } from '@sq/shared';
+import { checkPhone, defaultCountry, formatNational, paletteNames, radius, type AccountType, type Country, type PaletteName } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale, tapHaptic } from '@/components/PressableScale';
-import { Screen } from '@/components/Screen';
+import { arts, DayShapes, Glow, PaletteBar, PillStack, type Art } from '@/features/auth/art';
 import { sendCode } from '@/features/auth/authService';
 import { CountryPicker } from '@/features/auth/CountryPicker';
 import { ar } from '@/i18n/ar';
+import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
 const t = ar.auth;
-type Mode = 0 | 1; // 0 = new account, 1 = sign in
+type Mode = 'signIn' | 'signUp';
 
+// Field colors for the two looks: the night glow and the day sheet.
+type Skin = { field: string; border: string; focus: string; text: string; label: string; hint: string; placeholder: string };
+
+// Sign in and sign up on one screen. Dark mode shows the night look (glow and
+// stacked pills), light mode the day look (dark panel over a white sheet),
+// each in the chosen palette. New accounts pick their type and colors here,
+// so they go straight to the app after the code.
 export default function AuthScreen() {
-  const { c } = useTheme();
+  const { c, scheme, palette } = useTheme();
+  const { setPalette } = useSession();
   const reduceMotion = useReducedMotion();
-  const [mode, setMode] = useState<Mode>(0);
+  const night = scheme === 'dark';
+  const art = arts[palette];
+
+  const [mode, setMode] = useState<Mode>('signIn');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState<Country>(defaultCountry);
+  const [type, setType] = useState<AccountType>('shop');
   const [showErrors, setShowErrors] = useState(false);
   const [sending, setSending] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [socialNote, setSocialNote] = useState(false);
   const [focused, setFocused] = useState<'name' | 'phone' | null>(null);
-  const [segFrames, setSegFrames] = useState<Record<number, { x: number; width: number }>>({});
 
-  const indicatorX = useSharedValue(0);
-  const indicatorW = useSharedValue(0);
-  const drag = useSharedValue(0);
-  const activeFrame = segFrames[mode];
-
-  // Layout x is physical on every platform, so the indicator follows the
-  // selected tab whatever the layout direction.
-  useEffect(() => {
-    if (!activeFrame) return;
-    indicatorX.set(reduceMotion ? activeFrame.x : withTiming(activeFrame.x, { duration: 200, easing: Easing.out(Easing.cubic) }));
-    indicatorW.set(activeFrame.width);
-  }, [activeFrame, reduceMotion, indicatorX, indicatorW]);
+  const skin: Skin = night
+    ? { field: `${art.panel}E6`, border: art.slate, focus: art.accent, text: art.light, label: art.muted, hint: art.muted, placeholder: c.placeholder }
+    : { field: c.tile, border: c.line, focus: c.primary, text: c.text, label: c.muted, hint: c.placeholder, placeholder: c.placeholder };
 
   const switchMode = (next: Mode) => {
     if (next === mode) return;
@@ -63,8 +58,8 @@ export default function AuthScreen() {
     setShowErrors(false);
   };
 
-  // Swiping the form switches between the two modes. In RTL the second tab
-  // sits on the left, so dragging to the right moves to it.
+  // Swiping the form switches modes; in RTL the new-account side is on the left.
+  const drag = useSharedValue(0);
   const swipe = usePanGesture({
     activeOffsetX: [-16, 16],
     failOffsetY: [-20, 20],
@@ -75,16 +70,15 @@ export default function AuthScreen() {
     onDeactivate: (e) => {
       'worklet';
       drag.value = withSpring(0, { damping: 16 });
-      if (e.translationX > 60) scheduleOnRN(switchMode, 1 as Mode);
-      else if (e.translationX < -60) scheduleOnRN(switchMode, 0 as Mode);
+      if (e.translationX > 60) scheduleOnRN(switchMode, 'signUp' as Mode);
+      else if (e.translationX < -60) scheduleOnRN(switchMode, 'signIn' as Mode);
     },
   });
-
-  const indicatorStyle = useAnimatedStyle(() => ({ width: indicatorW.get(), transform: [{ translateX: indicatorX.get() }] }));
   const formStyle = useAnimatedStyle(() => ({ transform: [{ translateX: drag.value }] }));
 
   const phoneCheck = checkPhone(phone, country);
-  const nameMissing = mode === 0 && name.trim().length === 0;
+  const signUp = mode === 'signUp';
+  const nameMissing = signUp && name.trim().length === 0;
   const phoneError = showErrors && !phoneCheck.ok ? t.phoneErrors[phoneCheck.reason] : null;
   const nameError = showErrors && nameMissing ? t.nameError : null;
 
@@ -98,9 +92,10 @@ export default function AuthScreen() {
         pathname: '/auth/verify',
         params: {
           phone: phoneCheck.e164,
-          display: `+${country.dial} ${formatNational(phoneCheck.national, country)}`.replace(/ /g, '\u00A0'),
-          mode: mode === 0 ? 'signUp' : 'signIn',
+          display: `+${country.dial} ${formatNational(phoneCheck.national, country)}`.replace(/ /g, ' '),
+          mode,
           name: name.trim(),
+          ...(signUp ? { accountType: type } : {}),
         },
       });
     } finally {
@@ -109,202 +104,381 @@ export default function AuthScreen() {
   };
 
   const layout = reduceMotion ? undefined : LinearTransition.duration(200);
+  const appear = reduceMotion ? undefined : FadeIn.duration(200);
+  const leave = reduceMotion ? undefined : FadeOut.duration(140);
 
-  return (
-    <Screen edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)} style={styles.hero}>
-            <View style={styles.brandRow}>
-              <View style={[styles.logo, { backgroundColor: brand.navy }]}>
-                <AppText weight="bold" size={13} color={brand.light} style={styles.ltr}>
-                  SQ
-                </AppText>
-              </View>
-              <AppText weight="semibold" size={15} style={styles.ltr}>
-                SQ AI
+  const fieldStyle = (key: 'name' | 'phone') => [
+    styles.input,
+    { color: skin.text, backgroundColor: skin.field, borderColor: focused === key ? skin.focus : skin.border, borderWidth: focused === key ? 1.5 : 1 },
+  ];
+
+  const form = (
+    <GestureDetector gesture={swipe}>
+      <Animated.View style={[styles.form, formStyle]} layout={layout} accessibilityHint={t.swipeHint}>
+        {signUp && (
+          <Animated.View entering={appear} exiting={leave} style={styles.field}>
+            <AppText weight="medium" size={13} color={skin.label} nativeID="name-label">
+              {t.nameLabel}
+            </AppText>
+            <TextInput
+              accessibilityLabelledBy="name-label"
+              value={name}
+              onChangeText={setName}
+              placeholder={t.namePlaceholder}
+              placeholderTextColor={skin.placeholder}
+              onFocus={() => setFocused('name')}
+              onBlur={() => setFocused(null)}
+              autoComplete="organization"
+              returnKeyType="next"
+              style={fieldStyle('name')}
+            />
+            {nameError && (
+              <AppText size={12.5} color={c.bad} accessibilityLiveRegion="polite">
+                {nameError}
               </AppText>
-            </View>
-            <AppText weight="semibold" size={26} lineHeight={36} style={styles.heroTitle}>
-              {t.welcome}
-            </AppText>
-            <AppText size={14} lineHeight={22} color={c.muted}>
-              {t.subtitle}
-            </AppText>
+            )}
           </Animated.View>
+        )}
 
-          <View accessibilityRole="tablist" style={[styles.segment, { backgroundColor: c.tile }]}>
-            {activeFrame && <Animated.View style={[styles.segIndicator, { backgroundColor: c.card, borderColor: c.line }, indicatorStyle]} />}
-            {([0, 1] as Mode[]).map((m) => {
-              const active = m === mode;
-              return (
-                <PressableScale
-                  key={m}
-                  haptic={false}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => switchMode(m)}
-                  onLayout={(e) => {
-                    const { x, width } = e.nativeEvent.layout;
-                    setSegFrames((prev) => (prev[m]?.x === x && prev[m]?.width === width ? prev : { ...prev, [m]: { x, width } }));
-                  }}
-                  style={styles.segItem}>
-                  <AppText weight={active ? 'semibold' : 'regular'} size={14} color={active ? c.text : c.muted}>
-                    {m === 0 ? t.tabs.signUp : t.tabs.signIn}
-                  </AppText>
-                </PressableScale>
-              );
-            })}
+        <Animated.View layout={layout} style={styles.field}>
+          <AppText weight="medium" size={13} color={skin.label} nativeID="phone-label">
+            {t.phoneLabel}
+          </AppText>
+          <View style={styles.phoneRow}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={`${t.countryLabel}: ${country.nameAr} +${country.dial}`}
+              onPress={() => setPickerOpen(true)}
+              style={[styles.country, { backgroundColor: skin.field, borderColor: skin.border }]}>
+              <AppText weight="medium" size={15} color={skin.text}>{`+${country.dial}`}</AppText>
+              <Icon name="chevronDown" color={skin.hint} size={14} strokeWidth={2} />
+            </PressableScale>
+            <TextInput
+              accessibilityLabelledBy="phone-label"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder={formatNational('7701234567', country)}
+              placeholderTextColor={skin.placeholder}
+              keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
+              onFocus={() => setFocused('phone')}
+              onBlur={() => setFocused(null)}
+              onSubmitEditing={submit}
+              style={[fieldStyle('phone'), styles.phoneInput]}
+            />
           </View>
+          {phoneError ? (
+            <AppText size={12.5} color={c.bad} accessibilityLiveRegion="polite">
+              {phoneError}
+            </AppText>
+          ) : (
+            <AppText size={12} color={skin.hint}>
+              {t.phoneHint}
+            </AppText>
+          )}
+        </Animated.View>
 
-          <GestureDetector gesture={swipe}>
-            <Animated.View style={[styles.form, formStyle]} accessibilityHint={t.swipeHint} layout={layout}>
-              {mode === 0 && (
-                <Animated.View
-                  entering={reduceMotion ? undefined : FadeIn.duration(200)}
-                  exiting={reduceMotion ? undefined : FadeOut.duration(140)}
-                  style={styles.field}>
-                  <AppText weight="medium" size={13} color={c.muted} nativeID="name-label">
-                    {t.nameLabel}
-                  </AppText>
-                  <TextInput
-                    accessibilityLabelledBy="name-label"
-                    value={name}
-                    onChangeText={setName}
-                    placeholder={t.namePlaceholder}
-                    placeholderTextColor={c.placeholder}
-                    onFocus={() => setFocused('name')}
-                    onBlur={() => setFocused(null)}
-                    autoComplete="organization"
-                    returnKeyType="next"
-                    style={[
-                      styles.input,
-                      { color: c.text, backgroundColor: c.card, borderColor: focused === 'name' ? c.primary : c.fieldLine },
-                    ]}
-                  />
-                  {nameError && (
-                    <AppText size={13} color={c.bad} accessibilityLiveRegion="polite">
-                      {nameError}
-                    </AppText>
-                  )}
+        {signUp && (
+          <Animated.View entering={appear} exiting={leave} style={styles.field}>
+            <AppText weight="medium" size={13} color={skin.label}>
+              نوع الحساب
+            </AppText>
+            <View accessibilityRole="radiogroup" style={styles.pair}>
+              <Choice icon="store" label={ar.accountType.shop.title} selected={type === 'shop'} onPress={() => setType('shop')} night={night} art={art} />
+              <Choice icon="video" label={ar.accountType.creator.title} selected={type === 'creator'} onPress={() => setType('creator')} night={night} art={art} />
+            </View>
+          </Animated.View>
+        )}
+
+        {signUp && (
+          <Animated.View entering={appear} exiting={leave} style={styles.field}>
+            <AppText weight="medium" size={13} color={skin.label}>
+              ألوان التطبيق
+            </AppText>
+            <View accessibilityRole="radiogroup" style={styles.pair}>
+              {(['ocean', 'rose'] as PaletteName[]).map((p) => (
+                <PaletteChoice key={p} name={p} selected={palette === p} onPress={() => setPalette(p)} night={night} art={art} />
+              ))}
+            </View>
+          </Animated.View>
+        )}
+
+        <Animated.View layout={layout}>
+          <Button
+            label={sending ? t.sending : signUp ? 'أنشئ حسابي' : 'أرسل رمز الدخول'}
+            loading={sending}
+            onPress={submit}
+            height={54}
+            colors={{ bg: c.heroBtn, fg: c.heroBtnText }}
+          />
+        </Animated.View>
+      </Animated.View>
+    </GestureDetector>
+  );
+
+  const social = (
+    <>
+      <View style={styles.socialRow}>
+        {['Google', 'Apple'].map((label) => (
+          <Button
+            key={label}
+            label={label}
+            variant="secondary"
+            height={46}
+            style={[styles.flex, night && { borderWidth: 1, borderColor: art.slate }]}
+            colors={night ? { bg: 'transparent', fg: art.light } : undefined}
+            onPress={() => setSocialNote(true)}
+          />
+        ))}
+      </View>
+      {socialNote && (
+        <Animated.View entering={appear} style={[styles.note, { backgroundColor: night ? `${art.panel}E6` : c.accSoft }]}>
+          <AppText size={12.5} color={night ? art.muted : c.acc} accessibilityLiveRegion="polite">
+            {t.socialLater}
+          </AppText>
+        </Animated.View>
+      )}
+    </>
+  );
+
+  const picker = (
+    <CountryPicker
+      visible={pickerOpen}
+      selected={country}
+      onSelect={(next) => {
+        setCountry(next);
+        setPickerOpen(false);
+      }}
+      onClose={() => setPickerOpen(false)}
+    />
+  );
+
+  if (night) {
+    return (
+      <View style={[styles.flex, styles.rtl, { backgroundColor: art.deep }]}>
+        <Glow id="nightA" color={art.glowA} size={360} style={{ left: -190, top: 120 }} />
+        <Glow id="nightB" color={art.glowB} size={380} style={{ right: -200, top: 150 }} />
+        <Glow id="nightC" color={art.slate} size={420} style={{ left: -15, top: -230 }} strength={0.5} />
+        <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={styles.nightContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Logo art={art} />
+              {signUp ? (
+                <Animated.View key="bar" entering={appear} style={styles.barWrap}>
+                  <PaletteBar art={art} />
+                </Animated.View>
+              ) : (
+                <Animated.View key="pills" entering={appear} style={styles.pillsWrap}>
+                  <PillStack art={art} result="طلبات أكثر" figure="2,100 د.ع / طلب" />
                 </Animated.View>
               )}
-
-              <Animated.View layout={layout} style={styles.field}>
-                <AppText weight="medium" size={13} color={c.muted} nativeID="phone-label">
-                  {t.phoneLabel}
+              <View style={styles.titles}>
+                <AppText weight="semibold" size={28} lineHeight={38} color={art.light}>
+                  {signUp ? 'ابدأ خلال دقيقة' : 'أهلًا من جديد'}
                 </AppText>
-                <View style={styles.phoneRow}>
-                  <PressableScale
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t.countryLabel}: ${country.nameAr} +${country.dial}`}
-                    onPress={() => setPickerOpen(true)}
-                    style={[styles.country, { backgroundColor: c.card, borderColor: c.fieldLine }]}>
-                    <AppText weight="medium" size={16}>{`+${country.dial}`}</AppText>
-                    <Icon name="chevronDown" color={c.muted} size={14} strokeWidth={2} />
-                  </PressableScale>
-                  <TextInput
-                    accessibilityLabelledBy="phone-label"
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder={formatNational('7701234567', country)}
-                    placeholderTextColor={c.placeholder}
-                    keyboardType="phone-pad"
-                    textContentType="telephoneNumber"
-                    autoComplete="tel"
-                    onFocus={() => setFocused('phone')}
-                    onBlur={() => setFocused(null)}
-                    onSubmitEditing={submit}
-                    style={[
-                      styles.input,
-                      styles.phoneInput,
-                      { color: c.text, backgroundColor: c.card, borderColor: focused === 'phone' ? c.primary : c.fieldLine },
-                    ]}
-                  />
-                </View>
-                {phoneError ? (
-                  <AppText size={13} color={c.bad} accessibilityLiveRegion="polite">
-                    {phoneError}
+                <AppText size={14} lineHeight={22} color={art.muted}>
+                  {signUp ? 'أول ريل علينا. بدون بطاقة دفع.' : t.subtitle}
+                </AppText>
+              </View>
+              {form}
+              {!signUp && social}
+              <View style={styles.switchRow}>
+                <AppText size={13.5} color={art.muted}>
+                  {signUp ? 'عندك حساب؟' : 'ما عندك حساب؟'}
+                </AppText>
+                <PressableScale accessibilityRole="button" onPress={() => switchMode(signUp ? 'signIn' : 'signUp')} style={styles.switchBtn}>
+                  <AppText weight="semibold" size={13.5} color={art.accent}>
+                    {signUp ? 'سجّل دخول' : 'أنشئ حسابًا'}
                   </AppText>
-                ) : (
-                  <AppText size={12.5} color={c.muted}>
-                    {t.phoneHint}
+                </PressableScale>
+              </View>
+              <AppText size={11.5} color={art.muted} center>
+                {t.terms}
+              </AppText>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+        {picker}
+      </View>
+    );
+  }
+
+  const panelHeight = signUp ? 210 : 372;
+  return (
+    <View style={[styles.flex, styles.rtl, { backgroundColor: art.panel }]}>
+      <StatusBar style="light" />
+      <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.dayScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
+            <Animated.View layout={layout} style={[styles.panel, { height: panelHeight }]}>
+              <DayShapes art={art} compact={signUp} />
+              <View style={styles.panelText}>
+                <AppText weight="semibold" size={signUp ? 26 : 30} lineHeight={signUp ? 36 : 40} color={art.light}>
+                  {signUp ? 'حساب جديد' : 'تسويقك يشتغل لحاله'}
+                </AppText>
+                {!signUp && (
+                  <AppText size={14} color={art.muted}>
+                    صوّر، ونحن نكمّل الباقي.
                   </AppText>
                 )}
-              </Animated.View>
-
-              <Animated.View layout={layout}>
-                <Button label={sending ? t.sending : t.sendCode} loading={sending} onPress={submit} />
-              </Animated.View>
+              </View>
             </Animated.View>
-          </GestureDetector>
-
-          <View style={styles.orRow}>
-            <View style={[styles.rule, { backgroundColor: c.line }]} />
-            <AppText size={13} color={c.muted}>
-              {ar.common.or}
-            </AppText>
-            <View style={[styles.rule, { backgroundColor: c.line }]} />
-          </View>
-
-          <View style={styles.socialRow}>
-            <Button label={t.google} variant="secondary" onPress={() => setSocialNote(true)} />
-            <Button label={t.apple} variant="secondary" onPress={() => setSocialNote(true)} />
-          </View>
-          {socialNote && (
-            <Animated.View entering={FadeIn} exiting={FadeOut} style={[styles.note, { backgroundColor: c.accSoft }]}>
-              <AppText size={13} color={c.acc} accessibilityLiveRegion="polite">
-                {t.socialLater}
+            <View style={[styles.sheet, { backgroundColor: c.bg }]}>
+              <Tabs mode={mode} onChange={switchMode} />
+              {form}
+              {!signUp && (
+                <>
+                  <View style={styles.orRow}>
+                    <View style={[styles.rule, { backgroundColor: c.line }]} />
+                    <AppText size={12} color={c.placeholder}>
+                      {ar.common.or}
+                    </AppText>
+                    <View style={[styles.rule, { backgroundColor: c.line }]} />
+                  </View>
+                  {social}
+                </>
+              )}
+              <View style={[styles.trust, { backgroundColor: c.priSoft }]}>
+                <Icon name="shield" color={c.onPriSoft} size={17} />
+                <AppText size={12.5} lineHeight={18} color={c.onPriSoft} style={styles.flex}>
+                  ما نطلب كلمة سر، ولا ننشر شي بدون موافقتك.
+                </AppText>
+              </View>
+              <AppText size={11.5} color={c.placeholder} center>
+                {t.terms}
               </AppText>
-            </Animated.View>
-          )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+      {picker}
+    </View>
+  );
+}
 
-          <AppText size={12} color={c.placeholder} center>
-            {t.terms}
-          </AppText>
-        </ScrollView>
-      </KeyboardAvoidingView>
+function Logo({ art }: { art: Art }) {
+  return (
+    <View style={styles.logoRow}>
+      <View style={[styles.logo, { backgroundColor: art.finalPill.bg }]}>
+        <AppText weight="bold" size={13} color={art.finalPill.fg} style={styles.ltr}>
+          SQ
+        </AppText>
+      </View>
+      <AppText weight="semibold" size={15} color={art.light} style={styles.ltr}>
+        SQ AI
+      </AppText>
+    </View>
+  );
+}
 
-      <CountryPicker
-        visible={pickerOpen}
-        selected={country}
-        onSelect={(next) => {
-          setCountry(next);
-          setPickerOpen(false);
-        }}
-        onClose={() => setPickerOpen(false)}
-      />
-    </Screen>
+function Tabs({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  const { c } = useTheme();
+  const items: { value: Mode; label: string }[] = [
+    { value: 'signIn', label: t.tabs.signIn },
+    { value: 'signUp', label: t.tabs.signUp },
+  ];
+  return (
+    <View accessibilityRole="tablist" style={[styles.tabs, { backgroundColor: c.tile }]}>
+      {items.map((it) => {
+        const active = it.value === mode;
+        return (
+          <PressableScale
+            key={it.value}
+            haptic={false}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(it.value)}
+            style={[styles.tab, active && { backgroundColor: c.hero }]}>
+            <AppText weight={active ? 'semibold' : 'regular'} size={14} color={active ? c.heroText : c.muted}>
+              {it.label}
+            </AppText>
+          </PressableScale>
+        );
+      })}
+    </View>
+  );
+}
+
+function Tile({ selected, onPress, label, night, art, children }: { selected: boolean; onPress: () => void; label: string; night: boolean; art: Art; children: ReactNode }) {
+  const { c } = useTheme();
+  const border = selected ? (night ? art.accent : c.primary) : night ? art.slate : c.line;
+  const bg = selected && night ? `${art.accent}24` : night ? `${art.panel}99` : c.card;
+  return (
+    <PressableScale
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected }}
+      onPress={onPress}
+      style={[styles.tile, { borderColor: border, borderWidth: selected ? 1.5 : 1, backgroundColor: bg }]}>
+      {children}
+    </PressableScale>
+  );
+}
+
+function Choice({ icon, label, selected, onPress, night, art }: { icon: IconName; label: string; selected: boolean; onPress: () => void; night: boolean; art: Art }) {
+  const { c } = useTheme();
+  const fg = night ? (selected ? art.light : art.muted) : selected ? c.text : c.muted;
+  const iconColor = night ? (selected ? art.accent : art.muted) : selected ? c.primary : c.muted;
+  return (
+    <Tile selected={selected} onPress={onPress} label={label} night={night} art={art}>
+      <Icon name={icon} color={iconColor} size={21} />
+      <AppText weight={selected ? 'semibold' : 'regular'} size={13.5} color={fg} center>
+        {label}
+      </AppText>
+    </Tile>
+  );
+}
+
+function PaletteChoice({ name, selected, onPress, night, art }: { name: PaletteName; selected: boolean; onPress: () => void; night: boolean; art: Art }) {
+  const { c } = useTheme();
+  const s = arts[name].swatches;
+  const dots = [s[0], s[2], s[4]];
+  return (
+    <Tile selected={selected} onPress={onPress} label={paletteNames[name]} night={night} art={art}>
+      <View style={styles.dots}>
+        {dots.map((d, i) => (
+          <View key={d} style={[styles.dot, { backgroundColor: d, marginLeft: i ? -4 : 0, borderColor: night ? art.deep : c.card }]} />
+        ))}
+      </View>
+      <AppText weight={selected ? 'semibold' : 'regular'} size={13.5} color={night ? (selected ? art.light : art.muted) : selected ? c.text : c.muted}>
+        {paletteNames[name]}
+      </AppText>
+    </Tile>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 16, gap: 14, paddingBottom: 32 },
-  hero: { gap: 6, paddingTop: 8, paddingBottom: 10 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 22 },
-  heroTitle: {},
-  logo: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  rtl: { direction: 'rtl', overflow: 'hidden' },
   ltr: { writingDirection: 'ltr' },
-  segment: { flexDirection: 'row', borderRadius: radius.control, padding: 3, height: 44 },
-  segIndicator: { position: 'absolute', top: 3, bottom: 3, left: 0, borderRadius: radius.control - 3, borderWidth: StyleSheet.hairlineWidth * 2 },
-  segItem: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control - 3 },
+  nightContent: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 24, gap: 16, flexGrow: 1 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  pillsWrap: { marginTop: 8 },
+  barWrap: { marginTop: 10 },
+  titles: { gap: 2, marginTop: 6 },
   form: { gap: 14 },
   field: { gap: 6 },
-  input: {
-    fontFamily: 'ReadexPro_400Regular',
-    fontSize: 16,
-    height: 50,
-    borderWidth: 1,
-    borderRadius: radius.control,
-    paddingHorizontal: 14,
-    textAlign: 'right',
-  },
+  input: { fontFamily: 'ReadexPro_400Regular', fontSize: 16, height: 52, borderRadius: 14, paddingHorizontal: 14, textAlign: 'right' },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'ltr' },
-  country: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 50, paddingHorizontal: 12, borderRadius: radius.control, borderWidth: 1 },
+  country: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 52, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1 },
   phoneInput: { flex: 1, textAlign: 'left', writingDirection: 'ltr' },
-  orRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
-  rule: { flex: 1, height: StyleSheet.hairlineWidth },
-  socialRow: { gap: 8 },
+  pair: { flexDirection: 'row', gap: 8 },
+  tile: { flex: 1, minHeight: 70, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
+  dots: { flexDirection: 'row', direction: 'ltr' },
+  dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5 },
+  socialRow: { flexDirection: 'row', gap: 8 },
   note: { borderRadius: radius.control, padding: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 'auto' },
+  switchBtn: { minHeight: 44, justifyContent: 'center' },
+  dayScroll: { flexGrow: 1 },
+  panel: { overflow: 'hidden', justifyContent: 'flex-end' },
+  panelText: { paddingHorizontal: 24, paddingBottom: 30, gap: 2 },
+  sheet: { flexGrow: 1, marginTop: -24, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 22, paddingBottom: 20, gap: 16 },
+  tabs: { flexDirection: 'row', borderRadius: 14, padding: 4 },
+  tab: { flex: 1, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth },
+  trust: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 12 },
 });
