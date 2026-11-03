@@ -13,6 +13,7 @@ import {
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Card, Divider, KeyValue, Note, RadioCard, ScrollScreen, SectionTitle, Segmented, Stat, Stepper, TopBar, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
@@ -22,6 +23,7 @@ type Area = 'city' | 'near' | 'all';
 // reach. Orders are estimated once the account has its own results.
 export default function PromoteScreen() {
   const { c } = useTheme();
+  const { L, pick } = useI18n();
   const { draft, updateDraft, automation, spentThisMonth } = useStudio();
   const [area, setArea] = useState<Area>('near');
   const spend = promotionCost(draft.promo, draft.promoDays);
@@ -31,71 +33,85 @@ export default function PromoteScreen() {
 
   return (
     <ScrollScreen
-      header={<TopBar title="الترويج" subtitle="بعد نشر الريل" />}
-      footer={<Button label="التالي: مراجعة الطلب" onPress={() => router.push('/reel/summary')} />}>
+      header={<TopBar title={L('الترويج', 'Promotion')} subtitle={L('بعد نشر الريل', 'After the reel is posted')} />}
+      footer={<Button label={L('التالي: مراجعة الطلب', 'Next: review the order')} onPress={() => router.push('/reel/summary')} />}>
       <AppText size={13.5} color={c.muted} lineHeight={21}>
-        الريل يُنشر مجانًا على صفحاتك. الترويج يوصله لناس جدد في منطقتك، وتدفع ميزانيته مباشرة لمنصة الإعلان.
+        {L(
+          'يُنشر الريل مجانًا على صفحاتك. أما الترويج فيوصله إلى أشخاص جدد في منطقتك، وتدفع ميزانيته مباشرة إلى منصة الإعلان.',
+          'The reel posts free to your pages. Promotion takes it to new people near you; its budget is paid straight to the ad platform.',
+        )}
       </AppText>
 
       {promoOrder.map((level) => (
-        <RadioCard key={level} selected={draft.promo === level} onPress={() => updateDraft({ promo: level })} label={promoLevels[level].name}>
+        <RadioCard key={level} selected={draft.promo === level} onPress={() => updateDraft({ promo: level })} label={pick(promoLevels[level].name)}>
           <View style={ui.between}>
             <AppText weight="semibold" size={15}>
-              {promoLevels[level].name}
+              {pick(promoLevels[level].name)}
             </AppText>
             {level !== 'none' && (
               <AppText weight="medium" size={13.5} style={ui.tabular}>
-                {formatIQD(promoLevels[level].daily)} / يوم
+                {L(`${formatIQD(promoLevels[level].daily)} / يوم`, `${formatIQD(promoLevels[level].daily)} / day`)}
               </AppText>
             )}
           </View>
           <AppText size={12.5} color={c.muted}>
             {level === 'none'
-              ? 'نشر عادي على صفحاتك فقط'
-              : `وصول متوقع ${formatNumber(estimatedReach(promoLevels[level].daily).low)} إلى ${formatNumber(estimatedReach(promoLevels[level].daily).high)} شخص يوميًا`}
+              ? L('نشر عادي على صفحاتك فقط', 'Regular posting on your pages only')
+              : L(
+                  `وصول متوقع من ${formatNumber(estimatedReach(promoLevels[level].daily).low)} إلى ${formatNumber(estimatedReach(promoLevels[level].daily).high)} شخص يوميًا`,
+                  `Expected reach ${formatNumber(estimatedReach(promoLevels[level].daily).low)}–${formatNumber(estimatedReach(promoLevels[level].daily).high)} people a day`,
+                )}
           </AppText>
         </RadioCard>
       ))}
 
       {draft.promo !== 'none' && (
         <>
-          <SectionTitle title="المدة والجمهور" />
+          <SectionTitle title={L('المدة والجمهور', 'Duration and audience')} />
           <Card>
             <View style={ui.between}>
               <AppText weight="medium" size={14}>
-                عدد الأيام
+                {L('عدد الأيام', 'Days')}
               </AppText>
-              <Stepper value={draft.promoDays} onChange={(promoDays) => updateDraft({ promoDays })} min={1} max={14} format={(v) => `${v} أيام`} />
+              <Stepper value={draft.promoDays} onChange={(promoDays) => updateDraft({ promoDays })} min={1} max={14} format={(v) => L(`${v} أيام`, `${v} days`)} />
             </View>
             <Divider />
             <AppText size={12.5} color={c.muted}>
-              المنطقة
+              {L('المنطقة', 'Area')}
             </AppText>
             <Segmented
               options={[
-                { value: 'near', label: 'ضمن 10 كم' },
-                { value: 'city', label: 'بغداد' },
-                { value: 'all', label: 'كل العراق' },
+                { value: 'near', label: L('ضمن 10 كم', 'Within 10 km') },
+                { value: 'city', label: L('بغداد', 'Baghdad') },
+                { value: 'all', label: L('كل العراق', 'All of Iraq') },
               ]}
               value={area}
               onChange={setArea}
             />
           </Card>
 
-          <SectionTitle title="التقدير" />
+          <SectionTitle title={L('التقدير', 'Estimate')} />
           <Card>
             <View style={styles.stats}>
-              <Stat label="الوصول" value={`\u2066${formatNumber(reach.low)}–${formatNumber(reach.high)}\u2069`} />
-              <Stat label="أيام الترويج" value={String(draft.promoDays)} />
+              <Stat label={L('الوصول', 'Reach')} value={`\u2066${formatNumber(reach.low)}–${formatNumber(reach.high)}\u2069`} />
+              <Stat label={L('أيام الترويج', 'Promotion days')} value={String(draft.promoDays)} />
             </View>
             <Divider />
-            <KeyValue label="ميزانية الترويج" sub={`${formatIQD(promoLevels[draft.promo].daily)} × ${draft.promoDays} أيام`} value={formatIQD(spend)} strong />
+            <KeyValue
+              label={L('ميزانية الترويج', 'Promotion budget')}
+              sub={L(`${formatIQD(promoLevels[draft.promo].daily)} × ${draft.promoDays} أيام`, `${formatIQD(promoLevels[draft.promo].daily)} × ${draft.promoDays} days`)} value={formatIQD(spend)} strong />
           </Card>
 
           <Note tone={overCap ? 'bad' : 'neutral'} icon={overCap ? 'alert' : 'wallet'}>
             {overCap
-              ? `الميزانية أعلى من المتبقي في سقفك الشهري (${formatIQD(left)}). خفّض الأيام أو المستوى، أو ارفع السقف من الوضع التلقائي.`
-              : `المتبقي من سقف الصرف هذا الشهر: ${formatIQD(left)}. يتوقف الترويج تلقائيًا عند الوصول للسقف.`}
+              ? L(
+                  `الميزانية أعلى من المتبقي في سقفك الشهري (${formatIQD(left)}). قلّل الأيام أو المستوى، أو ارفع السقف من الوضع التلقائي.`,
+                  `The budget is above what is left of your monthly cap (${formatIQD(left)}). Lower the days or level, or raise the cap in Autopilot.`,
+                )
+              : L(
+                  `المتبقي من سقف الإنفاق هذا الشهر: ${formatIQD(left)}. يتوقف الترويج تلقائيًا عند بلوغ السقف.`,
+                  `Left of this month's spending cap: ${formatIQD(left)}. Promotion stops automatically at the cap.`,
+                )}
           </Note>
         </>
       )}

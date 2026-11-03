@@ -34,11 +34,10 @@ async function fail(res: Response): Promise<AiError> {
   return new AiError(detail || `fal returned ${res.status}`, 502);
 }
 
-// Tools that run as queued jobs (Claude runs through the chat route).
-const jobTools: ServiceToolKey[] = ['image', 'klingVideo', 'veoVideo', 'captions', 'music', 'voice', 'trim', 'mergeAudio'];
-
+// Tools that run as queued jobs: every service tool except the chat models,
+// which run through the chat route.
 export function isJobTool(tool: unknown): tool is ServiceToolKey {
-  return typeof tool === 'string' && (jobTools as string[]).includes(tool);
+  return typeof tool === 'string' && Object.hasOwn(serviceTools, tool) && !serviceTools[tool as ServiceToolKey].model;
 }
 
 export async function submitJob(tool: ServiceToolKey, input: Record<string, unknown>) {
@@ -89,7 +88,7 @@ export async function uploadLink(fileName: string, contentType: string) {
 
 // fal's current list price per unit for each service tool, in dollars.
 export async function livePrices(): Promise<Partial<Record<ServiceToolKey, number>>> {
-  const tools = Object.values(serviceTools);
+  const tools = Object.values(serviceTools).filter((t) => t.livePrice);
   const query = tools.map((t) => `endpoint_id=${encodeURIComponent(t.endpoint)}`).join('&');
   const res = await fetch(`${PLATFORM}/v1/models/pricing?${query}`, { headers: headers() });
   if (!res.ok) throw await fail(res);

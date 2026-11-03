@@ -4,6 +4,7 @@ import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-nativ
 
 import { formatNumber, radius } from '@sq/shared';
 import { AppText } from '@/components/AppText';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 
 // A line with a soft area under it. Time runs left to right, as in every
@@ -19,10 +20,11 @@ export function LineChart({ values, labels, height = 140, format = formatNumber 
   const y = (v: number) => padY + (1 - (v - min) / span) * (height - padY * 2);
   const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const area = `${line} L${width},${height} L0,${height} Z`;
+  const { L } = useI18n();
   const last = values.length - 1;
 
   return (
-    <View accessible accessibilityLabel={`من ${format(values[0])} إلى ${format(values[last])}`}>
+    <View accessible accessibilityLabel={L(`من ${format(values[0])} إلى ${format(values[last])}`, `From ${format(values[0])} to ${format(values[last])}`)}>
       <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         {width > 0 && (
           <Svg width={width} height={height}>

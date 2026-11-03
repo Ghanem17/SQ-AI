@@ -17,15 +17,14 @@ import Animated, {
 import { brand, formatNumber } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Icon } from '@/components/Icon';
-import { ar } from '@/i18n/ar';
-
-const copy = ar.onboarding.illustrations;
+import { useI18n } from '@/i18n';
 
 type ArtProps = { active: boolean };
 
 // 1. Guided camera: a viewfinder with thirds and a product frame; the
 // "ready" status appears once the plate sits inside the frame.
 export function CameraArt({ active }: ArtProps) {
+  const copy = useI18n().t.onboarding.illustrations;
   const reduceMotion = useReducedMotion();
   const pop = useSharedValue(reduceMotion ? 1 : 0);
 
@@ -68,7 +67,7 @@ export function CameraArt({ active }: ArtProps) {
 }
 
 // 2. Publishing: the reel floats while each platform lights up in turn.
-const platforms = ['إنستغرام', 'فيسبوك', 'تيك توك'];
+const platforms = { ar: ['إنستغرام', 'فيسبوك', 'تيك توك'], en: ['Instagram', 'Facebook', 'TikTok'] };
 
 function PlatformChip({ name, order, active }: { name: string; order: number; active: boolean }) {
   const reduceMotion = useReducedMotion();
@@ -105,6 +104,7 @@ function PlatformChip({ name, order, active }: { name: string; order: number; ac
 }
 
 export function PublishArt({ active }: ArtProps) {
+  const { lang } = useI18n();
   const reduceMotion = useReducedMotion();
   const float = useSharedValue(0);
 
@@ -126,7 +126,7 @@ export function PublishArt({ active }: ArtProps) {
         <View style={[styles.reelBar, styles.reelBarShort, { backgroundColor: brand.slate }]} />
       </Animated.View>
       <View style={styles.platformRow}>
-        {platforms.map((name, i) => (
+        {platforms[lang].map((name, i) => (
           <PlatformChip key={name} name={name} order={i} active={active} />
         ))}
       </View>
@@ -136,6 +136,7 @@ export function PublishArt({ active }: ArtProps) {
 
 // 3. Replies: a short conversation plays out and ends in an order.
 export function ChatArt({ active }: ArtProps) {
+  const copy = useI18n().t.onboarding.illustrations;
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
   const playing = active && !reduceMotion;
@@ -197,6 +198,7 @@ const TO = 2100;
 const BAR_HEIGHTS = [96, 86, 76, 68];
 
 export function CostArt({ active }: ArtProps) {
+  const copy = useI18n().t.onboarding.illustrations;
   const reduceMotion = useReducedMotion();
   const [value, setValue] = useState(FROM);
   const grow = useSharedValue(0);

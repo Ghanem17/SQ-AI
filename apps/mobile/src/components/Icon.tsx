@@ -1,7 +1,10 @@
 import Svg, { Path } from 'react-native-svg';
 
+import { useI18n } from '@/i18n';
+
 // Stroke icons drawn on a 24x24 grid, matching the approved designs.
-// Directional icons (back, send) already point the right way for RTL.
+// Directional icons (back, send) are drawn for right-to-left and mirrored
+// for English.
 const paths = {
   home: ['M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z'],
   chat: ['M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12z'],
@@ -69,7 +72,11 @@ export type IconName = keyof typeof paths | 'play';
 
 type Props = { name: IconName; size?: number; color: string; strokeWidth?: number };
 
+const directional = new Set<IconName>(['back', 'send', 'chevronLeft', 'logout']);
+const mirrored = { transform: [{ scaleX: -1 }] };
+
 export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: Props) {
+  const { rtl } = useI18n();
   if (name === 'play') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no">
@@ -78,7 +85,13 @@ export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: Props) {
     );
   }
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" accessibilityElementsHidden importantForAccessibility="no">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={!rtl && directional.has(name) ? mirrored : undefined}
+      accessibilityElementsHidden importantForAccessibility="no">
       {paths[name].map((d) => (
         <Path key={d} d={d} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
       ))}

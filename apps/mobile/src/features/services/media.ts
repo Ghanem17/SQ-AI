@@ -11,9 +11,9 @@ export type PickedMedia = { uri: string; kind: 'video' | 'image'; mimeType: stri
 
 const MAX_VIDEO_SECONDS = 180;
 
-export async function pickMedia(kind: 'video' | 'image'): Promise<PickedMedia | { error: string } | null> {
+export async function pickMedia(kind: 'video' | 'image'): Promise<PickedMedia | { error: 'permission' | 'tooLong' } | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return { error: 'نحتاج إذن الاستوديو لتختار الملف.' };
+  if (!perm.granted) return { error: 'permission' };
   const res = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: kind === 'video' ? ['videos'] : ['images'],
     allowsEditing: false,
@@ -23,7 +23,7 @@ export async function pickMedia(kind: 'video' | 'image'): Promise<PickedMedia | 
   if (res.canceled || !res.assets?.[0]) return null;
   const a = res.assets[0];
   const seconds = a.duration ? a.duration / 1000 : 0;
-  if (kind === 'video' && seconds > MAX_VIDEO_SECONDS) return { error: 'الفيديو أطول من 3 دقائق. قصّه أو اختر فيديو أقصر.' };
+  if (kind === 'video' && seconds > MAX_VIDEO_SECONDS) return { error: 'tooLong' };
   const mimeType = a.mimeType ?? (kind === 'video' ? 'video/mp4' : 'image/jpeg');
   const fileName = a.fileName ?? `${kind}-${Date.now()}.${mimeType.split('/')[1] ?? 'bin'}`;
   return { uri: a.uri, kind, mimeType, seconds, fileName };

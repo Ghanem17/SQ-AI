@@ -8,8 +8,15 @@ export function formatNumber(value: number): string {
   return negative ? `-${grouped}` : grouped;
 }
 
+// The app language decides the currency label; the app sets it once per
+// render of the session, before any screen draws a price.
+let currencyLang: 'ar' | 'en' = 'ar';
+export function setCurrencyLang(lang: 'ar' | 'en'): void {
+  currencyLang = lang;
+}
+
 export function formatIQD(value: number): string {
-  return `${formatNumber(value)} د.ع`;
+  return currencyLang === 'en' ? `IQD ${formatNumber(value)}` : `${formatNumber(value)} د.ع`;
 }
 
 export function formatPercent(value: number, digits = 0): string {

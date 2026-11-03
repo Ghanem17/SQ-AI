@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { toWesternDigits } from './digits.ts';
-import { formatIQD, formatNumber, formatPercent } from './format.ts';
+import { formatIQD, formatNumber, formatPercent, setCurrencyLang } from './format.ts';
 
 test('groups thousands with commas', () => {
   assert.equal(formatNumber(2100), '2,100');
@@ -13,6 +13,9 @@ test('groups thousands with commas', () => {
 
 test('formats Iraqi dinars and percentages', () => {
   assert.equal(formatIQD(33000), '33,000 د.ع');
+  setCurrencyLang('en');
+  assert.equal(formatIQD(33000), 'IQD 33,000');
+  setCurrencyLang('ar');
   assert.equal(formatPercent(96), '96%');
   assert.equal(formatPercent(47.5, 1), '47.5%');
 });

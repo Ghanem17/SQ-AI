@@ -30,7 +30,7 @@ test('sample prices are round and rise with quality', () => {
 test('every line item names known tools', () => {
   for (const tier of tierOrder) {
     for (const item of tiers[tier].items) {
-      assert.ok(item.tools.length > 0, item.task);
+      assert.ok(item.tools.length > 0, item.task.en);
       for (const id of item.tools) assert.ok(tools[id], id);
     }
   }

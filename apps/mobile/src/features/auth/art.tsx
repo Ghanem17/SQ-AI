@@ -6,6 +6,7 @@ import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import type { PaletteName } from '@sq/shared';
 import { AppText } from '@/components/AppText';
+import { useI18n } from '@/i18n';
 
 export type Art = {
   deep: string;
@@ -85,10 +86,14 @@ export function Glow({ color, size, style, id, strength = 0.75 }: { color: strin
   );
 }
 
-const steps = ['خطة الشهر', 'تصوير موجّه', 'مونتاج بالذكاء الاصطناعي', 'نشر في أفضل وقت', 'رد تلقائي على الزبائن'];
+const stepNames = {
+  ar: ['خطة الشهر', 'تصوير موجّه', 'مونتاج بالذكاء الاصطناعي', 'نشر في أفضل وقت', 'رد تلقائي على العملاء'],
+  en: ['Monthly plan', 'Guided filming', 'AI editing', 'Posting at the best time', 'Auto-replies to customers'],
+};
 
 // Overlapping pills, one per step of the work, ending in the result.
 export function PillStack({ art, result, figure }: { art: Art; result: string; figure: string }) {
+  const steps = stepNames[useI18n().lang];
   return (
     <View style={styles.stack} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {art.pills.map((p, i) => (

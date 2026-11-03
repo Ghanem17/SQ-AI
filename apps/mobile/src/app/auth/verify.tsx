@@ -11,11 +11,10 @@ import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { DEMO_CODE, sendCode, verifyCode } from '@/features/auth/authService';
 import { OtpInput, type OtpState } from '@/features/auth/OtpInput';
-import { ar } from '@/i18n/ar';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
-const t = ar.verify;
 const RESEND_SECONDS = 30;
 
 function notify(type: Haptics.NotificationFeedbackType) {
@@ -24,6 +23,8 @@ function notify(type: Haptics.NotificationFeedbackType) {
 
 export default function VerifyScreen() {
   const { c } = useTheme();
+  const { t: all } = useI18n();
+  const t = all.verify;
   const reduceMotion = useReducedMotion();
   const { phone, display, mode, name, accountType: pickedType } = useLocalSearchParams<{ phone: string; display: string; mode: string; name?: string; accountType?: string }>();
   const { signIn, accountType, chooseAccountType } = useSession();
@@ -81,7 +82,7 @@ export default function VerifyScreen() {
   return (
     <Screen edges={['top', 'bottom']} style={styles.body}>
       <View style={styles.topRow}>
-        <PressableScale accessibilityRole="button" accessibilityLabel={ar.common.back} onPress={() => router.back()} style={[styles.back, { borderColor: c.line }]}>
+        <PressableScale accessibilityRole="button" accessibilityLabel={all.common.back} onPress={() => router.back()} style={[styles.back, { borderColor: c.line }]}>
           <Icon name="back" color={c.text} size={20} strokeWidth={2} />
         </PressableScale>
       </View>

@@ -13,7 +13,8 @@ import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { TAB_BAR_HEIGHT } from '@/components/TabBar';
-import { ar } from '@/i18n/ar';
+import { useI18n } from '@/i18n';
+import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
 const hair = StyleSheet.hairlineWidth;
@@ -73,13 +74,14 @@ export function TopBar({
   onBack?: () => void;
 }) {
   const { c } = useTheme();
+  const { t } = useI18n();
   const leave = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')));
   return (
     <View style={[styles.topBar, { borderBottomColor: c.line }]}>
       {mode !== 'none' && (
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={mode === 'close' ? ar.common.close : ar.common.back}
+          accessibilityLabel={mode === 'close' ? t.common.close : t.common.back}
           onPress={leave}
           style={styles.topBtn}>
           <Icon name={mode === 'close' ? 'close' : 'back'} color={c.text} size={22} strokeWidth={1.8} />
@@ -520,18 +522,39 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
 
 export function Stepper({ value, onChange, min, max, step = 1, format }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; format?: (v: number) => string }) {
   const { c } = useTheme();
+  const { L } = useI18n();
   return (
     <View style={[styles.stepper, { borderColor: c.line }]}>
-      <PressableScale accessibilityRole="button" accessibilityLabel="زيادة" disabled={value >= max} onPress={() => onChange(Math.min(max, value + step))} style={styles.stepBtn}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={L('زيادة', 'Increase')} disabled={value >= max} onPress={() => onChange(Math.min(max, value + step))} style={styles.stepBtn}>
         <Icon name="plus" color={value >= max ? c.placeholder : c.text} size={16} />
       </PressableScale>
       <AppText weight="semibold" size={15} style={[styles.tabular, styles.stepValue]} center>
         {format ? format(value) : String(value)}
       </AppText>
-      <PressableScale accessibilityRole="button" accessibilityLabel="إنقاص" disabled={value <= min} onPress={() => onChange(Math.max(min, value - step))} style={styles.stepBtn}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={L('إنقاص', 'Decrease')} disabled={value <= min} onPress={() => onChange(Math.max(min, value - step))} style={styles.stepBtn}>
         <Icon name="minus" color={value <= min ? c.placeholder : c.text} size={16} />
       </PressableScale>
     </View>
+  );
+}
+
+// Switches the interface between Arabic and English. Shown before sign-in
+// and in Settings.
+export function LangSwitch({ color, border }: { color?: string; border?: string }) {
+  const { c } = useTheme();
+  const { lang } = useI18n();
+  const { setLang } = useSession();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+      onPress={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+      style={[styles.langSwitch, { borderColor: border ?? c.line }]}>
+      <Icon name="globe" color={color ?? c.text} size={15} />
+      <AppText weight="medium" size={13} color={color ?? c.text} style={{ writingDirection: lang === 'ar' ? 'ltr' : 'rtl' }}>
+        {lang === 'ar' ? 'English' : 'العربية'}
+      </AppText>
+    </PressableScale>
   );
 }
 
@@ -547,6 +570,7 @@ export const ui = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  langSwitch: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, alignSelf: 'flex-start' },
   flex: { flex: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
   scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },

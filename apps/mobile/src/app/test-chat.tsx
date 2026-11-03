@@ -8,18 +8,23 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, Divider, KeyValue, Note, TopBar, ui } from '@/components/ui';
-import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
+import { useI18n } from '@/i18n';
+import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { useTheme } from '@/theme/theme';
 
 type Order = { items: string; total: number; area: string };
 type Turn = { id: number; from: 'customer' | 'assistant'; text: string; order?: Order; escalate?: boolean };
 
-const starters = ['شكد سعر الكباب؟', 'اريد 2 كباب ولبن للكرادة', 'الطلب تأخر ساعة!'];
+const starters = {
+  ar: ['ما أسعاركم؟', 'أريد طلبًا بالتوصيل إلى الكرادة', 'تأخر طلبي ساعة كاملة!'],
+  en: ['What are your prices?', 'I want a delivery to Karrada', 'My order is an hour late!'],
+};
 
 // The owner plays a customer and sees exactly how the assistant would answer
 // on WhatsApp: prices from the menu, orders captured, complaints handed over.
 export default function TestChatScreen() {
   const { c } = useTheme();
+  const { L, lang, rtl } = useI18n();
   const insets = useSafeAreaInsets();
   const business = useBusiness();
   const status = useAiStatus();
@@ -50,7 +55,7 @@ export default function TestChatScreen() {
       });
       setTurns((t) => [...t, { id: nextId.current++, from: 'assistant', text: reply.text, order: reply.order, escalate: reply.escalate }]);
     } catch (err) {
-      setError(err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed);
+      setError(aiErrorText(err, lang));
     } finally {
       setBusy(false);
     }
@@ -59,45 +64,58 @@ export default function TestChatScreen() {
   return (
     <Screen edges={['top']}>
       <TopBar
-        title="جرّب الرد على زبون"
-        subtitle="اكتب كأنك زبون على واتساب"
-        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'locked' ? <Badge label="يحتاج رمز" tone="acc" /> : status === 'offline' ? <Badge label="غير مربوط" tone="bad" /> : undefined}
+        title={L('جرّب الرد على عميل', 'Try answering a customer')}
+        subtitle={L('اكتب كأنك عميل على واتساب', 'Write as a customer on WhatsApp')}
+        right={
+          status === 'online' ? (
+            <Badge label={L('Claude متصل', 'Claude online')} tone="ok" />
+          ) : status === 'locked' ? (
+            <Badge label={L('يحتاج إلى رمز', 'Needs code')} tone="acc" />
+          ) : status === 'offline' ? (
+            <Badge label={L('غير مربوط', 'Not connected')} tone="bad" />
+          ) : undefined
+        }
       />
       <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
-          <Note icon="info">المساعد يعرف قائمة {business.name} وأسعارها ومناطق التوصيل، ويسجّل الطلب عند اكتماله، ويحوّل الشكاوى للموظف.</Note>
+          <Note icon="info">
+            {L(
+              `يعرف المساعد أصناف ${business.name} وأسعارها ومناطق التوصيل من معلومات النشاط، ويسجّل الطلب عند اكتماله، ويحيل الشكاوى إلى الموظف.`,
+              `The assistant knows ${business.name}'s items, prices and delivery areas from your business details, logs complete orders and hands complaints to staff.`,
+            )}
+          </Note>
           {turns.map((t) => (
             <View key={t.id} style={[styles.msgWrap, t.from === 'customer' ? styles.theirs : styles.mine]}>
               {t.from === 'assistant' && (
                 <View style={styles.by}>
                   <Icon name="sparkle" color={c.muted} size={11} />
                   <AppText size={11} color={c.muted}>
-                    المساعد
+                    {L('المساعد', 'Assistant')}
                   </AppText>
                 </View>
               )}
               <View
                 style={[
                   styles.bubble,
-                  t.from === 'customer' ? { backgroundColor: c.tile, borderBottomRightRadius: 4 } : { backgroundColor: c.priSoft, borderBottomLeftRadius: 4 },
+                  t.from === 'customer' ? { backgroundColor: c.tile, borderBottomStartRadius: 4 } : { backgroundColor: c.priSoft, borderBottomEndRadius: 4 },
                 ]}>
                 <AppText size={14} lineHeight={22} color={t.from === 'customer' ? c.text : c.onPriSoft}>
                   {t.text}
                 </AppText>
               </View>
-              {t.escalate && <Badge label="حُوّلت للموظف" tone="bad" icon="user" />}
+              {t.escalate && <Badge label={L('أُحيلت إلى الموظف', 'Handed to staff')} tone="bad" icon="user" />}
               {t.order && (
                 <Card style={styles.order}>
                   <View style={ui.between}>
                     <AppText weight="semibold" size={14}>
-                      طلب سجّله المساعد
+                      {L('طلب سجّله المساعد', 'Order logged by the assistant')}
                     </AppText>
-                    <Badge label="جديد" tone="ok" />
+                    <Badge label={L('جديد', 'New')} tone="ok" />
                   </View>
-                  <KeyValue label="الأصناف" value={t.order.items} />
-                  {!!t.order.area && <KeyValue label="المنطقة" value={t.order.area} />}
+                  <KeyValue label={L('الأصناف', 'Items')} value={t.order.items} />
+                  {!!t.order.area && <KeyValue label={L('المنطقة', 'Area')} value={t.order.area} />}
                   <Divider />
-                  <KeyValue label="المجموع" value={formatIQD(t.order.total)} strong />
+                  <KeyValue label={L('المجموع', 'Total')} value={formatIQD(t.order.total)} strong />
                 </Card>
               )}
             </View>
@@ -105,7 +123,7 @@ export default function TestChatScreen() {
           {busy && (
             <View style={[styles.bubble, styles.mine, { backgroundColor: c.priSoft }]}>
               <AppText size={13} color={c.onPriSoft}>
-                يكتب…
+                {L('يكتب…', 'Typing…')}
               </AppText>
             </View>
           )}
@@ -115,7 +133,7 @@ export default function TestChatScreen() {
         <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.bg, paddingBottom: insets.bottom + 8 }]}>
           {turns.length === 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prompts} keyboardShouldPersistTaps="handled">
-              {starters.map((p) => (
+              {starters[lang].map((p) => (
                 <PressableScale key={p} accessibilityRole="button" onPress={() => send(p)} style={[styles.prompt, { borderColor: c.line }]}>
                   <AppText size={12.5}>{p}</AppText>
                 </PressableScale>
@@ -126,15 +144,15 @@ export default function TestChatScreen() {
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="اكتب رسالة الزبون"
+              placeholder={L('اكتب رسالة العميل', 'Type the customer message')}
               placeholderTextColor={c.placeholder}
-              style={[styles.input, { color: c.text, backgroundColor: c.tile }]}
+              style={[styles.input, { color: c.text, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left' }]}
               onSubmitEditing={() => send(text)}
               returnKeyType="send"
             />
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel="أرسل"
+              accessibilityLabel={L('أرسل', 'Send')}
               disabled={!text.trim() || busy}
               onPress={() => send(text)}
               style={[styles.send, { backgroundColor: text.trim() ? c.primary : c.tile }]}>
@@ -159,6 +177,6 @@ const styles = StyleSheet.create({
   prompts: { gap: 6, paddingHorizontal: 12 },
   prompt: { height: 34, paddingHorizontal: 12, borderRadius: radius.control, borderWidth: 1, justifyContent: 'center' },
   inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
-  input: { flex: 1, height: 44, borderRadius: radius.control, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14, textAlign: 'right' },
+  input: { flex: 1, height: 44, borderRadius: radius.control, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
   send: { width: 44, height: 44, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
 });

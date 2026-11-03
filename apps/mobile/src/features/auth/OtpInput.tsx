@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSeque
 import { OTP_LENGTH, radius, sanitizeOtp } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Icon } from '@/components/Icon';
-import { ar } from '@/i18n/ar';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 
 export type OtpState = 'idle' | 'checking' | 'wrong' | 'ok';
@@ -38,10 +38,11 @@ export function OtpInput({ value, onChange, state, shakeKey, inputRef }: Props) 
     );
   }, [shakeKey, reduceMotion, shake]);
 
+  const codeLabel = useI18n().t.verify.codeLabel;
   const row = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
 
   return (
-    <Pressable accessibilityLabel={ar.verify.codeLabel} onPress={() => inputRef.current?.focus()}>
+    <Pressable accessibilityLabel={codeLabel} onPress={() => inputRef.current?.focus()}>
       <Animated.View style={[styles.row, row]}>
         {Array.from({ length: OTP_LENGTH }, (_, i) => (
           <Box key={i} char={value[i]} active={i === value.length && state === 'idle'} state={state} />
@@ -57,7 +58,7 @@ export function OtpInput({ value, onChange, state, shakeKey, inputRef }: Props) 
         maxLength={OTP_LENGTH + 40}
         autoFocus
         editable={state !== 'checking' && state !== 'ok'}
-        accessibilityLabel={ar.verify.codeLabel}
+        accessibilityLabel={codeLabel}
         caretHidden
         style={[StyleSheet.absoluteFill, styles.hidden, { color: c.text }]}
       />

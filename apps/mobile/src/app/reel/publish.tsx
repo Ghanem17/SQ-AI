@@ -10,7 +10,8 @@ import { PressableScale } from '@/components/PressableScale';
 import { Badge, Card, Chip, Note, RadioCard, ScrollScreen, SectionTitle, TopBar, ui } from '@/components/ui';
 import { VoicePreview } from '@/features/reel/VoicePreview';
 import { dayDate, dayLabel, timeLabel } from '@/features/reel/when';
-import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
+import { useI18n } from '@/i18n';
+import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { bestTimeHint } from '@/features/reel/shots';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -24,6 +25,7 @@ const recommended = new Set([20, 21]);
 // them, and the publish time — best time, right away, or a chosen slot.
 export default function PublishScreen() {
   const { c } = useTheme();
+  const { L, pick, lang, rtl } = useI18n();
   const { draft, updateDraft } = useStudio();
   const [editing, setEditing] = useState(false);
   const [writing, setWriting] = useState(false);
@@ -40,13 +42,13 @@ export default function PublishScreen() {
       const { caption } = await postJson<{ caption: string }>('/api/caption', {
         business,
         title: draft.title,
-        platforms: draft.platforms.map((p) => platformNames[p]),
+        platforms: draft.platforms.map((p) => platformNames[p].en),
         previous: draft.caption,
       });
       updateDraft({ caption });
       setCaptionNote(null);
     } catch (err) {
-      setCaptionNote(err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed);
+      setCaptionNote(aiErrorText(err, lang));
     } finally {
       setWriting(false);
     }
@@ -61,35 +63,35 @@ export default function PublishScreen() {
 
   return (
     <ScrollScreen
-      header={<TopBar title="النشر" subtitle={draft.title} />}
-      footer={<Button label="التالي: الترويج" onPress={() => router.push('/reel/promote')} />}>
-      <SectionTitle title="المنصات" />
+      header={<TopBar title={L('النشر', 'Posting')} subtitle={draft.title} />}
+      footer={<Button label={L('التالي: الترويج', 'Next: promotion')} onPress={() => router.push('/reel/promote')} />}>
+      <SectionTitle title={L('المنصات', 'Platforms')} />
       <View style={ui.wrap}>
         {publishable.map((p) => (
-          <Chip key={p} label={platformNames[p]} selected={draft.platforms.includes(p)} onPress={() => toggle(p)} />
+          <Chip key={p} label={pick(platformNames[p])} selected={draft.platforms.includes(p)} onPress={() => toggle(p)} />
         ))}
       </View>
 
-      <SectionTitle title="الكابشن" />
+      <SectionTitle title={L('الوصف', 'Caption')} />
       <Card>
         <View style={ui.between}>
-          <Badge label={status === 'online' ? 'Claude' : 'المساعد'} tone="pri" icon="sparkle" />
+          <Badge label={status === 'online' ? 'Claude' : L('المساعد', 'Assistant')} tone="pri" icon="sparkle" />
           <View style={styles.capActions}>
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel="اكتب كابشن آخر"
+              accessibilityLabel={L('اكتب وصفًا آخر', 'Write another caption')}
               disabled={writing}
               onPress={rewrite}
               style={styles.capBtn}>
               <Icon name="refresh" color={c.primary} size={16} />
               <AppText size={12.5} weight="medium" color={c.primary}>
-                {writing ? 'يكتب…' : draft.caption ? 'نسخة أخرى' : 'اكتبه بالمساعد'}
+                {writing ? L('يكتب…', 'Writing…') : draft.caption ? L('نسخة أخرى', 'Another version') : L('اكتبه بالمساعد', 'Write with the assistant')}
               </AppText>
             </PressableScale>
-            <PressableScale accessibilityRole="button" accessibilityLabel="عدّل الكابشن" onPress={() => setEditing((e) => !e)} style={styles.capBtn}>
+            <PressableScale accessibilityRole="button" accessibilityLabel={L('عدّل الوصف', 'Edit caption')} onPress={() => setEditing((e) => !e)} style={styles.capBtn}>
               <Icon name={editing ? 'check' : 'edit'} color={c.primary} size={16} />
               <AppText size={12.5} weight="medium" color={c.primary}>
-                {editing ? 'تم' : 'تعديل'}
+                {editing ? L('تم', 'Done') : L('تعديل', 'Edit')}
               </AppText>
             </PressableScale>
           </View>
@@ -100,7 +102,7 @@ export default function PublishScreen() {
             onChangeText={(caption) => updateDraft({ caption })}
             multiline
             autoFocus
-            style={[styles.input, { color: c.text, borderColor: c.lineStrong, backgroundColor: c.tile }]}
+            style={[styles.input, { color: c.text, borderColor: c.lineStrong, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left', writingDirection: rtl ? 'rtl' : 'ltr' }]}
             placeholderTextColor={c.placeholder}
           />
         ) : draft.caption ? (
@@ -109,11 +111,11 @@ export default function PublishScreen() {
           </AppText>
         ) : (
           <AppText size={13.5} color={c.muted} lineHeight={21}>
-            لسا ما في كابشن. خلّي المساعد يكتبه، أو اضغط «تعديل» واكتبه بنفسك.
+            {L('لا يوجد وصف بعد. دع المساعد يكتبه، أو اضغط «تعديل» واكتبه بنفسك.', 'No caption yet. Let the assistant write it, or tap Edit and write your own.')}
           </AppText>
         )}
         <AppText size={12} color={c.placeholder}>
-          {captionNote ?? 'تيك توك ويوتيوب يأخذان نسخة أقصر تلقائيًا.'}
+          {captionNote ?? L('يأخذ تيك توك ويوتيوب نسخة أقصر تلقائيًا.', 'TikTok and YouTube get a shorter version automatically.')}
         </AppText>
       </Card>
 
@@ -123,44 +125,44 @@ export default function PublishScreen() {
         </Card>
       )}
 
-      <SectionTitle title="وقت النشر" />
-      <RadioCard selected={draft.when.kind === 'best'} onPress={() => updateDraft({ when: { kind: 'best' } })} label="أفضل وقت">
+      <SectionTitle title={L('وقت النشر', 'Posting time')} />
+      <RadioCard selected={draft.when.kind === 'best'} onPress={() => updateDraft({ when: { kind: 'best' } })} label={L('أفضل وقت', 'Best time')}>
         <View style={styles.optionHead}>
           <AppText weight="semibold" size={15}>
-            أفضل وقت
+            {L('أفضل وقت', 'Best time')}
           </AppText>
-          <Badge label="موصى به" tone="ok" />
+          <Badge label={L('موصى به', 'Recommended')} tone="ok" />
         </View>
         <AppText weight="medium" size={13.5}>
-          {bestTimeHint.label}
+          {pick(bestTimeHint.label)}
         </AppText>
         <AppText size={12.5} color={c.muted} lineHeight={19}>
-          {bestTimeHint.reason}
+          {pick(bestTimeHint.reason)}
         </AppText>
       </RadioCard>
 
-      <RadioCard selected={draft.when.kind === 'now'} onPress={() => updateDraft({ when: { kind: 'now' } })} label="الآن">
+      <RadioCard selected={draft.when.kind === 'now'} onPress={() => updateDraft({ when: { kind: 'now' } })} label={L('الآن', 'Now')}>
         <AppText weight="semibold" size={15}>
-          الآن
+          {L('الآن', 'Now')}
         </AppText>
         <AppText size={12.5} color={c.muted}>
-          يُنشر فور موافقتك على الريل النهائي
+          {L('يُنشر فور موافقتك على الريل النهائي', 'Posts as soon as you approve the final reel')}
         </AppText>
       </RadioCard>
 
-      <RadioCard selected={draft.when.kind === 'custom'} onPress={() => updateDraft({ when: custom })} label="وقت أحدده">
+      <RadioCard selected={draft.when.kind === 'custom'} onPress={() => updateDraft({ when: custom })} label={L('وقت أحدده', 'A time I choose')}>
         <AppText weight="semibold" size={15}>
-          وقت أحدده
+          {L('وقت أحدده', 'A time I choose')}
         </AppText>
         <AppText size={12.5} color={c.muted}>
-          {draft.when.kind === 'custom' ? `${dayLabel(custom.day)}، ${timeLabel(custom.hour, custom.minute)}` : 'اختر اليوم والساعة'}
+          {draft.when.kind === 'custom' ? `${dayLabel(custom.day, lang)}${L('، ', ', ')}${timeLabel(custom.hour, custom.minute, lang)}` : L('اختر اليوم والساعة', 'Pick the day and hour')}
         </AppText>
       </RadioCard>
 
       {draft.when.kind === 'custom' && (
         <Card>
           <AppText size={12.5} color={c.muted}>
-            اليوم
+            {L('اليوم', 'Day')}
           </AppText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days}>
             {Array.from({ length: 7 }, (_, d) => {
@@ -173,7 +175,7 @@ export default function PublishScreen() {
                   onPress={() => updateDraft({ when: { ...custom, day: d } })}
                   style={[styles.day, { borderColor: active ? c.primary : c.line, backgroundColor: active ? c.primary : c.card }]}>
                   <AppText size={12.5} weight="medium" color={active ? c.onPrimary : c.text}>
-                    {dayLabel(d)}
+                    {dayLabel(d, lang)}
                   </AppText>
                   <AppText size={11.5} color={active ? c.onPrimary : c.muted} style={ui.tabular}>
                     {dayDate(d)}
@@ -183,7 +185,7 @@ export default function PublishScreen() {
             })}
           </ScrollView>
           <AppText size={12.5} color={c.muted}>
-            الساعة
+            {L('الساعة', 'Hour')}
           </AppText>
           <View style={styles.hours}>
             {hours.map((h) => {
@@ -197,7 +199,7 @@ export default function PublishScreen() {
                   onPress={() => updateDraft({ when: { ...custom, hour: h, minute } })}
                   style={[styles.hour, { borderColor: active ? c.primary : c.line, backgroundColor: active ? c.primary : c.card }]}>
                   <AppText size={12.5} weight="medium" color={active ? c.onPrimary : c.text} style={ui.tabular}>
-                    {timeLabel(h, minute)}
+                    {timeLabel(h, minute, lang)}
                   </AppText>
                   {recommended.has(h) && <View style={[styles.rec, { backgroundColor: active ? c.onPrimary : c.ok }]} />}
                 </PressableScale>
@@ -207,13 +209,13 @@ export default function PublishScreen() {
           <View style={styles.legend}>
             <View style={[styles.rec, { backgroundColor: c.ok }]} />
             <AppText size={12} color={c.muted}>
-              أوقات تفاعل عالية لجمهورك
+              {L('أوقات تفاعل عالٍ لجمهورك', 'High-engagement times for your audience')}
             </AppText>
           </View>
         </Card>
       )}
 
-      <Note icon="globe">التوقيت حسب توقيت بغداد (UTC+3).</Note>
+      <Note icon="globe">{L('الأوقات بتوقيت بغداد (UTC+3).', 'Times are Baghdad time (UTC+3).')}</Note>
     </ScrollScreen>
   );
 }
@@ -229,9 +231,7 @@ const styles = StyleSheet.create({
     fontFamily: 'ReadexPro_400Regular',
     fontSize: 14,
     lineHeight: 22,
-    textAlign: 'right',
     textAlignVertical: 'top',
-    writingDirection: 'rtl',
   },
   optionHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   days: { gap: 6, paddingVertical: 2 },

@@ -5,7 +5,7 @@ import { radius } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
-import { ar } from '@/i18n/ar';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
@@ -28,12 +28,13 @@ const labelKey: Record<TabKey, 'today' | 'inbox' | 'camera' | 'ads' | 'report'> 
 export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
   const { c } = useTheme();
   const { accountType } = useSession();
+  const { t, rtl } = useI18n();
   const creator = accountType === 'creator';
-  const labels = ar.tabs[creator ? 'creator' : 'shop'];
+  const labels = t.tabs[creator ? 'creator' : 'shop'];
   const icons = creator ? creatorIcons : shopIcons;
 
   return (
-    <View style={[styles.wrap, { backgroundColor: c.nav, borderTopColor: c.line, paddingBottom: insets.bottom }]}>
+    <View style={[styles.wrap, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: c.nav, borderTopColor: c.line, paddingBottom: insets.bottom }]}>
       <View accessibilityRole="tablist" style={styles.bar}>
         {state.routes.map((route, i) => {
           const key = route.name as TabKey;
@@ -73,7 +74,7 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: StyleSheet.hairlineWidth, direction: 'rtl' },
+  wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: StyleSheet.hairlineWidth },
   bar: { flexDirection: 'row', height: TAB_BAR_HEIGHT, alignItems: 'stretch' },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   marker: { position: 'absolute', top: 0, width: 28, height: 2, borderRadius: 1 },

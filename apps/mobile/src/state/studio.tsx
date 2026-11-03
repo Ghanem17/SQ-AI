@@ -76,10 +76,10 @@ type Studio = Saved & {
 
 const STORAGE_KEY = 'sq.studio.v1';
 
-const newDraft = (title: string, shots: Shot[] = starterShots.shop, active = true): Draft => ({
+const newDraft = (title: string, shots: Shot[] = starterShots('shop', 'ar'), active = true): Draft => ({
   active,
   title,
-  shots: shots.length ? shots : starterShots.shop,
+  shots: shots.length ? shots : starterShots('shop', 'ar'),
   captured: [],
   tier: 'pro',
   platforms: ['instagram', 'facebook'],
@@ -108,7 +108,7 @@ const StudioContext = createContext<Studio | null>(null);
 export function StudioProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<Saved>(initialSaved);
   const [ready, setReady] = useState(false);
-  const [draft, setDraft] = useState<Draft>(newDraft('', starterShots.shop, false));
+  const [draft, setDraft] = useState<Draft>(newDraft('', starterShots('shop', 'ar'), false));
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +144,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     draft,
     spentThisMonth,
     startDraft: (title, shots) => setDraft(newDraft(title, shots)),
-    clearDraft: () => setDraft(newDraft('', starterShots.shop, false)),
+    clearDraft: () => setDraft(newDraft('', starterShots('shop', 'ar'), false)),
     updateDraft: (patch) => setDraft((prev) => ({ ...prev, ...patch })),
     placeOrder: () => {
       const order: Order = {

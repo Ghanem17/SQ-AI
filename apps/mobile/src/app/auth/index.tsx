@@ -15,11 +15,11 @@ import { PressableScale, tapHaptic } from '@/components/PressableScale';
 import { arts, DayShapes, Glow, PaletteBar, PillStack, type Art } from '@/features/auth/art';
 import { sendCode } from '@/features/auth/authService';
 import { CountryPicker } from '@/features/auth/CountryPicker';
-import { ar } from '@/i18n/ar';
+import { LangSwitch } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
-const t = ar.auth;
 type Mode = 'signIn' | 'signUp';
 
 // Field colors for the two looks: the night glow and the day sheet.
@@ -32,6 +32,8 @@ type Skin = { field: string; border: string; focus: string; text: string; label:
 export default function AuthScreen() {
   const { c, scheme, palette } = useTheme();
   const { setPalette } = useSession();
+  const { t: all, L, rtl } = useI18n();
+  const t = all.auth;
   const reduceMotion = useReducedMotion();
   const night = scheme === 'dark';
   const art = arts[palette];
@@ -58,8 +60,10 @@ export default function AuthScreen() {
     setShowErrors(false);
   };
 
-  // Swiping the form switches modes; in RTL the new-account side is on the left.
+  // Swiping the form switches modes; the new-account side is on the left in
+  // Arabic and on the right in English.
   const drag = useSharedValue(0);
+  const toward = rtl ? 1 : -1;
   const swipe = usePanGesture({
     activeOffsetX: [-16, 16],
     failOffsetY: [-20, 20],
@@ -70,8 +74,8 @@ export default function AuthScreen() {
     onDeactivate: (e) => {
       'worklet';
       drag.value = withSpring(0, { damping: 16 });
-      if (e.translationX > 60) scheduleOnRN(switchMode, 'signUp' as Mode);
-      else if (e.translationX < -60) scheduleOnRN(switchMode, 'signIn' as Mode);
+      if (e.translationX * toward > 60) scheduleOnRN(switchMode, 'signUp' as Mode);
+      else if (e.translationX * toward < -60) scheduleOnRN(switchMode, 'signIn' as Mode);
     },
   });
   const formStyle = useAnimatedStyle(() => ({ transform: [{ translateX: drag.value }] }));
@@ -109,6 +113,7 @@ export default function AuthScreen() {
 
   const fieldStyle = (key: 'name' | 'phone') => [
     styles.input,
+    { textAlign: rtl ? ('right' as const) : ('left' as const) },
     { color: skin.text, backgroundColor: skin.field, borderColor: focused === key ? skin.focus : skin.border, borderWidth: focused === key ? 1.5 : 1 },
   ];
 
@@ -147,10 +152,10 @@ export default function AuthScreen() {
           <View style={styles.phoneRow}>
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={`${t.countryLabel}: ${country.nameAr} +${country.dial}`}
+              accessibilityLabel={`${t.countryLabel}: ${rtl ? country.nameAr : country.nameEn} +${country.dial}`}
               onPress={() => setPickerOpen(true)}
               style={[styles.country, { backgroundColor: skin.field, borderColor: skin.border }]}>
-              <AppText weight="medium" size={15} color={skin.text}>{`+${country.dial}`}</AppText>
+              <AppText weight="medium" size={15} color={skin.text} style={styles.ltr}>{`+${country.dial}`}</AppText>
               <Icon name="chevronDown" color={skin.hint} size={14} strokeWidth={2} />
             </PressableScale>
             <TextInput
@@ -182,11 +187,11 @@ export default function AuthScreen() {
         {signUp && (
           <Animated.View entering={appear} exiting={leave} style={styles.field}>
             <AppText weight="medium" size={13} color={skin.label}>
-              نوع الحساب
+              {L('نوع الحساب', 'Account type')}
             </AppText>
             <View accessibilityRole="radiogroup" style={styles.pair}>
-              <Choice icon="store" label={ar.accountType.shop.title} selected={type === 'shop'} onPress={() => setType('shop')} night={night} art={art} />
-              <Choice icon="video" label={ar.accountType.creator.title} selected={type === 'creator'} onPress={() => setType('creator')} night={night} art={art} />
+              <Choice icon="store" label={all.accountType.shop.title} selected={type === 'shop'} onPress={() => setType('shop')} night={night} art={art} />
+              <Choice icon="video" label={all.accountType.creator.title} selected={type === 'creator'} onPress={() => setType('creator')} night={night} art={art} />
             </View>
           </Animated.View>
         )}
@@ -194,7 +199,7 @@ export default function AuthScreen() {
         {signUp && (
           <Animated.View entering={appear} exiting={leave} style={styles.field}>
             <AppText weight="medium" size={13} color={skin.label}>
-              ألوان التطبيق
+              {L('ألوان التطبيق', 'App colors')}
             </AppText>
             <View accessibilityRole="radiogroup" style={styles.pair}>
               {(['ocean', 'rose'] as PaletteName[]).map((p) => (
@@ -206,7 +211,7 @@ export default function AuthScreen() {
 
         <Animated.View layout={layout}>
           <Button
-            label={sending ? t.sending : signUp ? 'أنشئ حسابي' : 'أرسل رمز الدخول'}
+            label={sending ? t.sending : signUp ? L('أنشئ حسابي', 'Create my account') : L('أرسل رمز الدخول', 'Send sign-in code')}
             loading={sending}
             onPress={submit}
             height={54}
@@ -256,7 +261,7 @@ export default function AuthScreen() {
 
   if (night) {
     return (
-      <View style={[styles.flex, styles.rtl, { backgroundColor: art.deep }]}>
+      <View style={[styles.flex, styles.clip, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: art.deep }]}>
         <Glow id="nightA" color={art.glowA} size={360} style={{ left: -190, top: 120 }} />
         <Glow id="nightB" color={art.glowB} size={380} style={{ right: -200, top: 150 }} />
         <Glow id="nightC" color={art.slate} size={420} style={{ left: -15, top: -230 }} strength={0.5} />
@@ -270,26 +275,26 @@ export default function AuthScreen() {
                 </Animated.View>
               ) : (
                 <Animated.View key="pills" entering={appear} style={styles.pillsWrap}>
-                  <PillStack art={art} result="طلبات أكثر" figure={"\u20662,100\u2069 د.ع للطلب"} />
+                  <PillStack art={art} result={L('طلبات أكثر', 'More orders')} figure={L('\u20662,100\u2069 د.ع للطلب', 'IQD 2,100 per order')} />
                 </Animated.View>
               )}
               <View style={styles.titles}>
                 <AppText weight="semibold" size={28} lineHeight={38} color={art.light}>
-                  {signUp ? 'ابدأ خلال دقيقة' : 'أهلًا من جديد'}
+                  {signUp ? L('ابدأ خلال دقيقة', 'Start in a minute') : L('أهلًا بعودتك', 'Welcome back')}
                 </AppText>
                 <AppText size={14} lineHeight={22} color={art.muted}>
-                  {signUp ? 'أول ريل علينا. بدون بطاقة دفع.' : t.subtitle}
+                  {signUp ? L('الريل الأول مجاني، ولا حاجة إلى بطاقة دفع.', 'Your first reel is free. No card needed.') : t.subtitle}
                 </AppText>
               </View>
               {form}
               {!signUp && social}
               <View style={styles.switchRow}>
                 <AppText size={13.5} color={art.muted}>
-                  {signUp ? 'عندك حساب؟' : 'ما عندك حساب؟'}
+                  {signUp ? L('لديك حساب؟', 'Have an account?') : L('ليس لديك حساب؟', 'No account yet?')}
                 </AppText>
                 <PressableScale accessibilityRole="button" onPress={() => switchMode(signUp ? 'signIn' : 'signUp')} style={styles.switchBtn}>
                   <AppText weight="semibold" size={13.5} color={art.accent}>
-                    {signUp ? 'سجّل دخول' : 'أنشئ حسابًا'}
+                    {signUp ? L('سجّل الدخول', 'Sign in') : L('أنشئ حسابًا', 'Create one')}
                   </AppText>
                 </PressableScale>
               </View>
@@ -306,20 +311,23 @@ export default function AuthScreen() {
 
   const panelHeight = signUp ? 210 : 372;
   return (
-    <View style={[styles.flex, styles.rtl, { backgroundColor: art.panel }]}>
+    <View style={[styles.flex, styles.clip, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: art.panel }]}>
       <StatusBar style="light" />
       <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.dayScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
             <Animated.View layout={layout} style={[styles.panel, { height: panelHeight }]}>
               <DayShapes art={art} compact={signUp} />
+              <View style={styles.dayLang}>
+                <LangSwitch color={art.light} border={art.slate} />
+              </View>
               <View style={styles.panelText}>
                 <AppText weight="semibold" size={signUp ? 26 : 30} lineHeight={signUp ? 36 : 40} color={art.light}>
-                  {signUp ? 'حساب جديد' : 'تسويقك يشتغل لحاله'}
+                  {signUp ? L('حساب جديد', 'New account') : L('تسويقك يعمل تلقائيًا', 'Marketing that runs itself')}
                 </AppText>
                 {!signUp && (
                   <AppText size={14} color={art.muted}>
-                    صوّر، ونحن نكمّل الباقي.
+                    {L('صوّر، ونحن نتولى الباقي.', 'You film, we handle the rest.')}
                   </AppText>
                 )}
               </View>
@@ -332,7 +340,7 @@ export default function AuthScreen() {
                   <View style={styles.orRow}>
                     <View style={[styles.rule, { backgroundColor: c.line }]} />
                     <AppText size={12} color={c.placeholder}>
-                      {ar.common.or}
+                      {all.common.or}
                     </AppText>
                     <View style={[styles.rule, { backgroundColor: c.line }]} />
                   </View>
@@ -342,7 +350,7 @@ export default function AuthScreen() {
               <View style={[styles.trust, { backgroundColor: c.priSoft }]}>
                 <Icon name="shield" color={c.onPriSoft} size={17} />
                 <AppText size={12.5} lineHeight={18} color={c.onPriSoft} style={styles.flex}>
-                  ما نطلب كلمة سر، ولا ننشر شي بدون موافقتك.
+                  {L('لا نطلب كلمة مرور، ولا ننشر شيئًا دون موافقتك.', 'No password needed, and nothing is posted without your approval.')}
                 </AppText>
               </View>
               <AppText size={11.5} color={c.placeholder} center>
@@ -360,6 +368,9 @@ export default function AuthScreen() {
 function Logo({ art }: { art: Art }) {
   return (
     <View style={styles.logoRow}>
+      <View style={styles.logoEnd}>
+        <LangSwitch color={art.light} border={art.slate} />
+      </View>
       <View style={[styles.logo, { backgroundColor: art.finalPill.bg }]}>
         <AppText weight="bold" size={13} color={art.finalPill.fg} style={styles.ltr}>
           SQ
@@ -374,6 +385,7 @@ function Logo({ art }: { art: Art }) {
 
 function Tabs({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
   const { c } = useTheme();
+  const t = useI18n().t.auth;
   const items: { value: Mode; label: string }[] = [
     { value: 'signIn', label: t.tabs.signIn },
     { value: 'signUp', label: t.tabs.signUp },
@@ -432,17 +444,18 @@ function Choice({ icon, label, selected, onPress, night, art }: { icon: IconName
 
 function PaletteChoice({ name, selected, onPress, night, art }: { name: PaletteName; selected: boolean; onPress: () => void; night: boolean; art: Art }) {
   const { c } = useTheme();
+  const { pick } = useI18n();
   const s = arts[name].swatches;
   const dots = [s[0], s[2], s[4]];
   return (
-    <Tile selected={selected} onPress={onPress} label={paletteNames[name]} night={night} art={art}>
+    <Tile selected={selected} onPress={onPress} label={pick(paletteNames[name])} night={night} art={art}>
       <View style={styles.dots}>
         {dots.map((d, i) => (
           <View key={d} style={[styles.dot, { backgroundColor: d, marginLeft: i ? -4 : 0, borderColor: night ? art.deep : c.card }]} />
         ))}
       </View>
       <AppText weight={selected ? 'semibold' : 'regular'} size={13.5} color={night ? (selected ? art.light : art.muted) : selected ? c.text : c.muted}>
-        {paletteNames[name]}
+        {pick(paletteNames[name])}
       </AppText>
     </Tile>
   );
@@ -450,17 +463,19 @@ function PaletteChoice({ name, selected, onPress, night, art }: { name: PaletteN
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  rtl: { direction: 'rtl', overflow: 'hidden' },
+  clip: { overflow: 'hidden' },
   ltr: { writingDirection: 'ltr' },
   nightContent: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 24, gap: 16, flexGrow: 1 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoEnd: { position: 'absolute', end: 0 },
+  dayLang: { position: 'absolute', top: 12, end: 20, zIndex: 2 },
   logo: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   pillsWrap: { marginTop: 8 },
   barWrap: { marginTop: 10 },
   titles: { gap: 2, marginTop: 6 },
   form: { gap: 14 },
   field: { gap: 6 },
-  input: { fontFamily: 'ReadexPro_400Regular', fontSize: 16, height: 52, borderRadius: 14, paddingHorizontal: 14, textAlign: 'right' },
+  input: { fontFamily: 'ReadexPro_400Regular', fontSize: 16, height: 52, borderRadius: 14, paddingHorizontal: 14 },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'ltr' },
   country: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 52, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1 },
   phoneInput: { flex: 1, textAlign: 'left', writingDirection: 'ltr' },

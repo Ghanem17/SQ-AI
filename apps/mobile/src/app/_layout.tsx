@@ -13,6 +13,7 @@ import { I18nManager, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { useI18n } from '@/i18n';
 import { SessionProvider, useSession } from '@/state/session';
 import { StudioProvider } from '@/state/studio';
 import { ServicesProvider } from '@/features/services/store';
@@ -59,6 +60,7 @@ export default function RootLayout() {
 function AppShell({ fontsReady }: { fontsReady: boolean }) {
   const { c, scheme } = useTheme();
   const session = useSession();
+  const { rtl } = useI18n();
   const ready = fontsReady && session.ready;
 
   useEffect(() => {
@@ -68,9 +70,9 @@ function AppShell({ fontsReady }: { fontsReady: boolean }) {
   if (!ready) return null;
 
   return (
-    <View style={[styles.fill, { backgroundColor: c.bg }]}>
+    <View style={[styles.fill, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: c.bg }]}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: 'slide_from_left' }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: rtl ? 'slide_from_left' : 'slide_from_right' }}>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
         <Stack.Screen name="auth" options={{ animation: 'fade' }} />
@@ -85,5 +87,5 @@ function AppShell({ fontsReady }: { fontsReady: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, direction: 'rtl' },
+  fill: { flex: 1 },
 });

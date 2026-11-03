@@ -1,1 +1,1 @@
-export type Business = { name: string; kind: 'shop' | 'creator'; info: string };
+export type Business = { name: string; kind: 'shop' | 'creator'; info: string; lang: 'ar' | 'en' };

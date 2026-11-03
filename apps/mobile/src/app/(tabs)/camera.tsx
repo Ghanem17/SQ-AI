@@ -7,6 +7,7 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Appear, Badge, Card, Note, PageTitle, Progress, ScrollScreen, SectionTitle, ui } from '@/components/ui';
 import { starterShots } from '@/features/reel/shots';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -15,6 +16,7 @@ import { useTheme } from '@/theme/theme';
 // once every shot is in, the reel moves on to quality and price.
 export default function CameraTab() {
   const { c } = useTheme();
+  const { L, lang } = useI18n();
   const { draft, updateDraft, startDraft } = useStudio();
   const { accountType } = useSession();
   const creator = accountType === 'creator';
@@ -23,38 +25,44 @@ export default function CameraTab() {
   const total = shots.length;
   const next = shots.findIndex((_, i) => !draft.captured.includes(i));
   const complete = next === -1;
+  const starters = starterShots(creator ? 'creator' : 'shop', lang);
 
   if (!draft.active) {
     return (
       <ScrollScreen inTabs>
-        <PageTitle title="التصوير" subtitle="ابدأ ريل جديد" />
+        <PageTitle title={L('التصوير', 'Filming')} subtitle={L('ابدأ ريلًا جديدًا', 'Start a new reel')} />
         <Card style={styles.start}>
           <View style={[styles.startIcon, { backgroundColor: c.priSoft }]}>
             <Icon name="sparkle" color={c.onPriSoft} size={20} />
           </View>
           <AppText weight="semibold" size={16}>
-            ما عندك فكرة؟
+            {L('ليست لديك فكرة؟', 'No idea yet?')}
           </AppText>
           <AppText size={13} color={c.muted} lineHeight={20}>
-            المساعد يقترح ثلاث أفكار تناسب {creator ? 'محتواك' : 'محلك'}، وتختار وحدة فتصير قائمة لقطات جاهزة.
+            {creator
+              ? L('يقترح المساعد ثلاث أفكار تناسب محتواك، فتختار إحداها لتصبح قائمة لقطات جاهزة.', 'The assistant suggests three ideas for your content; pick one and it becomes a ready shot list.')
+              : L('يقترح المساعد ثلاث أفكار تناسب نشاطك، فتختار إحداها لتصبح قائمة لقطات جاهزة.', 'The assistant suggests three ideas for your business; pick one and it becomes a ready shot list.')}
           </AppText>
-          <Button label="اقترح فكرة" icon="sparkle" onPress={() => router.push('/assistant')} />
+          <Button label={L('اقترح فكرة', 'Suggest an idea')} icon="sparkle" onPress={() => router.push('/assistant')} />
         </Card>
         <Card style={styles.start}>
           <View style={[styles.startIcon, { backgroundColor: c.tile }]}>
             <Icon name="camera" color={c.text} size={20} />
           </View>
           <AppText weight="semibold" size={16}>
-            عندك فكرة جاهزة؟
+            {L('لديك فكرة جاهزة؟', 'Already have an idea?')}
           </AppText>
           <AppText size={13} color={c.muted} lineHeight={20}>
-            ابدأ بثلاث لقطات أساسية ({starterShots[creator ? 'creator' : 'shop'].map((s) => s.title).join('، ')}) والكاميرا توجّهك.
+            {L(
+              `ابدأ بثلاث لقطات أساسية (${starters.map((s) => s.title).join('، ')}) وسترشدك الكاميرا.`,
+              `Start with three basic shots (${starters.map((s) => s.title).join(', ')}) and the camera guides you.`,
+            )}
           </AppText>
           <Button
-            label="ابدأ التصوير"
+            label={L('ابدأ التصوير', 'Start filming')}
             icon="camera"
             variant="secondary"
-            onPress={() => startDraft(creator ? 'فيديو جديد' : 'ريل جديد', starterShots[creator ? 'creator' : 'shop'])}
+            onPress={() => startDraft(creator ? L('فيديو جديد', 'New video') : L('ريل جديد', 'New reel'), starters)}
           />
         </Card>
       </ScrollScreen>
@@ -63,24 +71,27 @@ export default function CameraTab() {
 
   return (
     <ScrollScreen inTabs>
-      <PageTitle title="التصوير" subtitle={draft.title} />
+      <PageTitle title={L('التصوير', 'Filming')} subtitle={draft.title} />
 
       <Card>
         <View style={ui.between}>
           <AppText weight="medium" size={13.5}>
-            تقدّم التصوير
+            {L('تقدّم التصوير', 'Progress')}
           </AppText>
           <AppText size={13} color={c.muted} style={ui.tabular}>
-            {done} من {total} لقطات
+            {L(`${done} من ${total} لقطات`, `${done} of ${total} shots`)}
           </AppText>
         </View>
         <Progress value={done / total} />
         <AppText size={12.5} color={c.muted}>
-          المدة المتوقعة للريل {shots.reduce((a, x) => a + x.seconds, 0)} ثانية · الإطار عمودي 9:16
+          {L(
+            `المدة المتوقعة للريل ${shots.reduce((a, x) => a + x.seconds, 0)} ثانية · الإطار عمودي 9:16`,
+            `Expected length ${shots.reduce((a, x) => a + x.seconds, 0)} seconds · vertical 9:16`,
+          )}
         </AppText>
       </Card>
 
-      <SectionTitle title="قائمة اللقطات" />
+      <SectionTitle title={L('قائمة اللقطات', 'Shot list')} />
       {shots.map((shot, i) => {
         const captured = draft.captured.includes(i);
         const isNext = i === next;
@@ -88,7 +99,7 @@ export default function CameraTab() {
           <Appear key={shot.title} order={i}>
             <Card
               onPress={() => router.push({ pathname: '/capture', params: { shot: String(i) } })}
-              accessibilityLabel={`اللقطة ${i + 1}: ${shot.title}`}
+              accessibilityLabel={L(`اللقطة ${i + 1}: ${shot.title}`, `Shot ${i + 1}: ${shot.title}`)}
               style={[styles.shot, isNext && { borderColor: c.primary }]}>
               <View style={[styles.num, { backgroundColor: captured ? c.okSoft : isNext ? c.primary : c.tile }]}>
                 {captured ? (
@@ -108,8 +119,8 @@ export default function CameraTab() {
                 </AppText>
                 <View style={styles.meta}>
                   <Badge label={shot.angle} />
-                  <Badge label={`${shot.seconds} ث`} icon="clock" />
-                  {captured && <Badge label="تم" tone="ok" />}
+                  <Badge label={L(`${shot.seconds} ث`, `${shot.seconds}s`)} icon="clock" />
+                  {captured && <Badge label={L('تم', 'Done')} tone="ok" />}
                 </View>
               </View>
               <Icon name={captured ? 'refresh' : 'camera'} color={c.muted} size={18} />
@@ -119,15 +130,18 @@ export default function CameraTab() {
       })}
 
       <Note icon="sun">
-        صوّر قرب ضوء طبيعي وثبّت الموبايل بيدين. في النسخة الكاملة يفحص التطبيق الإضاءة والاهتزاز تلقائيًا وينبهك إذا احتاجت اللقطة إعادة.
+        {L(
+          'صوّر قرب ضوء طبيعي وثبّت الهاتف بكلتا يديك. في النسخة الكاملة يفحص التطبيق الإضاءة والاهتزاز تلقائيًا وينبهك إذا احتاجت اللقطة إلى إعادة.',
+          'Film near natural light and hold the phone with both hands. The full version checks light and shake automatically and tells you when a shot needs a retake.',
+        )}
       </Note>
 
       <View style={styles.actions}>
         {complete ? (
-          <Button label="التالي: اختر جودة الريل" icon="layers" onPress={() => router.push('/reel/quality')} />
+          <Button label={L('التالي: اختر جودة الريل', 'Next: choose reel quality')} icon="layers" onPress={() => router.push('/reel/quality')} />
         ) : (
           <Button
-            label={`صوّر اللقطة ${next + 1}`}
+            label={L(`صوّر اللقطة ${next + 1}`, `Film shot ${next + 1}`)}
             icon="camera"
             onPress={() => router.push({ pathname: '/capture', params: { shot: String(next) } })}
           />
@@ -135,14 +149,14 @@ export default function CameraTab() {
         {!complete && done > 0 && (
           <PressableScale accessibilityRole="button" onPress={() => router.push('/reel/quality')} style={styles.link}>
             <AppText size={13.5} weight="medium" color={c.primary}>
-              تخطَّ الباقي، نكمل بما صوّرته
+              {L('تخطَّ الباقي وأكمل بما صوّرته', 'Skip the rest and continue with what you filmed')}
             </AppText>
           </PressableScale>
         )}
         {done > 0 && (
           <PressableScale accessibilityRole="button" onPress={() => updateDraft({ captured: [] })} style={styles.link}>
             <AppText size={13} color={c.muted}>
-              أعد كل اللقطات
+              {L('أعد جميع اللقطات', 'Redo all shots')}
             </AppText>
           </PressableScale>
         )}

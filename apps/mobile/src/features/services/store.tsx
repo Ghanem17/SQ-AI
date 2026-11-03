@@ -5,22 +5,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { defaultPricing, planLines, quote, type PricingSettings, type Quote, type ServiceKind, type ServiceParams, type ServiceToolKey } from '@sq/shared';
+import { defaultPricing, planLines, quote, type PricingSettings, type Quote, type ServiceKind, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
 import { getJson } from '@/lib/ai';
 
-export type JobResult = { type: 'text'; text: string } | { type: 'audio' | 'image' | 'video'; url: string };
+export type JobResult = { type: 'text'; text: string } | { type: 'audio' | 'video'; url: string } | { type: 'image'; url: string; urls?: string[] };
 
 export type ServiceJob = {
   id: string;
   kind: ServiceKind;
   title: string;
   params: ServiceParams;
+  tier: ServiceTier;
   media: { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string } | null;
   quote: Quote;
   status: 'pending' | 'running' | 'done' | 'failed';
+  // A runner step key while it runs.
   step: string;
   progress: number;
   result?: JobResult;
+  // 'interrupted' when the app closed mid-run; otherwise a message.
   error?: string;
   createdAt: number;
 };
@@ -36,7 +39,7 @@ type Services = Saved & {
   live: Partial<Record<ServiceToolKey, number>>;
   liveStatus: 'loading' | 'ok' | 'failed';
   refreshLive: () => void;
-  priceFor: (params: ServiceParams, mediaSeconds: number) => Quote;
+  priceFor: (params: ServiceParams, mediaSeconds: number, tier: ServiceTier) => Quote;
   addJob: (job: ServiceJob) => void;
   updateJob: (id: string, patch: Partial<ServiceJob>) => void;
   removeJob: (id: string) => void;
@@ -44,7 +47,9 @@ type Services = Saved & {
   setManual: (tool: ServiceToolKey, usd: number | null) => void;
 };
 
-const STORAGE_KEY = 'sq.services.v1';
+// v2 added levels; v1 orders are dropped, its prices and margins are kept.
+const STORAGE_KEY = 'sq.services.v2';
+const OLD_KEY = 'sq.services.v1';
 const initial: Saved = { jobs: [], settings: defaultPricing, manual: {} };
 const Ctx = createContext<Services | null>(null);
 
@@ -57,12 +62,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
-        if (cancelled || !raw) return;
-        const p = JSON.parse(raw) as Partial<Saved>;
+    Promise.all([AsyncStorage.getItem(STORAGE_KEY), AsyncStorage.getItem(OLD_KEY)])
+      .then(([raw, old]) => {
+        if (cancelled || !(raw || old)) return;
+        const p = raw ? (JSON.parse(raw) as Partial<Saved>) : { ...(JSON.parse(old as string) as Partial<Saved>), jobs: [] };
         // A job cut off by closing the app is marked so it can be retried.
-        const jobs = (p.jobs ?? []).map((j) => (j.status === 'running' ? { ...j, status: 'failed' as const, error: 'توقف التنفيذ لأن التطبيق أُغلق. أعد المحاولة.' } : j));
+        const jobs = (p.jobs ?? []).map((j) => (j.status === 'running' ? { ...j, status: 'failed' as const, error: 'interrupted' } : j));
         setSaved({ jobs, settings: { ...defaultPricing, ...p.settings }, manual: p.manual ?? {} });
       })
       .catch(() => undefined)
@@ -102,7 +107,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       setLiveStatus('loading');
       setLiveTick((t) => t + 1);
     },
-    priceFor: (params, mediaSeconds) => quote(planLines(params, mediaSeconds), saved.settings, { ...live, ...saved.manual }),
+    priceFor: (params, mediaSeconds, tier) => quote(planLines(params, mediaSeconds, tier), saved.settings, { ...live, ...saved.manual }, tier),
     addJob: (job) => setSaved((s) => ({ ...s, jobs: [job, ...s.jobs].slice(0, 50) })),
     updateJob: (id, patch) => setSaved((s) => ({ ...s, jobs: s.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)) })),
     removeJob: (id) => setSaved((s) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) })),

@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Card, Note, PageTitle, Progress, ScrollScreen, SectionTitle, ToggleRow, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -36,21 +37,22 @@ function Empty({ icon, title, body, action, onAction }: { icon: IconName; title:
 
 function Ads() {
   const { c } = useTheme();
+  const { L } = useI18n();
   const { automation, setAutomation, spentThisMonth, orders } = useStudio();
   const promoted = orders.filter((o) => o.promo !== 'none');
 
   return (
     <ScrollScreen inTabs>
-      <PageTitle title="الإعلانات" subtitle="ترويج الريلز ضمن سقف تحدده أنت" />
+      <PageTitle title={L('الإعلانات', 'Ads')} subtitle={L('ترويج الريلز ضمن سقف تحدده أنت', 'Promote reels within a cap you set')} />
 
       <Card tone="hero">
         <View style={ui.between}>
           <AppText size={12.5} color={c.heroMuted}>
-            الصرف هذا الشهر
+            {L('الإنفاق هذا الشهر', 'Spent this month')}
           </AppText>
           <PressableScale accessibilityRole="button" onPress={() => router.push('/automation')} style={styles.capLink}>
             <AppText size={12.5} weight="medium" color={c.heroText}>
-              تعديل السقف
+              {L('تعديل السقف', 'Change cap')}
             </AppText>
           </PressableScale>
         </View>
@@ -59,32 +61,35 @@ function Ads() {
             {formatNumber(spentThisMonth)}
           </AppText>
           <AppText size={13} color={c.heroMuted} style={ui.tabular}>
-            من {formatIQD(automation.monthlyCap)}
+            {L(`من ${formatIQD(automation.monthlyCap)}`, `of ${formatIQD(automation.monthlyCap)}`)}
           </AppText>
         </View>
         <Progress value={spentThisMonth / automation.monthlyCap} onHero />
         <AppText size={12} color={c.heroMuted}>
-          يتوقف كل ترويج تلقائيًا عند الوصول للسقف.
+          {L('يتوقف كل ترويج تلقائيًا عند بلوغ السقف.', 'All promotion stops automatically at the cap.')}
         </AppText>
       </Card>
 
       <Card style={styles.toggleCard}>
         <ToggleRow
-          title="روّج الريل الأنجح تلقائيًا"
-          subtitle="إذا جاب ريل طلبات بكلفة أقل من المعدل، نزيد ميزانيته ضمن السقف"
+          title={L('روّج الريل الأنجح تلقائيًا', 'Auto-promote the best reel')}
+          subtitle={L('إذا جلب ريلٌ طلبات بتكلفة أقل من المعدل، نزيد ميزانيته ضمن السقف', 'If a reel brings orders below the average cost, we raise its budget within the cap')}
           value={automation.autoPromote}
           onChange={(autoPromote) => setAutomation({ autoPromote })}
           last
         />
       </Card>
 
-      <SectionTitle title="الحملات" />
+      <SectionTitle title={L('الحملات', 'Campaigns')} />
       {promoted.length === 0 ? (
         <Empty
           icon="ads"
-          title="لا توجد حملات بعد"
-          body="بعد تصوير ريل تختار مستوى الترويج وعدد الأيام، ويظهر هنا الصرف والوصول وكلفة كل طلب."
-          action="صوّر ريل"
+          title={L('لا توجد حملات بعد', 'No campaigns yet')}
+          body={L(
+            'بعد تصوير ريل تختار مستوى الترويج وعدد الأيام، ويظهر هنا الإنفاق والوصول وتكلفة كل طلب.',
+            'After filming a reel you pick a promotion level and days; spend, reach and cost per order show here.',
+          )}
+          action={L('صوّر ريلًا', 'Film a reel')}
           onAction={() => router.push('/(tabs)/camera')}
         />
       ) : (
@@ -99,40 +104,44 @@ function Ads() {
               </AppText>
             </View>
             <AppText size={12.5} color={c.muted}>
-              {o.promoDays} أيام · يبدأ بعد النشر
+              {L(`${o.promoDays} أيام · يبدأ بعد النشر`, `${o.promoDays} days · starts after posting`)}
             </AppText>
           </Card>
         ))
       )}
 
-      <Note>نتائج الحملات تظهر بعد ربط حساب إعلانات Meta وTikTok عند تشغيل السيرفر.</Note>
+      <Note>{L('تظهر نتائج الحملات بعد ربط حسابَي إعلانات Meta وTikTok عند تشغيل الخادم.', 'Campaign results appear once Meta and TikTok ad accounts are linked on the server.')}</Note>
     </ScrollScreen>
   );
 }
 
 function Ideas() {
   const { c } = useTheme();
+  const { L } = useI18n();
   return (
     <ScrollScreen inTabs>
-      <PageTitle title="الأفكار" subtitle="مبنية على مجالك وما يبحث عنه جمهورك" />
-      <Card onPress={() => router.push('/assistant')} accessibilityLabel="اطلب أفكارًا من المساعد" style={styles.ask}>
+      <PageTitle title={L('الأفكار', 'Ideas')} subtitle={L('مبنية على مجالك وما يبحث عنه جمهورك', 'Built on your niche and what your audience looks for')} />
+      <Card onPress={() => router.push('/assistant')} accessibilityLabel={L('اطلب أفكارًا من المساعد', 'Ask the assistant for ideas')} style={styles.ask}>
         <View style={[styles.askIcon, { backgroundColor: c.priSoft }]}>
           <Icon name="sparkle" color={c.onPriSoft} size={18} />
         </View>
         <View style={ui.flex}>
           <AppText weight="medium" size={14.5}>
-            اطلب أفكارًا من المساعد
+            {L('اطلب أفكارًا من المساعد', 'Ask the assistant for ideas')}
           </AppText>
           <AppText size={12.5} color={c.muted}>
-            «شو أصوّر هالأسبوع؟» ويعطيك أفكارًا وقائمة لقطات
+            {L('«ماذا أصوّر هذا الأسبوع؟» فيعطيك أفكارًا وقائمة لقطات', '"What should I film this week?" gets you ideas and a shot list')}
           </AppText>
         </View>
         <Icon name="chevronLeft" color={c.placeholder} size={18} />
       </Card>
       <Empty
         icon="bulb"
-        title="لا توجد أفكار محفوظة"
-        body="الأفكار التي يقترحها المساعد تبدأ منها التصوير مباشرة. بعد ربط حساباتك نقترح أفكارًا من أداء فيديوهاتك أيضًا."
+        title={L('لا توجد أفكار محفوظة', 'No saved ideas')}
+        body={L(
+          'تبدأ التصوير مباشرة من الأفكار التي يقترحها المساعد. بعد ربط حساباتك نقترح أفكارًا من أداء فيديوهاتك أيضًا.',
+          'Start filming straight from the assistant’s ideas. Once accounts are linked, we also suggest ideas from how your videos perform.',
+        )}
       />
     </ScrollScreen>
   );

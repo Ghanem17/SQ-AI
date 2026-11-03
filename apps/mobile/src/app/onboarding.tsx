@@ -20,7 +20,8 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { PressableScale } from '@/components/PressableScale';
 import { CameraArt, ChatArt, CostArt, PublishArt } from '@/features/onboarding/illustrations';
-import { ar } from '@/i18n/ar';
+import { LangSwitch } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 
 type Slide = {
@@ -58,6 +59,9 @@ function rubberBand(value: number) {
 export default function Onboarding() {
   const { width } = useWindowDimensions();
   const { completeOnboarding } = useSession();
+  const { t, rtl } = useI18n();
+  // Arabic keeps the next slide on the left, English on the right.
+  const sign = rtl ? 1 : -1;
   const reduceMotion = useReducedMotion();
   const position = useSharedValue(0);
   const start = useSharedValue(0);
@@ -68,7 +72,7 @@ export default function Onboarding() {
     setIndex(target);
   };
 
-  // RTL: the next slide waits on the left, so dragging to the right moves forward.
+  // Dragging toward the previous slide's side moves forward.
   const pan = usePanGesture({
     activeOffsetX: [-12, 12],
     failOffsetY: [-24, 24],
@@ -78,11 +82,11 @@ export default function Onboarding() {
     },
     onUpdate: (e) => {
       'worklet';
-      position.value = rubberBand(start.value + e.translationX / width);
+      position.value = rubberBand(start.value + (sign * e.translationX) / width);
     },
     onDeactivate: (e) => {
       'worklet';
-      const projected = position.value + (e.velocityX / width) * 0.25;
+      const projected = position.value + ((sign * e.velocityX) / width) * 0.25;
       const target = Math.max(0, Math.min(LAST, Math.round(projected)));
       position.value = withSpring(target, SPRING);
       scheduleOnRN(setIndex, target);
@@ -101,25 +105,27 @@ export default function Onboarding() {
   const slide = slides[index];
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: rtl ? 'rtl' : 'ltr' }]}>
       <Animated.View style={[StyleSheet.absoluteFill, background]} />
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <View style={styles.topBar}>
           {index < LAST ? (
-            <PressableScale accessibilityRole="button" accessibilityLabel={ar.common.skip} onPress={finish} style={styles.skip}>
+            <PressableScale accessibilityRole="button" accessibilityLabel={t.common.skip} onPress={finish} style={styles.skip}>
               <AppText weight="medium" size={15} color={slide.fg}>
-                {ar.common.skip}
+                {t.common.skip}
               </AppText>
             </PressableScale>
           ) : (
             <View style={styles.skip} />
           )}
+          <View style={styles.flex} />
+          <LangSwitch color={slide.fg} border={slide.muted} />
         </View>
 
         <GestureDetector gesture={pan}>
-          <View style={styles.pager} accessibilityRole="adjustable" accessibilityLabel={ar.onboarding.slides[index].title}>
+          <View style={styles.pager} accessibilityRole="adjustable" accessibilityLabel={t.onboarding.slides[index].title}>
             {slides.map((s, i) => (
-              <SlideView key={i} index={i} slide={s} position={position} width={width} active={i === index} />
+              <SlideView key={i} index={i} slide={s} position={position} width={width * sign} active={i === index} />
             ))}
           </View>
         </GestureDetector>
@@ -131,7 +137,7 @@ export default function Onboarding() {
             ))}
           </View>
           <Button
-            label={index === LAST ? ar.common.start : ar.common.next}
+            label={index === LAST ? t.common.start : t.common.next}
             colors={{ bg: slide.buttonBg, fg: slide.buttonFg }}
             onPress={() => (index === LAST ? finish() : settle(index + 1))}
             style={styles.next}
@@ -155,7 +161,7 @@ function SlideView({
   width: number;
   active: boolean;
 }) {
-  const copy = ar.onboarding.slides[index];
+  const copy = useI18n().t.onboarding.slides[index];
   const page = useAnimatedStyle(() => ({ transform: [{ translateX: (position.value - index) * width }] }));
   // The illustration lags behind the text for a little depth.
   const art = useAnimatedStyle(() => ({
@@ -189,8 +195,9 @@ function Dot({ index, position, color }: { index: number; position: SharedValue<
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, direction: 'rtl' },
-  topBar: { flexDirection: 'row', paddingHorizontal: 20, paddingTop: 8 },
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 },
   skip: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   pager: { flex: 1, overflow: 'hidden' },
   slide: { justifyContent: 'center', paddingHorizontal: 28, gap: 24 },

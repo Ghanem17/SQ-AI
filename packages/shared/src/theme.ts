@@ -227,7 +227,7 @@ export const palettes = {
   rose: { light: roseLight, dark: roseDark },
 } as const;
 
-export const paletteNames: Record<PaletteName, string> = { ocean: 'كحلي', rose: 'زهري' };
+export const paletteNames: Record<PaletteName, { ar: string; en: string }> = { ocean: { ar: 'كحلي', en: 'Navy' }, rose: { ar: 'زهري', en: 'Pink' } };
 
 // Kept for code that only needs the main palette.
 export const light = oceanLight;

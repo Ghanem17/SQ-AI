@@ -1,16 +1,33 @@
 // Runs an approved order step by step: upload, then each fal job in turn,
-// each one's output feeding the next. Progress is reported as it goes.
+// each one's output feeding the next. The level the customer chose decides
+// which model runs each step. Progress is reported as it goes.
 
-import type { ServiceParams, ServiceToolKey } from '@sq/shared';
+import { tierTools, videoSeconds, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
+import type { I18n } from '@/i18n';
 import { AiUnavailable, postJson, unavailableText } from '@/lib/ai';
 import type { Business } from './types';
 import { uploadMedia, type PickedMedia } from './media';
 import type { JobResult } from './store';
 
-type Report = (step: string, progress: number) => void;
+export type StepKey = 'upload' | 'write' | 'voice' | 'design' | 'scenes' | 'music' | 'merge' | 'trim' | 'captions' | 'upscale';
+
+export const stepNames: Record<StepKey, { ar: string; en: string }> = {
+  upload: { ar: 'رفع الملف', en: 'Uploading the file' },
+  write: { ar: 'كتابة النص', en: 'Writing the copy' },
+  voice: { ar: 'تسجيل الصوت', en: 'Recording the voice' },
+  design: { ar: 'تصميم الإعلان', en: 'Designing the ad' },
+  scenes: { ar: 'توليد المشاهد', en: 'Generating the scenes' },
+  music: { ar: 'تأليف الموسيقى', en: 'Composing the music' },
+  merge: { ar: 'دمج الموسيقى', en: 'Merging the music' },
+  trim: { ar: 'قص الفيديو', en: 'Trimming the video' },
+  captions: { ar: 'إضافة النص المكتوب', en: 'Adding captions' },
+  upscale: { ar: 'رفع الدقة', en: 'Upscaling' },
+};
+
+type Report = (step: StepKey, progress: number) => void;
 
 const POLL_MS = 3000;
-const TIMEOUT_MS = 12 * 60 * 1000;
+const TIMEOUT_MS = 15 * 60 * 1000;
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -36,114 +53,152 @@ const fileUrl = (o: unknown): string => {
   return f.url;
 };
 
-// The plan of steps shown to the customer while the order runs.
-export function stepsFor(params: ServiceParams, hasMedia: boolean): string[] {
-  const steps: string[] = [];
-  if (hasMedia) steps.push('رفع الملف');
+// The steps shown to the customer while the order runs.
+export function stepsFor(params: ServiceParams, hasMedia: boolean, tier: ServiceTier): StepKey[] {
+  const steps: StepKey[] = hasMedia ? ['upload'] : [];
   switch (params.kind) {
     case 'copy':
-      steps.push('كتابة النص');
+      steps.push('write');
       break;
     case 'voice':
-      steps.push('تسجيل الصوت');
+      steps.push('voice');
       break;
     case 'adImage':
-      steps.push('تصميم الإعلان');
+      steps.push('design');
       break;
     case 'textVideo':
-      steps.push('توليد المشاهد');
-      if (params.music) steps.push('تأليف الموسيقى', 'دمج الموسيقى');
+      steps.push('scenes');
+      // Veo makes its own soundtrack.
+      if (params.music && tier !== 'high') steps.push('music', 'merge');
       break;
     case 'editVideo':
-      if (params.trimStart !== null || params.trimEnd !== null) steps.push('قص الفيديو');
-      if (params.captions) steps.push('إضافة الترجمة');
-      if (params.music) steps.push('تأليف الموسيقى', 'دمج الموسيقى');
+      if (params.trimStart !== null || params.trimEnd !== null) steps.push('trim');
+      if (params.captions) steps.push('captions');
+      if (params.music) steps.push('music', 'merge');
+      if (tier === 'high') steps.push('upscale');
       break;
   }
   return steps;
 }
 
-export async function runOrder(params: ServiceParams, media: PickedMedia | null, business: Business, report: Report): Promise<JobResult> {
-  const steps = stepsFor(params, Boolean(media));
+// Music at the level's quality, sized to the video where the model allows.
+async function compose(tier: ServiceTier, prompt: string, seconds: number): Promise<string> {
+  const tool = tierTools.music[tier];
+  const r =
+    tool === 'musicPro'
+      ? await runTool(tool, { prompt, music_length_ms: Math.min(300000, Math.max(10000, Math.round(seconds * 1000))) })
+      : await runTool(tool, { prompt });
+  return fileUrl(r.audio);
+}
+
+function videoInput(tier: ServiceTier, prompt: string, seconds: number, sound: boolean): Record<string, unknown> {
+  if (tier === 'low') return { prompt, aspect_ratio: '9:16', resolution: '720p', num_frames: 81, frames_per_second: 16 };
+  if (tier === 'high') return { prompt, aspect_ratio: '9:16', resolution: '1080p', duration: `${seconds}s`, generate_audio: true };
+  return { prompt, aspect_ratio: '9:16', duration: String(seconds), generate_audio: sound };
+}
+
+export async function runOrder(
+  params: ServiceParams,
+  media: PickedMedia | null,
+  business: Business,
+  tier: ServiceTier,
+  lang: 'ar' | 'en',
+  report: Report,
+): Promise<JobResult> {
+  const steps = stepsFor(params, Boolean(media), tier);
   let done = 0;
-  const step = (name: string) => report(name, done / steps.length);
+  const step = (key: StepKey) => report(key, done / steps.length);
   const next = () => {
     done += 1;
   };
 
   let sourceUrl = '';
   if (media) {
-    step('رفع الملف');
+    step('upload');
     sourceUrl = await uploadMedia(media);
     next();
   }
 
   switch (params.kind) {
     case 'copy': {
-      step('كتابة النص');
-      const { text } = await postJson<{ text: string }>('/api/write', { business, params }, 120000);
+      step('write');
+      const { text } = await postJson<{ text: string }>('/api/write', { business, params, tier, lang }, 180000);
       return { type: 'text', text };
     }
     case 'voice': {
-      step('تسجيل الصوت');
-      const r = await runTool('voice', { text: params.text, voice: params.voice === 'sarah' ? 'Sarah' : 'Brian', language_code: 'ar' });
+      step('voice');
+      const r = await runTool(tierTools.voice[tier], { text: params.text, voice: params.voice === 'sarah' ? 'Sarah' : 'Brian' });
       return { type: 'audio', url: fileUrl(r.audio) };
     }
     case 'adImage': {
-      step('تصميم الإعلان');
-      const r = await runTool('image', { prompt: params.prompt, image_urls: [sourceUrl], aspect_ratio: params.aspect, resolution: '2K', output_format: 'png' });
-      const images = r.images as unknown[] | undefined;
-      return { type: 'image', url: fileUrl(images?.[0]) };
+      step('design');
+      const input: Record<string, unknown> = { prompt: params.prompt, image_urls: [sourceUrl], aspect_ratio: params.aspect, output_format: 'png' };
+      if (tier !== 'low') input.resolution = tier === 'high' ? '2K' : '1K';
+      if (tier === 'high') input.num_images = 2;
+      const r = await runTool(tierTools.image[tier], input);
+      const urls = ((r.images as unknown[] | undefined) ?? []).map(fileUrl);
+      if (!urls.length) throw new Error('No file in result');
+      return { type: 'image', url: urls[0], urls };
     }
     case 'textVideo': {
-      step('توليد المشاهد');
-      const r = await runTool('klingVideo', { prompt: params.prompt, duration: String(params.duration), aspect_ratio: '9:16', generate_audio: !params.music });
+      const seconds = videoSeconds(params.duration, tier);
+      const withMusic = Boolean(params.music) && tier !== 'high';
+      step('scenes');
+      const r = await runTool(tierTools.video[tier], videoInput(tier, params.prompt, seconds, !withMusic));
       let video = fileUrl(r.video);
       next();
-      if (params.music) {
-        step('تأليف الموسيقى');
-        const m = await runTool('music', { prompt: params.music });
+      if (withMusic && params.music) {
+        step('music');
+        const audio = await compose(tier, params.music, seconds);
         next();
-        step('دمج الموسيقى');
-        const merged = await runTool('mergeAudio', { video_url: video, audio_url: fileUrl(m.audio) });
+        step('merge');
+        const merged = await runTool('mergeAudio', { video_url: video, audio_url: audio });
         video = fileUrl(merged.video);
       }
       return { type: 'video', url: video };
     }
     case 'editVideo': {
       let video = sourceUrl;
+      const start = params.trimStart ?? 0;
+      const length = Math.max(1, (params.trimEnd ?? media?.seconds ?? 30) - start);
       if (params.trimStart !== null || params.trimEnd !== null) {
-        step('قص الفيديو');
-        const input: Record<string, unknown> = { video_url: video, start_time: params.trimStart ?? 0 };
+        step('trim');
+        const input: Record<string, unknown> = { video_url: video, start_time: start };
         if (params.trimEnd !== null) input.end_time = params.trimEnd;
-        else if (media?.seconds) input.duration = Math.max(1, media.seconds - (params.trimStart ?? 0));
+        else if (media?.seconds) input.duration = Math.max(1, media.seconds - start);
         const r = await runTool('trim', input);
         video = fileUrl(r.video);
         next();
       }
       if (params.captions) {
-        step('إضافة الترجمة');
+        step('captions');
         const r = await runTool('captions', { video_url: video, font_size: 30, txt_color: 'white', stroke_width: 2 });
         if (typeof r.video_url !== 'string') throw new Error('No video in result');
         video = r.video_url;
         next();
       }
       if (params.music) {
-        step('تأليف الموسيقى');
-        const m = await runTool('music', { prompt: params.music });
+        step('music');
+        const audio = await compose(tier, params.music, length);
         next();
-        step('دمج الموسيقى');
-        const merged = await runTool('mergeAudio', { video_url: video, audio_url: fileUrl(m.audio) });
+        step('merge');
+        const merged = await runTool('mergeAudio', { video_url: video, audio_url: audio });
         video = fileUrl(merged.video);
+        next();
+      }
+      if (tier === 'high') {
+        step('upscale');
+        const r = await runTool('upscale', { video_url: video, upscale_factor: 2, model: 'Proteus' });
+        video = fileUrl(r.video);
       }
       return { type: 'video', url: video };
     }
   }
 }
 
-export function explain(err: unknown): string {
-  if (err instanceof AiUnavailable) return err.reason === 'failed' ? `تعذر التنفيذ: ${err.message}` : unavailableText[err.reason];
-  if (err instanceof Error && err.message === 'timeout') return 'التنفيذ أخذ وقتًا أطول من المتوقع. أعد المحاولة بعد قليل.';
-  if (err instanceof Error && err.message.startsWith('upload')) return 'تعذر رفع الملف. تأكد من الإنترنت وأعد المحاولة.';
-  return 'تعذر إكمال الطلب. أعد المحاولة.';
+export function explain(err: unknown, { L, lang }: I18n): string {
+  if (err instanceof AiUnavailable) return err.reason === 'failed' ? L(`تعذر التنفيذ: ${err.message}`, `Could not finish: ${err.message}`) : unavailableText[err.reason][lang];
+  if (err instanceof Error && err.message === 'timeout') return L('استغرق التنفيذ وقتًا أطول من المتوقع. أعد المحاولة بعد قليل.', 'This took longer than expected. Try again shortly.');
+  if (err instanceof Error && err.message.startsWith('upload')) return L('تعذر رفع الملف. تأكد من اتصالك بالإنترنت وأعد المحاولة.', 'Could not upload the file. Check your connection and try again.');
+  return L('تعذر إكمال الطلب. أعد المحاولة.', 'Could not complete the order. Try again.');
 }

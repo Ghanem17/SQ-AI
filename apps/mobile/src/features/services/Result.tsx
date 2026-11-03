@@ -15,6 +15,7 @@ import { radius } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Card, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import type { JobResult } from './store';
 
@@ -32,11 +33,12 @@ async function shareFile(type: 'audio' | 'image' | 'video', url: string) {
   else await Linking.openURL(url);
 }
 
-function ShareButton({ type, url }: { type: 'audio' | 'image' | 'video'; url: string }) {
+function ShareButton({ type, url, label }: { type: 'audio' | 'image' | 'video'; url: string; label?: string }) {
   const [busy, setBusy] = useState(false);
+  const { L } = useI18n();
   return (
     <Button
-      label={busy ? 'جارٍ التحضير…' : 'احفظ أو شارك'}
+      label={busy ? L('جارٍ التحضير…', 'Preparing…') : (label ?? L('احفظ أو شارك', 'Save or share'))}
       icon="send"
       loading={busy}
       onPress={async () => {
@@ -65,9 +67,10 @@ function VideoResult({ url }: { url: string }) {
 function AudioResult({ url }: { url: string }) {
   const player = useAudioPlayer({ uri: url });
   const status = useAudioPlayerStatus(player);
+  const { L } = useI18n();
   return (
     <Button
-      label={status.playing ? 'إيقاف' : 'اسمع الصوت'}
+      label={status.playing ? L('إيقاف', 'Pause') : L('استمع إلى الصوت', 'Play the audio')}
       icon={status.playing ? 'minus' : 'play'}
       variant="secondary"
       onPress={async () => {
@@ -85,6 +88,7 @@ function AudioResult({ url }: { url: string }) {
 
 export function ResultView({ result }: { result: JobResult }) {
   const { c } = useTheme();
+  const { L } = useI18n();
   const [copied, setCopied] = useState(false);
 
   if (result.type === 'text') {
@@ -95,7 +99,7 @@ export function ResultView({ result }: { result: JobResult }) {
         </AppText>
         <View style={styles.row}>
           <Button
-            label={copied ? 'تم النسخ' : 'انسخ النص'}
+            label={copied ? L('تم النسخ', 'Copied') : L('انسخ النص', 'Copy text')}
             icon={copied ? 'check' : 'layers'}
             variant="secondary"
             style={ui.flex}
@@ -104,7 +108,7 @@ export function ResultView({ result }: { result: JobResult }) {
               setCopied(true);
             }}
           />
-          <Button label="شارك" icon="send" style={ui.flex} onPress={() => Share.share({ message: result.text })} />
+          <Button label={L('شارك', 'Share')} icon="send" style={ui.flex} onPress={() => Share.share({ message: result.text })} />
         </View>
       </Card>
     );
@@ -112,12 +116,18 @@ export function ResultView({ result }: { result: JobResult }) {
 
   return (
     <Card>
-      {result.type === 'image' && <Image source={{ uri: result.url }} style={[styles.image, { backgroundColor: c.tile }]} contentFit="contain" />}
+      {result.type === 'image' &&
+        (result.urls ?? [result.url]).map((u, i, all) => (
+          <View key={u} style={styles.version}>
+            <Image source={{ uri: u }} style={[styles.image, { backgroundColor: c.tile }]} contentFit="contain" />
+            {all.length > 1 && <ShareButton type="image" url={u} label={L(`احفظ النسخة ${i + 1}`, `Save version ${i + 1}`)} />}
+          </View>
+        ))}
       {result.type === 'video' && <VideoResult url={result.url} />}
       {result.type === 'audio' && <AudioResult url={result.url} />}
-      <ShareButton type={result.type} url={result.url} />
+      {!(result.type === 'image' && (result.urls?.length ?? 0) > 1) && <ShareButton type={result.type} url={result.url} />}
       <AppText size={11.5} color={c.placeholder} center>
-        الملف محفوظ عند fal لمدة محدودة، احفظه على جهازك.
+        {L('يُحفظ الملف لدى fal مدة محدودة، فاحفظه على جهازك.', 'fal keeps the file for a limited time, so save it to your device.')}
       </AppText>
     </Card>
   );
@@ -125,6 +135,7 @@ export function ResultView({ result }: { result: JobResult }) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
+  version: { gap: 8 },
   image: { width: '100%', aspectRatio: 1, borderRadius: radius.control },
   videoWrap: { alignItems: 'center' },
   video: { width: '72%', aspectRatio: 9 / 16, borderRadius: radius.control, backgroundColor: '#000' },

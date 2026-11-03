@@ -14,8 +14,8 @@ test('every service tool has a fal endpoint and a positive price', () => {
 test('quote adds tool costs, converts to dinars and applies the margin', () => {
   const q = quote(
     [
-      { tool: 'klingVideo', qty: 10, task: 'scenes' },
-      { tool: 'music', qty: 1, task: 'music' },
+      { tool: 'klingVideo', qty: 10, task: { ar: 'مشاهد', en: 'scenes' } },
+      { tool: 'music', qty: 1, task: { ar: 'موسيقى', en: 'music' } },
     ],
     { usdToIqd: 1500, markup: 0.5, minPrice: 0 },
   );
@@ -26,19 +26,19 @@ test('quote adds tool costs, converts to dinars and applies the margin', () => {
 });
 
 test('quote never goes below the minimum price', () => {
-  const q = quote([{ tool: 'claude', qty: 1, task: 'write' }], defaultPricing);
+  const q = quote([{ tool: 'claude', qty: 1, task: { ar: 'كتابة', en: 'write' } }], defaultPricing);
   assert.equal(q.totalIqd, defaultPricing.minPrice);
 });
 
 test('live prices override the list prices', () => {
-  const q = quote([{ tool: 'image', qty: 2, task: 'ad' }], { usdToIqd: 1000, markup: 0, minPrice: 0 }, { image: 0.2 });
+  const q = quote([{ tool: 'image', qty: 2, task: { ar: 'إعلان', en: 'ad' } }], { usdToIqd: 1000, markup: 0, minPrice: 0 }, { image: 0.2 });
   assert.equal(q.toolsIqd, 400);
 });
 
 test('unknown tools and zero quantities are dropped', () => {
   const q = quote([
-    { tool: 'nope' as never, qty: 3, task: 'x' },
-    { tool: 'voice', qty: 0, task: 'y' },
+    { tool: 'nope' as never, qty: 3, task: { ar: 'x', en: 'x' } },
+    { tool: 'voice', qty: 0, task: { ar: 'y', en: 'y' } },
   ]);
   assert.equal(q.lines.length, 0);
 });
@@ -48,19 +48,52 @@ test('dollar amounts read cleanly', () => {
   assert.equal(formatUsd(0.0002), '$0.0002');
 });
 
-test('a text-to-video plan bills Kling per second and music once', () => {
+test('a medium text-to-video plan bills Kling per second and music once', () => {
   const p = cleanParams({ kind: 'textVideo', prompt: 'a burger', duration: 10, music: 'upbeat' });
   assert.ok(p);
-  const lines = planLines(p);
+  const lines = planLines(p, 0, 'mid');
   assert.deepEqual(
     lines.map((l) => [l.tool, l.qty]),
     [
       ['claude', 1],
       ['klingVideo', 10],
-      ['music', 1],
+      ['musicPro', 1],
       ['mergeAudio', 10],
     ],
   );
+});
+
+test('each level uses its own models and video length', () => {
+  const p = cleanParams({ kind: 'textVideo', prompt: 'x', duration: 12, music: 'calm' });
+  assert.ok(p);
+  const low = planLines(p, 0, 'low');
+  const high = planLines(p, 0, 'high');
+  assert.deepEqual(low.find((l) => l.tool === 'wanVideo')?.qty, 5);
+  assert.deepEqual(high.find((l) => l.tool === 'veoVideo')?.qty, 8);
+  // Veo makes its own sound, so the high level adds no music.
+  assert.equal(high.some((l) => l.tool === 'musicPro'), false);
+});
+
+test('the minimum price rises with the level', () => {
+  const p = cleanParams({ kind: 'copy', format: 'post', topic: 'x', details: '' });
+  assert.ok(p);
+  const total = (tier: 'low' | 'mid' | 'high') => quote(planLines(p, 0, tier), defaultPricing, {}, tier).totalIqd;
+  assert.deepEqual([total('low'), total('mid'), total('high')], [3000, 4500, 7500]);
+});
+
+test('higher levels cost more for the same request', () => {
+  for (const raw of [
+    { kind: 'textVideo', prompt: 'x', duration: 10, music: 'x' },
+    { kind: 'adImage', prompt: 'x', aspect: '1:1' },
+    { kind: 'voice', text: 'مرحبا', voice: 'brian' },
+    { kind: 'copy', format: 'post', topic: 'x', details: '' },
+    { kind: 'editVideo', trimStart: null, trimEnd: null, captions: true, music: 'x' },
+  ]) {
+    const p = cleanParams(raw);
+    assert.ok(p);
+    const cost = (tier: 'low' | 'mid' | 'high') => quote(planLines(p, 40, tier), { usdToIqd: 1500, markup: 0, minPrice: 0 }).toolsUsd;
+    assert.ok(cost('low') < cost('mid') && cost('mid') < cost('high'), raw.kind);
+  }
 });
 
 test('model output is clamped to what can run', () => {
@@ -75,7 +108,7 @@ test('model output is clamped to what can run', () => {
 test('editing an uploaded video only bills the steps asked for', () => {
   const p = cleanParams({ kind: 'editVideo', trimStart: 2, trimEnd: 20, captions: true, music: null });
   assert.ok(p);
-  const tools = planLines(p, 45).map((l) => l.tool);
+  const tools = planLines(p, 45, 'mid').map((l) => l.tool);
   assert.deepEqual(tools, ['claude', 'trim', 'captions']);
 });
 

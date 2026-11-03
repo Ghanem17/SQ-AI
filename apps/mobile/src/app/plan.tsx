@@ -7,17 +7,18 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { PressableScale } from '@/components/PressableScale';
 import { Card, Chip, Divider, KeyValue, Note, ScrollScreen, SectionTitle, Segmented, Stepper, TopBar, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useStudio, type Goal, type Plan } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
-const goals: { value: Goal; label: string }[] = [
-  { value: 'orders', label: 'طلبات أكثر' },
-  { value: 'followers', label: 'متابعون' },
-  { value: 'awareness', label: 'انتشار' },
+const goals: { value: Goal; label: { ar: string; en: string } }[] = [
+  { value: 'orders', label: { ar: 'طلبات أكثر', en: 'More orders' } },
+  { value: 'followers', label: { ar: 'متابعون', en: 'Followers' } },
+  { value: 'awareness', label: { ar: 'انتشار', en: 'Reach' } },
 ];
 
 const platforms: Platform[] = ['instagram', 'facebook', 'tiktok', 'youtube'];
-const weekdays = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'];
+const weekdays = { ar: ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'], en: ['S', 'M', 'T', 'W', 'T', 'F', 'S'] };
 
 // Reel days spread across the month, leaning on the busiest days.
 function plannedDays(count: number, daysInMonth: number): Set<number> {
@@ -29,6 +30,7 @@ function plannedDays(count: number, daysInMonth: number): Set<number> {
 
 export default function PlanScreen() {
   const { c } = useTheme();
+  const { L, pick, lang } = useI18n();
   const { plan, savePlan } = useStudio();
   const [p, setP] = useState<Plan>(plan);
   const price = planPrice(p.reels, p.tier);
@@ -38,7 +40,7 @@ export default function PlanScreen() {
   const month = now.getMonth() + 1;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay();
-  const monthName = new Date(year, month, 1).toLocaleDateString('ar-IQ', { month: 'long' });
+  const monthName = new Date(year, month, 1).toLocaleDateString(lang === 'ar' ? 'ar-IQ' : 'en-GB', { month: 'long' });
   const planned = plannedDays(p.reels, daysInMonth);
 
   const set = (patch: Partial<Plan>) => setP((prev) => ({ ...prev, ...patch }));
@@ -50,19 +52,19 @@ export default function PlanScreen() {
 
   return (
     <ScrollScreen
-      header={<TopBar title="الخطة الشهرية" subtitle={p.active ? 'مفعّلة' : 'ريلز مجدولة بسعر أقل'} />}
+      header={<TopBar title={L('الخطة الشهرية', 'Monthly plan')} subtitle={p.active ? L('مفعّلة', 'Active') : L('ريلز مجدولة بسعر أقل', 'Scheduled reels at a lower price')} />}
       footer={
         <>
           <View style={ui.between}>
             <AppText size={13} color={c.muted}>
-              شهريًا مع الإعلانات
+              {L('شهريًا مع الإعلانات', 'Monthly, with ads')}
             </AppText>
             <AppText weight="semibold" size={18} style={ui.tabular}>
               {formatIQD(price.total + p.adBudget)}
             </AppText>
           </View>
           <Button
-            label={plan.active ? 'احفظ التعديلات' : 'فعّل الخطة'}
+            label={plan.active ? L('احفظ التعديلات', 'Save changes') : L('فعّل الخطة', 'Turn on plan')}
             onPress={() => {
               savePlan({ ...p, active: true });
               router.back();
@@ -70,7 +72,7 @@ export default function PlanScreen() {
           />
           {plan.active && (
             <Button
-              label="أوقف الخطة"
+              label={L('أوقف الخطة', 'Stop plan')}
               variant="ghost"
               height={40}
               onPress={() => {
@@ -81,10 +83,10 @@ export default function PlanScreen() {
           )}
         </>
       }>
-      <SectionTitle title="هدف الشهر" />
-      <Segmented options={goals} value={p.goal} onChange={(goal) => set({ goal })} />
+      <SectionTitle title={L('هدف الشهر', 'Goal this month')} />
+      <Segmented options={goals.map((g) => ({ value: g.value, label: pick(g.label) }))} value={p.goal} onChange={(goal) => set({ goal })} />
 
-      <SectionTitle title="عدد الريلز" />
+      <SectionTitle title={L('عدد الريلز', 'Number of reels')} />
       <View style={styles.sizes}>
         {planSizes.map((n) => {
           const active = p.reels === n;
@@ -94,56 +96,56 @@ export default function PlanScreen() {
               key={n}
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
-              accessibilityLabel={`${n} ريلز`}
+              accessibilityLabel={L(`${n} ريلز`, `${n} reels`)}
               onPress={() => set({ reels: n })}
               style={[styles.size, { borderColor: active ? c.primary : c.line, borderWidth: active ? 1.5 : 1, backgroundColor: c.card }]}>
               <AppText weight="semibold" size={20} style={ui.tabular}>
                 {n}
               </AppText>
               <AppText size={11.5} color={c.muted}>
-                ريل
+                {L('ريل', 'reels')}
               </AppText>
               <AppText size={11} weight="medium" color={off ? c.ok : c.placeholder}>
-                {off ? `وفّر ${off * 100}%` : 'بدون خصم'}
+                {off ? L(`وفّر ${off * 100}%`, `Save ${off * 100}%`) : L('دون خصم', 'No discount')}
               </AppText>
             </PressableScale>
           );
         })}
       </View>
 
-      <SectionTitle title="الجودة الافتراضية" />
-      <Segmented options={tierOrder.map((t) => ({ value: t, label: `${tiers[t].name}` }))} value={p.tier} onChange={(tier) => set({ tier })} />
+      <SectionTitle title={L('الجودة الافتراضية', 'Default quality')} />
+      <Segmented options={tierOrder.map((t) => ({ value: t, label: pick(tiers[t].name) }))} value={p.tier} onChange={(tier) => set({ tier })} />
       <AppText size={12} color={c.muted}>
-        {tiers[p.tier].summary} · {formatIQD(reelPrice(p.tier))} للريل خارج الخطة
+        {pick(tiers[p.tier].summary)} · {L(`${formatIQD(reelPrice(p.tier))} للريل خارج الخطة`, `${formatIQD(reelPrice(p.tier))} per reel outside the plan`)}
       </AppText>
 
-      <SectionTitle title="المنصات" />
+      <SectionTitle title={L('المنصات', 'Platforms')} />
       <View style={ui.wrap}>
         {platforms.map((x) => (
-          <Chip key={x} label={platformNames[x]} selected={p.platforms.includes(x)} onPress={() => togglePlatform(x)} />
+          <Chip key={x} label={pick(platformNames[x])} selected={p.platforms.includes(x)} onPress={() => togglePlatform(x)} />
         ))}
       </View>
 
-      <SectionTitle title="ميزانية الإعلانات الشهرية" />
+      <SectionTitle title={L('ميزانية الإعلانات الشهرية', 'Monthly ad budget')} />
       <Card>
         <View style={ui.between}>
           <View style={ui.flex}>
             <AppText weight="medium" size={14}>
-              تُوزّع على الريلز الأنجح
+              {L('تُوزَّع على الريلز الأنجح', 'Spread over the best-performing reels')}
             </AppText>
             <AppText size={12} color={c.muted}>
-              تُدفع لمنصات الإعلان مباشرة
+              {L('تُدفع إلى منصات الإعلان مباشرة', 'Paid to the ad platforms directly')}
             </AppText>
           </View>
-          <Stepper value={p.adBudget} onChange={(adBudget) => set({ adBudget })} min={0} max={3000000} step={50000} format={(v) => `${v / 1000} ألف`} />
+          <Stepper value={p.adBudget} onChange={(adBudget) => set({ adBudget })} min={0} max={3000000} step={50000} format={(v) => L(`${v / 1000} ألف`, `${v / 1000}k`)} />
         </View>
       </Card>
 
-      <SectionTitle title={`جدول ${monthName}`} />
+      <SectionTitle title={L(`جدول ${monthName}`, `${monthName} schedule`)} />
       <Card>
         <View style={styles.week}>
-          {weekdays.map((d) => (
-            <AppText key={d} size={11.5} color={c.placeholder} center style={styles.cell}>
+          {weekdays[lang].map((d, i) => (
+            <AppText key={`${d}${i}`} size={11.5} color={c.placeholder} center style={styles.cell}>
               {d}
             </AppText>
           ))}
@@ -167,21 +169,26 @@ export default function PlanScreen() {
           })}
         </View>
         <AppText size={12} color={c.muted}>
-          الأيام المظللة فيها ريل. المساعد يقترح الفكرة قبلها بيوم ويذكّرك بالتصوير.
+          {L('في كل يوم مظلل ريل. يقترح المساعد الفكرة قبله بيوم ويذكّرك بالتصوير.', 'Each shaded day has a reel. The assistant suggests the idea a day before and reminds you to film.')}
         </AppText>
       </Card>
 
-      <SectionTitle title="السعر" />
+      <SectionTitle title={L('السعر', 'Price')} />
       <Card>
-        <KeyValue label={`${p.reels} ريلز ${tiers[p.tier].name}`} value={formatIQD(price.full)} />
-        {price.discount > 0 && <KeyValue label={`خصم الخطة ${planDiscount(p.reels) * 100}%`} value={`− ${formatIQD(price.discount)}`} />}
-        <KeyValue label="سعر الريل في الخطة" value={formatIQD(price.perReel)} />
+        <KeyValue label={L(`${p.reels} ريلز ${tiers[p.tier].name.ar}`, `${p.reels} ${tiers[p.tier].name.en} reels`)} value={formatIQD(price.full)} />
+        {price.discount > 0 && <KeyValue label={L(`خصم الخطة ${planDiscount(p.reels) * 100}%`, `Plan discount ${planDiscount(p.reels) * 100}%`)} value={`− ${formatIQD(price.discount)}`} />}
+        <KeyValue label={L('سعر الريل في الخطة', 'Price per reel in the plan')} value={formatIQD(price.perReel)} />
         <Divider />
-        <KeyValue label="الريلز" value={formatIQD(price.total)} strong />
-        <KeyValue label="الإعلانات" value={formatIQD(p.adBudget)} />
+        <KeyValue label={L('الريلز', 'Reels')} value={formatIQD(price.total)} strong />
+        <KeyValue label={L('الإعلانات', 'Ads')} value={formatIQD(p.adBudget)} />
       </Card>
 
-      <Note icon="calendar">يمكنك تغيير الخطة أو إيقافها في أي وقت. الريلز غير المستخدمة تنتقل للشهر التالي مرة واحدة.</Note>
+      <Note icon="calendar">
+        {L(
+          'يمكنك تغيير الخطة أو إيقافها في أي وقت. تنتقل الريلز غير المستخدمة إلى الشهر التالي مرة واحدة.',
+          'Change or stop the plan any time. Unused reels carry over to the next month once.',
+        )}
+      </Note>
     </ScrollScreen>
   );
 }

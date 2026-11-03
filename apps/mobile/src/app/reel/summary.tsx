@@ -10,6 +10,7 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Card, Divider, KeyValue, Note, ScrollScreen, SectionTitle, TopBar, ui } from '@/components/ui';
 import { describeWhen } from '@/features/reel/when';
+import { useI18n } from '@/i18n';
 import { useStudio, type Order } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
@@ -17,6 +18,7 @@ import { useTheme } from '@/theme/theme';
 // timeline of what happens next.
 export default function SummaryScreen() {
   const { c } = useTheme();
+  const { L, pick, lang } = useI18n();
   const { draft, placeOrder, automation } = useStudio();
   const [order, setOrder] = useState<Order | null>(null);
   const price = reelPrice(draft.tier);
@@ -26,48 +28,57 @@ export default function SummaryScreen() {
 
   return (
     <ScrollScreen
-      header={<TopBar title="مراجعة الطلب" subtitle={draft.title} />}
+      header={<TopBar title={L('مراجعة الطلب', 'Review order')} subtitle={draft.title} />}
       footer={
         <>
           <View style={ui.between}>
             <AppText size={13} color={c.muted}>
-              الإجمالي
+              {L('الإجمالي', 'Total')}
             </AppText>
             <AppText weight="semibold" size={18} style={ui.tabular}>
               {formatIQD(price + promo)}
             </AppText>
           </View>
-          <Button label="أكّد الطلب" icon="check" onPress={() => setOrder(placeOrder())} />
+          <Button label={L('أكّد الطلب', 'Confirm order')} icon="check" onPress={() => setOrder(placeOrder())} />
         </>
       }>
       <Card>
-        <Row label="اللقطات" value={`${draft.captured.length || draft.shots.length} من ${draft.shots.length}`} onEdit={() => router.navigate('/(tabs)/camera')} />
+        <Row
+          label={L('اللقطات', 'Shots')}
+          value={L(`${draft.captured.length || draft.shots.length} من ${draft.shots.length}`, `${draft.captured.length || draft.shots.length} of ${draft.shots.length}`)} onEdit={() => router.navigate('/(tabs)/camera')} />
         <Divider />
-        <Row label="الجودة" value={`${tiers[draft.tier].name} · ${tiers[draft.tier].resolution}`} onEdit={() => router.navigate('/reel/quality')} />
+        <Row label={L('الجودة', 'Quality')} value={`${pick(tiers[draft.tier].name)} · ${tiers[draft.tier].resolution}`} onEdit={() => router.navigate('/reel/quality')} />
         <Divider />
-        <Row label="المنصات" value={draft.platforms.map((p) => platformNames[p]).join('، ')} onEdit={() => router.navigate('/reel/publish')} />
+        <Row label={L('المنصات', 'Platforms')} value={draft.platforms.map((p) => pick(platformNames[p])).join(L('، ', ', '))} onEdit={() => router.navigate('/reel/publish')} />
         <Divider />
-        <Row label="وقت النشر" value={describeWhen(draft.when)} onEdit={() => router.navigate('/reel/publish')} />
+        <Row label={L('وقت النشر', 'Posting time')} value={describeWhen(draft.when, lang)} onEdit={() => router.navigate('/reel/publish')} />
         <Divider />
         <Row
-          label="الترويج"
-          value={draft.promo === 'none' ? 'بدون ترويج' : `${promoLevels[draft.promo].name} · ${draft.promoDays} أيام`}
+          label={L('الترويج', 'Promotion')}
+          value={
+            draft.promo === 'none'
+              ? L('دون ترويج', 'No promotion')
+              : L(`${promoLevels[draft.promo].name.ar} · ${draft.promoDays} أيام`, `${promoLevels[draft.promo].name.en} · ${draft.promoDays} days`)
+          }
           onEdit={() => router.navigate('/reel/promote')}
         />
       </Card>
 
-      <SectionTitle title="الكلفة" action="ليش هالسعر؟" onAction={() => router.push({ pathname: '/reel/receipt', params: { tier: draft.tier } })} />
+      <SectionTitle title={L('التكلفة', 'Cost')} action={L('لماذا هذا السعر؟', 'Why this price?')} onAction={() => router.push({ pathname: '/reel/receipt', params: { tier: draft.tier } })} />
       <Card>
-        <KeyValue label={`ريل ${tiers[draft.tier].name}`} value={formatIQD(price)} />
-        {draft.promo !== 'none' && <KeyValue label="ميزانية الترويج" sub="تُدفع لمنصة الإعلان" value={formatIQD(promo)} />}
+        <KeyValue label={L(`ريل ${tiers[draft.tier].name.ar}`, `${tiers[draft.tier].name.en} reel`)} value={formatIQD(price)} />
+        {draft.promo !== 'none' && <KeyValue label={L('ميزانية الترويج', 'Promotion budget')} sub={L('تُدفع إلى منصة الإعلان', 'Paid to the ad platform')} value={formatIQD(promo)} />}
         <Divider />
-        <KeyValue label="الإجمالي" value={formatIQD(price + promo)} strong />
+        <KeyValue label={L('الإجمالي', 'Total')} value={formatIQD(price + promo)} strong />
       </Card>
 
       <Note icon="shield">
         {automation.approval === 'ask'
-          ? 'نرسل لك الريل النهائي للموافقة قبل النشر، ولا يُخصم شيء قبل موافقتك.'
-          : 'الموافقة التلقائية مفعّلة: يُنشر الريل مباشرة بعد المونتاج. يمكنك تغيير ذلك من الوضع التلقائي.'}
+          ? L('نرسل إليك الريل النهائي للموافقة قبل النشر، ولا يُخصم شيء قبل موافقتك.', 'We send you the final reel to approve before posting; nothing is charged before you approve.')
+          : L(
+              'الموافقة التلقائية مفعّلة: يُنشر الريل مباشرة بعد المونتاج. يمكنك تغيير ذلك من الوضع التلقائي.',
+              'Auto-approval is on: the reel posts right after editing. Change this in Autopilot.',
+            )}
       </Note>
     </ScrollScreen>
   );
@@ -75,6 +86,7 @@ export default function SummaryScreen() {
 
 function Row({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
   const { c } = useTheme();
+  const { L } = useI18n();
   return (
     <View style={styles.row}>
       <View style={ui.flex}>
@@ -85,9 +97,9 @@ function Row({ label, value, onEdit }: { label: string; value: string; onEdit: (
           {value}
         </AppText>
       </View>
-      <PressableScale accessibilityRole="button" accessibilityLabel={`تعديل ${label}`} onPress={onEdit} style={styles.edit}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={L(`تعديل ${label}`, `Edit ${label}`)} onPress={onEdit} style={styles.edit}>
         <AppText size={13} weight="medium" color={c.primary}>
-          تعديل
+          {L('تعديل', 'Edit')}
         </AppText>
       </PressableScale>
     </View>
@@ -96,22 +108,35 @@ function Row({ label, value, onEdit }: { label: string; value: string; onEdit: (
 
 function Placed({ order }: { order: Order }) {
   const { c } = useTheme();
+  const { L, lang } = useI18n();
   const { clearDraft } = useStudio();
   const reduceMotion = useReducedMotion();
   const steps = [
-    { title: 'استلمنا اللقطات', detail: 'تم رفعها وفحصها', done: true },
-    { title: 'المونتاج بالذكاء الاصطناعي', detail: `جاهز خلال ${tiers[order.tier].deliveryHours} ساعات تقريبًا`, done: false },
-    { title: 'مراجعتك وموافقتك', detail: 'يصلك إشعار عندما يجهز', done: false },
-    { title: 'النشر', detail: describeWhen(order.when), done: false },
-    ...(order.promo !== 'none' ? [{ title: 'الترويج', detail: `${promoLevels[order.promo].name} لمدة ${order.promoDays} أيام`, done: false }] : []),
+    { title: L('استلمنا اللقطات', 'Shots received'), detail: L('رُفعت وفُحصت', 'Uploaded and checked'), done: true },
+    {
+      title: L('المونتاج بالذكاء الاصطناعي', 'AI editing'),
+      detail: L(`جاهز خلال ${tiers[order.tier].deliveryHours} ساعات تقريبًا`, `Ready in about ${tiers[order.tier].deliveryHours} hours`),
+      done: false,
+    },
+    { title: L('مراجعتك وموافقتك', 'Your review and approval'), detail: L('يصلك إشعار عندما يجهز', 'You get a notice when it is ready'), done: false },
+    { title: L('النشر', 'Posting'), detail: describeWhen(order.when, lang), done: false },
+    ...(order.promo !== 'none'
+      ? [
+          {
+            title: L('الترويج', 'Promotion'),
+            detail: L(`${promoLevels[order.promo].name.ar} لمدة ${order.promoDays} أيام`, `${promoLevels[order.promo].name.en} for ${order.promoDays} days`),
+            done: false,
+          },
+        ]
+      : []),
   ];
 
   return (
     <ScrollScreen
-      header={<TopBar title="تم إرسال الطلب" mode="none" />}
+      header={<TopBar title={L('أُرسل الطلب', 'Order sent')} mode="none" />}
       footer={
         <Button
-          label="العودة للرئيسية"
+          label={L('العودة إلى الرئيسية', 'Back to home')}
           onPress={() => {
             clearDraft();
             router.dismissTo('/(tabs)');
@@ -122,15 +147,15 @@ function Placed({ order }: { order: Order }) {
         <Icon name="check" color={c.ok} size={22} strokeWidth={2.4} />
         <View style={ui.flex}>
           <AppText weight="semibold" size={15} color={c.ok}>
-            طلبك قيد التنفيذ
+            {L('طلبك قيد التنفيذ', 'Your order is in progress')}
           </AppText>
           <AppText size={12.5} color={c.ok} style={ui.tabular}>
-            رقم الطلب {order.id}
+            {L(`رقم الطلب ${order.id}`, `Order ${order.id}`)}
           </AppText>
         </View>
       </Animated.View>
 
-      <SectionTitle title="ماذا يحدث الآن" />
+      <SectionTitle title={L('ماذا يحدث الآن', 'What happens now')} />
       <Card>
         {steps.map((s, i) => (
           <View key={s.title} style={styles.step}>
@@ -153,9 +178,9 @@ function Placed({ order }: { order: Order }) {
       </Card>
 
       <Card>
-        <KeyValue label="الإجمالي" value={formatIQD(order.reelPrice + order.promoCost)} strong />
+        <KeyValue label={L('الإجمالي', 'Total')} value={formatIQD(order.reelPrice + order.promoCost)} strong />
         <AppText size={12} color={c.placeholder}>
-          يُخصم عند موافقتك على الريل النهائي.
+          {L('يُخصم عند موافقتك على الريل النهائي.', 'Charged when you approve the final reel.')}
         </AppText>
       </Card>
     </ScrollScreen>

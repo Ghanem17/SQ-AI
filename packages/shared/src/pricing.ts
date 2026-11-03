@@ -6,6 +6,8 @@
 
 export type Tier = 'basic' | 'pro' | 'premium';
 
+export type Text = { ar: string; en: string };
+
 export type ToolId =
   | 'claude'
   | 'lyria'
@@ -26,7 +28,7 @@ export type ToolId =
 // platform's official API for publishing.
 export type ToolVia = 'fal' | 'server' | 'platform';
 
-export type Tool = { id: ToolId; name: string; vendor: string; via: ToolVia; model?: string };
+export type Tool = { id: ToolId; name: string; vendor: string | Text; via: ToolVia; model?: string };
 
 export const tools: Record<ToolId, Tool> = {
   claude: { id: 'claude', name: 'Claude Sonnet 5.5', vendor: 'Anthropic', via: 'fal', model: 'anthropic/claude-sonnet-5.5' },
@@ -35,7 +37,7 @@ export const tools: Record<ToolId, Tool> = {
   geminiImage: { id: 'geminiImage', name: 'Nano Banana Pro', vendor: 'Google', via: 'fal', model: 'fal-ai/nano-banana-pro' },
   veo: { id: 'veo', name: 'Veo 3.1 Fast', vendor: 'Google', via: 'fal', model: 'fal-ai/veo3.1/fast' },
   upscale: { id: 'upscale', name: 'Topaz Video Upscale', vendor: 'Topaz Labs', via: 'fal', model: 'fal-ai/topaz/upscale/video' },
-  ffmpeg: { id: 'ffmpeg', name: 'ffmpeg', vendor: 'سيرفر SQ', via: 'server' },
+  ffmpeg: { id: 'ffmpeg', name: 'ffmpeg', vendor: { ar: 'خادم SQ', en: 'SQ server' }, via: 'server' },
   metaApi: { id: 'metaApi', name: 'Meta Graph API', vendor: 'Meta', via: 'platform' },
   tiktokApi: { id: 'tiktokApi', name: 'TikTok Content API', vendor: 'TikTok', via: 'platform' },
   youtubeApi: { id: 'youtubeApi', name: 'YouTube Data API', vendor: 'Google', via: 'platform' },
@@ -44,23 +46,23 @@ export const tools: Record<ToolId, Tool> = {
   tiktokAds: { id: 'tiktokAds', name: 'TikTok Ads API', vendor: 'TikTok', via: 'platform' },
 };
 
-export const viaLabels: Record<ToolVia, string> = {
-  fal: 'عبر fal.ai',
-  server: 'على سيرفرنا',
-  platform: 'واجهة المنصة الرسمية',
+export const viaLabels: Record<ToolVia, Text> = {
+  fal: { ar: 'عبر fal.ai', en: 'via fal.ai' },
+  server: { ar: 'على خادمنا', en: 'on our server' },
+  platform: { ar: 'الواجهة الرسمية للمنصة', en: "the platform's official API" },
 };
 
 export type LineItem = {
   // What the step does, in the customer's words.
-  task: string;
+  task: Text;
   tools: ToolId[];
   cost: number;
 };
 
 export type TierSpec = {
   id: Tier;
-  name: string;
-  summary: string;
+  name: Text;
+  summary: Text;
   deliveryHours: number;
   resolution: string;
   items: LineItem[];
@@ -68,17 +70,17 @@ export type TierSpec = {
 };
 
 const base: LineItem[] = [
-  { task: 'كتابة الفكرة والسكربت والكابشن', tools: ['claude'], cost: 250 },
-  { task: 'الترجمة المكتوبة على الشاشة', tools: ['claude', 'ffmpeg'], cost: 250 },
-  { task: 'المونتاج والقص', tools: ['ffmpeg'], cost: 500 },
-  { task: 'موسيقى مؤلفة للريل', tools: ['lyria'], cost: 750 },
+  { task: { ar: 'كتابة الفكرة والسكربت والكابشن', en: 'Idea, script and caption' }, tools: ['claude'], cost: 250 },
+  { task: { ar: 'الترجمة المكتوبة على الشاشة', en: 'On-screen captions' }, tools: ['claude', 'ffmpeg'], cost: 250 },
+  { task: { ar: 'المونتاج والقص', en: 'Editing and trimming' }, tools: ['ffmpeg'], cost: 500 },
+  { task: { ar: 'موسيقى مؤلفة للريل', en: 'Music composed for the reel' }, tools: ['lyria'], cost: 750 },
 ];
 
 export const tiers: Record<Tier, TierSpec> = {
   basic: {
     id: 'basic',
-    name: 'أساسي',
-    summary: 'قص ومونتاج نظيف مع ترجمة وموسيقى',
+    name: { ar: 'أساسي', en: 'Basic' },
+    summary: { ar: 'قص ومونتاج نظيف مع ترجمة وموسيقى', en: 'Clean cut and edit with captions and music' },
     deliveryHours: 2,
     resolution: '1080p',
     items: base,
@@ -86,31 +88,31 @@ export const tiers: Record<Tier, TierSpec> = {
   },
   pro: {
     id: 'pro',
-    name: 'احترافي',
-    summary: 'تعليق صوتي، تصحيح ألوان وتثبيت، وغلاف مصمم',
+    name: { ar: 'احترافي', en: 'Pro' },
+    summary: { ar: 'تعليق صوتي، تصحيح ألوان وتثبيت، وغلاف مصمم', en: 'Voice-over, color correction, stabilization and a designed cover' },
     deliveryHours: 6,
     resolution: '1080p',
     items: [
       ...base,
-      { task: 'تعليق صوتي بالعربي', tools: ['elevenlabs'], cost: 250 },
-      { task: 'تصحيح الألوان وتثبيت الاهتزاز', tools: ['ffmpeg'], cost: 250 },
-      { task: 'تصميم صورة الغلاف', tools: ['geminiImage'], cost: 250 },
+      { task: { ar: 'تعليق صوتي بالعربي', en: 'Arabic voice-over' }, tools: ['elevenlabs'], cost: 250 },
+      { task: { ar: 'تصحيح الألوان وتثبيت الاهتزاز', en: 'Color correction and stabilization' }, tools: ['ffmpeg'], cost: 250 },
+      { task: { ar: 'تصميم صورة الغلاف', en: 'Cover image design' }, tools: ['geminiImage'], cost: 250 },
     ],
     serviceFee: 17500,
   },
   premium: {
     id: 'premium',
-    name: 'متقدم',
-    summary: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي ودقة 4K ونسختان للمقارنة',
+    name: { ar: 'متقدم', en: 'Premium' },
+    summary: { ar: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي ودقة 4K ونسختان للمقارنة', en: 'AI-generated opening shot, 4K, and two versions to compare' },
     deliveryHours: 24,
     resolution: '4K',
     items: [
       ...base,
-      { task: 'تعليق صوتي بالعربي', tools: ['elevenlabs'], cost: 250 },
-      { task: 'رفع الدقة إلى 4K', tools: ['upscale'], cost: 1500 },
-      { task: 'تصميم صورة الغلاف', tools: ['geminiImage'], cost: 250 },
-      { task: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي', tools: ['veo'], cost: 2500 },
-      { task: 'نسخة ثانية بافتتاحية مختلفة للمقارنة', tools: ['claude', 'ffmpeg'], cost: 500 },
+      { task: { ar: 'تعليق صوتي بالعربي', en: 'Arabic voice-over' }, tools: ['elevenlabs'], cost: 250 },
+      { task: { ar: 'رفع الدقة إلى 4K', en: 'Upscaling to 4K' }, tools: ['upscale'], cost: 1500 },
+      { task: { ar: 'تصميم صورة الغلاف', en: 'Cover image design' }, tools: ['geminiImage'], cost: 250 },
+      { task: { ar: 'لقطة افتتاحية مولّدة بالذكاء الاصطناعي', en: 'AI-generated opening shot' }, tools: ['veo'], cost: 2500 },
+      { task: { ar: 'نسخة ثانية بافتتاحية مختلفة للمقارنة', en: 'A second version with a different opening' }, tools: ['claude', 'ffmpeg'], cost: 500 },
     ],
     serviceFee: 33250,
   },
@@ -130,11 +132,11 @@ export function reelPrice(tier: Tier): number {
 // the reel price because it goes to Meta or TikTok, not to us.
 export type PromoLevel = 'none' | 'low' | 'mid' | 'high';
 
-export const promoLevels: Record<PromoLevel, { name: string; daily: number }> = {
-  none: { name: 'بدون ترويج', daily: 0 },
-  low: { name: 'منخفض', daily: 5000 },
-  mid: { name: 'متوسط', daily: 12000 },
-  high: { name: 'عالي', daily: 25000 },
+export const promoLevels: Record<PromoLevel, { name: Text; daily: number }> = {
+  none: { name: { ar: 'بدون ترويج', en: 'No promotion' }, daily: 0 },
+  low: { name: { ar: 'منخفض', en: 'Low' }, daily: 5000 },
+  mid: { name: { ar: 'متوسط', en: 'Medium' }, daily: 12000 },
+  high: { name: { ar: 'عالٍ', en: 'High' }, daily: 25000 },
 };
 
 export const promoOrder: PromoLevel[] = ['none', 'low', 'mid', 'high'];

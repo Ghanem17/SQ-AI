@@ -11,7 +11,8 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, TopBar, ui } from '@/components/ui';
-import { AiUnavailable, postJson, unavailableText, useAiStatus, useBusiness } from '@/lib/ai';
+import { useI18n } from '@/i18n';
+import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { starterShots, type Shot } from '@/features/reel/shots';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -23,16 +24,18 @@ type Entry =
   | { id: number; from: 'me'; text: string }
   | { id: number; from: 'ai'; text: string; ideas?: Idea[]; shots?: Shot[]; idea?: Idea; offline?: string };
 
-const tips =
-  'ثلاث قواعد تفرق كثيرًا:\n1. صوّر قرب شباك، والضوء يجي من الجنب مو من الخلف.\n2. ثبّت الموبايل بيدين أو على كوب، وتحرك ببطء.\n3. أول ثانيتين أهم شي: ابدأ بأقرب لقطة وأشهى منظر.';
+const tips = {
+  ar: 'ثلاث قواعد تصنع فرقًا كبيرًا:\n1. صوّر قرب نافذة، وليكن الضوء من الجانب لا من الخلف.\n2. ثبّت الهاتف بكلتا يديك أو أسنده إلى كوب، وتحرك ببطء.\n3. الثانيتان الأوليان هما الأهم: ابدأ بأقرب لقطة وأجمل منظر.',
+  en: 'Three rules that make a big difference:\n1. Film near a window, with light from the side, not from behind.\n2. Hold the phone with both hands or rest it on a cup, and move slowly.\n3. The first two seconds matter most: open on your closest, best-looking shot.',
+};
 
 // What the model has seen so far, as plain chat turns.
 function history(entries: Entry[]) {
   return entries.slice(1).map((e) => {
     if (e.from === 'me') return { role: 'user' as const, content: e.text };
     const parts = [e.text];
-    if (e.ideas) parts.push(`الأفكار: ${e.ideas.map((i) => i.title).join('، ')}`);
-    if (e.shots) parts.push(`اللقطات: ${e.shots.map((s) => s.title).join('، ')}`);
+    if (e.ideas) parts.push(`Ideas: ${e.ideas.map((i) => i.title).join(' | ')}`);
+    if (e.shots) parts.push(`Shots: ${e.shots.map((s) => s.title).join(' | ')}`);
     return { role: 'assistant' as const, content: parts.filter(Boolean).join('\n') };
   });
 }
@@ -42,13 +45,21 @@ function history(entries: Entry[]) {
 // fal.ai; without it the assistant says so and offers the starter shot list.
 export default function AssistantScreen() {
   const { c } = useTheme();
+  const { L, lang, rtl } = useI18n();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const business = useBusiness();
   const status = useAiStatus();
   const { startDraft } = useStudio();
   const [entries, setEntries] = useState<Entry[]>([
-    { id: 0, from: 'ai', text: 'أهلًا، أنا مساعد SQ. أقترح عليك ماذا تصوّر، وأحوّل الفكرة لقائمة لقطات جاهزة تفتح الكاميرا مباشرة.' },
+    {
+      id: 0,
+      from: 'ai',
+      text: L(
+        'أهلًا بك، أنا مساعد SQ. أقترح عليك ما تصوّره، وأحوّل الفكرة إلى قائمة لقطات جاهزة تفتح الكاميرا مباشرة.',
+        'Hello, I am the SQ assistant. I suggest what to film and turn the idea into a ready shot list that opens the camera.',
+      ),
+    },
   ]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -75,27 +86,44 @@ export default function AssistantScreen() {
     } catch (err) {
       // Without the AI: general filming tips and the starter shot list are
       // still true for anyone; ideas are not made up.
-      const offline = err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed;
+      const offline = aiErrorText(err, lang);
       const fallback: Entry = idea
-        ? { id, from: 'ai', text: 'المساعد غير متاح الآن، فهذه قائمة لقطات أساسية تنفع لأي فكرة:', shots: starterShots[business.kind], idea, offline }
-        : /كيف|نصيح|ضو|إضاء|اضاء/.test(body)
-          ? { id, from: 'ai', text: tips, offline }
-          : { id, from: 'ai', text: 'ما قدرت أجهّز أفكارًا الآن.', offline };
+        ? {
+            id,
+            from: 'ai',
+            text: L('المساعد غير متاح الآن، وهذه قائمة لقطات أساسية تصلح لأي فكرة:', 'The assistant is not available now; here is a basic shot list that suits any idea:'),
+            shots: starterShots(business.kind, lang),
+            idea,
+            offline,
+          }
+        : /كيف|نصيح|ضو|إضاء|اضاء|how|tip|light/i.test(body)
+          ? { id, from: 'ai', text: tips[lang], offline }
+          : { id, from: 'ai', text: L('تعذر تجهيز الأفكار الآن.', 'Could not prepare ideas right now.'), offline };
       setEntries((e) => [...e, fallback]);
     } finally {
       setBusy(false);
     }
   };
 
-  const prompts = ['شو أصوّر اليوم؟', 'فكرة لعرض نهاية الأسبوع', 'كيف أصوّر الأكل بشكل أحلى؟'];
+  const prompts = lang === 'ar'
+    ? ['ماذا أصوّر اليوم؟', 'فكرة لعرض نهاية الأسبوع', 'كيف أصوّر الطعام بشكل أجمل؟']
+    : ['What should I film today?', 'An idea for a weekend offer', 'How do I film food so it looks better?'];
 
   return (
     <Screen edges={['top']}>
       <TopBar
-        title="المساعد"
-        subtitle="أفكار وقوائم لقطات"
+        title={L('المساعد', 'Assistant')}
+        subtitle={L('أفكار وقوائم لقطات', 'Ideas and shot lists')}
         mode="close"
-        right={status === 'online' ? <Badge label="Claude متصل" tone="ok" /> : status === 'locked' ? <Badge label="يحتاج رمز" tone="acc" /> : status === 'offline' ? <Badge label="غير متصل" /> : undefined}
+        right={
+          status === 'online' ? (
+            <Badge label={L('Claude متصل', 'Claude online')} tone="ok" />
+          ) : status === 'locked' ? (
+            <Badge label={L('يحتاج إلى رمز', 'Needs code')} tone="acc" />
+          ) : status === 'offline' ? (
+            <Badge label={L('غير متصل', 'Offline')} />
+          ) : undefined
+        }
       />
       <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
@@ -117,7 +145,7 @@ export default function AssistantScreen() {
                     </View>
                   )}
                   {e.ideas?.map((idea) => (
-                    <Card key={idea.title} onPress={() => send(`خلينا نصوّر: ${idea.title}. أعطني قائمة اللقطات.`, idea)} accessibilityLabel={idea.title}>
+                    <Card key={idea.title} onPress={() => send(L(`لنصوّر: ${idea.title}. أعطني قائمة اللقطات.`, `Let's film: ${idea.title}. Give me the shot list.`), idea)} accessibilityLabel={idea.title}>
                       <AppText weight="semibold" size={14.5}>
                         {idea.title}
                       </AppText>
@@ -129,7 +157,7 @@ export default function AssistantScreen() {
                         </AppText>
                       </View>
                       <AppText size={12.5} weight="medium" color={c.primary}>
-                        اختر هذه الفكرة
+                        {L('اختر هذه الفكرة', 'Choose this idea')}
                       </AppText>
                     </Card>
                   ))}
@@ -155,15 +183,15 @@ export default function AssistantScreen() {
                               {s.hint}
                             </AppText>
                           </View>
-                          <Badge label={`${s.seconds} ث`} />
+                          <Badge label={L(`${s.seconds} ث`, `${s.seconds}s`)} />
                         </View>
                       ))}
                       <Button
-                        label="ابدأ التصوير"
+                        label={L('ابدأ التصوير', 'Start filming')}
                         icon="camera"
                         height={44}
                         onPress={() => {
-                          startDraft(e.idea?.title ?? 'ريل جديد', e.shots);
+                          startDraft(e.idea?.title ?? L('ريل جديد', 'New reel'), e.shots);
                           router.dismissTo('/(tabs)/camera');
                         }}
                       />
@@ -181,7 +209,7 @@ export default function AssistantScreen() {
           {busy && (
             <View style={[styles.bubble, styles.ai, styles.typing, { backgroundColor: c.tile }]}>
               <AppText size={13} color={c.muted}>
-                يكتب…
+                {L('يكتب…', 'Typing…')}
               </AppText>
             </View>
           )}
@@ -201,15 +229,15 @@ export default function AssistantScreen() {
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="اسأل عن فكرة أو نصيحة تصوير"
+              placeholder={L('اسأل عن فكرة أو نصيحة تصوير', 'Ask for an idea or a filming tip')}
               placeholderTextColor={c.placeholder}
-              style={[styles.input, { color: c.text, backgroundColor: c.tile }]}
+              style={[styles.input, { color: c.text, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left' }]}
               onSubmitEditing={() => send(text)}
               returnKeyType="send"
             />
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel="أرسل"
+              accessibilityLabel={L('أرسل', 'Send')}
               disabled={!text.trim() || busy}
               onPress={() => send(text)}
               style={[styles.send, { backgroundColor: text.trim() ? c.primary : c.tile }]}>
@@ -226,8 +254,8 @@ const styles = StyleSheet.create({
   thread: { padding: 16, gap: 12 },
   block: { gap: 8 },
   bubble: { maxWidth: '86%', paddingHorizontal: 12, paddingVertical: 9, borderRadius: radius.tile },
-  me: { alignSelf: 'flex-end', borderBottomLeftRadius: 4 },
-  ai: { alignSelf: 'flex-start', borderBottomRightRadius: 4 },
+  me: { alignSelf: 'flex-end', borderBottomEndRadius: 4 },
+  ai: { alignSelf: 'flex-start', borderBottomStartRadius: 4 },
   typing: { paddingVertical: 6 },
   why: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   shot: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
@@ -236,6 +264,6 @@ const styles = StyleSheet.create({
   prompts: { gap: 6, paddingHorizontal: 12 },
   prompt: { height: 34, paddingHorizontal: 12, borderRadius: radius.control, borderWidth: 1, justifyContent: 'center' },
   inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
-  input: { flex: 1, height: 44, borderRadius: radius.control, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14, textAlign: 'right' },
+  input: { flex: 1, height: 44, borderRadius: radius.control, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
   send: { width: 44, height: 44, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
 });

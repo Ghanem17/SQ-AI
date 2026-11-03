@@ -31,14 +31,19 @@ export class AiUnavailable extends Error {
   }
 }
 
-export const unavailableText: Record<AiUnavailable['reason'], string> = {
-  noKey: 'الذكاء الاصطناعي غير متاح الآن. جرّب بعد قليل.',
-  badKey: 'خدمة الذكاء الاصطناعي متوقفة مؤقتًا. أبلغ صاحب الحساب.',
-  credit: 'رصيد الذكاء الاصطناعي انتهى. يحتاج صاحب الحساب لشحن رصيد fal.',
-  access: 'أدخل رمز الوصول من الإعدادات لتشغيل الذكاء الاصطناعي.',
-  network: 'تعذر الاتصال بالكمبيوتر الذي يشغّل التطبيق.',
-  failed: 'لم يكتمل الطلب. جرّب مرة أخرى.',
+export const unavailableText: Record<AiUnavailable['reason'], { ar: string; en: string }> = {
+  noKey: { ar: 'الذكاء الاصطناعي غير متاح الآن. حاول بعد قليل.', en: 'AI is not available right now. Try again shortly.' },
+  badKey: { ar: 'خدمة الذكاء الاصطناعي متوقفة مؤقتًا. أبلغ صاحب الحساب.', en: 'The AI service is paused. Let the account owner know.' },
+  credit: { ar: 'نفد رصيد الذكاء الاصطناعي. على صاحب الحساب شحن رصيد fal.', en: 'The AI credit has run out. The account owner needs to top up fal.' },
+  access: { ar: 'أدخل رمز الوصول من الإعدادات لتشغيل الذكاء الاصطناعي.', en: 'Enter the access code in Settings to turn on AI.' },
+  network: { ar: 'تعذر الاتصال بالخادم. تحقق من الإنترنت.', en: 'Could not reach the server. Check your connection.' },
+  failed: { ar: 'لم يكتمل الطلب. حاول مرة أخرى.', en: 'The request did not complete. Try again.' },
 };
+
+// The message for any AI error, in the interface language.
+export function aiErrorText(err: unknown, lang: 'ar' | 'en'): string {
+  return (err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed)[lang];
+}
 
 async function request<T>(path: string, init: { method: 'GET' | 'POST'; body?: unknown }, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
@@ -117,10 +122,11 @@ export function useAiStatus(): AiStatus {
 }
 
 export function useBusiness() {
-  const { displayName, accountType, businessInfo } = useSession();
+  const { displayName, accountType, businessInfo, lang } = useSession();
   return {
-    name: displayName ?? 'حسابي',
+    name: displayName ?? (lang === 'ar' ? 'حسابي' : 'My account'),
     kind: accountType === 'creator' ? ('creator' as const) : ('shop' as const),
     info: businessInfo,
+    lang,
   };
 }

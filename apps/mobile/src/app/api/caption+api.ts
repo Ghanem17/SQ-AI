@@ -7,13 +7,13 @@ export async function POST(request: Request): Promise<Response> {
   if (!hasAccess(request)) return denied();
   try {
     const body = (await request.json()) as { business?: unknown; title?: unknown; platforms?: unknown; previous?: unknown };
-    const title = typeof body.title === 'string' ? body.title.slice(0, 120) : 'ريل جديد';
-    const platforms = Array.isArray(body.platforms) ? body.platforms.filter((p) => typeof p === 'string').join('، ') : 'إنستغرام';
-    const previous = typeof body.previous === 'string' ? `\nاكتب نسخة مختلفة عن هذه:\n${body.previous.slice(0, 600)}` : '';
+    const title = typeof body.title === 'string' ? body.title.slice(0, 120) : 'A new reel';
+    const platforms = Array.isArray(body.platforms) ? body.platforms.filter((p) => typeof p === 'string').join(', ') : 'instagram';
+    const previous = typeof body.previous === 'string' ? `\nWrite a version different from this one:\n${body.previous.slice(0, 600)}` : '';
     const raw = await chat(
       [
         { role: 'system', content: captionSystem(readBusiness(body.business)) },
-        { role: 'user', content: `فكرة الريل: ${title}\nالمنصات: ${platforms}${previous}` },
+        { role: 'user', content: `Reel idea: ${title}\nPlatforms: ${platforms}${previous}` },
       ],
       { maxTokens: 400, temperature: 0.9 },
     );

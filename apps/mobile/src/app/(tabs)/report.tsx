@@ -6,6 +6,7 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { Card, KeyValue, Note, PageTitle, ScrollScreen, SectionTitle } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -14,6 +15,7 @@ import { useTheme } from '@/theme/theme';
 // a clear note on what appears once accounts are connected.
 export default function ReportTab() {
   const { c } = useTheme();
+  const { L } = useI18n();
   const { accountType } = useSession();
   const { orders, spentThisMonth } = useStudio();
   const creator = accountType === 'creator';
@@ -22,32 +24,38 @@ export default function ReportTab() {
 
   return (
     <ScrollScreen inTabs>
-      <PageTitle title={creator ? 'النمو' : 'التقرير'} subtitle={creator ? 'متابعون وتفاعل ودخل' : 'كم كلّفك كل طلب، ومن أين جاء'} />
+      <PageTitle
+        title={creator ? L('النمو', 'Growth') : L('التقرير', 'Report')}
+        subtitle={creator ? L('المتابعون والتفاعل والدخل', 'Followers, engagement and income') : L('تكلفة كل طلب ومصدره', 'What each order cost and where it came from')}
+      />
 
       <Card style={styles.empty}>
         <View style={[styles.emptyIcon, { backgroundColor: c.tile }]}>
           <Icon name={creator ? 'trend' : 'chart'} color={c.muted} size={22} />
         </View>
         <AppText weight="semibold" size={15} center>
-          التقرير يبدأ بعد أول نشر
+          {L('يبدأ التقرير بعد أول نشر', 'The report starts after your first post')}
         </AppText>
         <AppText size={13} color={c.muted} center lineHeight={20}>
           {creator
-            ? 'بعد ربط حساباتك ونشر أول فيديو نعرض المتابعين الجدد والمشاهدات والتفاعل وأفضل منشوراتك.'
-            : 'بعد ربط حساباتك ونشر أول ريل نربط كل طلب بالمحادثة والإعلان الذي جاء منه، ونعرض كلفة كل طلب وأفضل الريلز.'}
+            ? L('بعد ربط حساباتك ونشر أول فيديو، نعرض المتابعين الجدد والمشاهدات والتفاعل وأفضل منشوراتك.', 'After linking accounts and your first video, we show new followers, views, engagement and your best posts.')
+            : L(
+                'بعد ربط حساباتك ونشر أول ريل، نربط كل طلب بالمحادثة والإعلان الذي جاء منه، ونعرض تكلفة كل طلب وأفضل الريلز.',
+                'After linking accounts and your first reel, we tie each order to its chat and ad, and show cost per order and your best reels.',
+              )}
         </AppText>
-        <Button label="صوّر أول ريل" variant="secondary" height={42} icon="camera" onPress={() => router.push('/(tabs)/camera')} style={styles.btn} />
+        <Button label={L('صوّر أول ريل', 'Film your first reel')} variant="secondary" height={42} icon="camera" onPress={() => router.push('/(tabs)/camera')} style={styles.btn} />
       </Card>
 
-      <SectionTitle title="مصاريفك في التطبيق" />
+      <SectionTitle title={L('مصاريفك في التطبيق', 'Your spending in the app')} />
       <Card>
-        <KeyValue label="الريلز المطلوبة" value={String(orders.length)} />
-        <KeyValue label="كلفة الريلز" value={formatIQD(reels)} />
-        <KeyValue label="ميزانيات الترويج" value={formatIQD(promo)} />
-        <KeyValue label="هذا الشهر" value={formatIQD(spentThisMonth)} strong />
+        <KeyValue label={L('الريلز المطلوبة', 'Reels ordered')} value={String(orders.length)} />
+        <KeyValue label={L('تكلفة الريلز', 'Reels cost')} value={formatIQD(reels)} />
+        <KeyValue label={L('ميزانيات الترويج', 'Promotion budgets')} value={formatIQD(promo)} />
+        <KeyValue label={L('هذا الشهر', 'This month')} value={formatIQD(spentThisMonth)} strong />
       </Card>
 
-      <Note>الأرقام هنا من طلباتك على هذا الجهاز فقط. بعد تشغيل السيرفر تُحفظ على حسابك وتظهر على كل أجهزتك.</Note>
+      <Note>{L('الأرقام هنا من طلباتك على هذا الجهاز فقط. بعد تشغيل الخادم تُحفظ في حسابك وتظهر على جميع أجهزتك.', 'These numbers come from orders on this device only. Once the server runs, they are kept in your account on all devices.')}</Note>
     </ScrollScreen>
   );
 }

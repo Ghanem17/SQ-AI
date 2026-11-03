@@ -7,61 +7,75 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Badge, Note, RadioCard, ScrollScreen, TopBar, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
 
-// "كيف بدك ريلك؟" — three quality levels, each with its price, what it
+// "How do you want your reel?" — three quality levels, each with its price, what it
 // includes, and a link to the full receipt of the AI work behind it.
 export default function QualityScreen() {
   const { c } = useTheme();
+  const { L } = useI18n();
   const { draft, updateDraft } = useStudio();
 
   return (
     <ScrollScreen
-      header={<TopBar title="كيف بدك ريلك؟" subtitle={draft.title} />}
+      header={<TopBar title={L('كيف تريد الريل؟', 'How do you want the reel?')} subtitle={draft.title} />}
       footer={
         <>
           <View style={ui.between}>
             <AppText size={13} color={c.muted}>
-              {tiers[draft.tier].name} · جاهز خلال {tiers[draft.tier].deliveryHours} ساعات
+              {L(
+                `${tiers[draft.tier].name.ar} · جاهز خلال ${tiers[draft.tier].deliveryHours} ساعات`,
+                `${tiers[draft.tier].name.en} · ready in ${tiers[draft.tier].deliveryHours} hours`,
+              )}
             </AppText>
             <AppText weight="semibold" size={17} style={ui.tabular}>
               {formatIQD(reelPrice(draft.tier))}
             </AppText>
           </View>
-          <Button label="التالي: النشر" onPress={() => router.push('/reel/publish')} />
+          <Button label={L('التالي: النشر', 'Next: posting')} onPress={() => router.push('/reel/publish')} />
         </>
       }>
       <AppText size={13.5} color={c.muted} lineHeight={21}>
-        اختر مستوى المونتاج. السعر هو كلفة أدوات الذكاء الاصطناعي المستخدمة فعلًا، مضافًا إليها رسوم الخدمة، ويمكنك رؤية التفاصيل لكل مستوى.
+        {L(
+          'اختر مستوى المونتاج. السعر هو تكلفة أدوات الذكاء الاصطناعي المستخدمة فعلًا مضافًا إليها رسوم الخدمة، ويمكنك رؤية التفاصيل لكل مستوى.',
+          'Choose the editing level. The price is the cost of the AI tools actually used plus the service fee; see the details for each level.',
+        )}
       </AppText>
 
       {tierOrder.map((id) => (
         <TierCard key={id} id={id} selected={draft.tier === id} onSelect={() => updateDraft({ tier: id })} />
       ))}
 
-      <Note icon="shield">تُخصم القيمة عند موافقتك على الريل النهائي فقط. إذا لم يعجبك، نعيد المونتاج مرة مجانًا.</Note>
+      <Note icon="shield">
+        {L(
+          'تُخصم القيمة عند موافقتك على الريل النهائي فقط. وإن لم يعجبك، نعيد المونتاج مرة واحدة مجانًا.',
+          'You are charged only when you approve the final reel. If you do not like it, we re-edit once for free.',
+        )}
+      </Note>
     </ScrollScreen>
   );
 }
 
 function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onSelect: () => void }) {
   const { c } = useTheme();
+  const { L, pick } = useI18n();
   const tier = tiers[id];
   const usedTools = [...new Set(tier.items.flatMap((i) => i.tools))].map((t) => tools[t].name);
 
   return (
-    <RadioCard selected={selected} onPress={onSelect} label={`${tier.name}، ${formatIQD(reelPrice(id))}`}>
+    <RadioCard selected={selected} onPress={onSelect} label={`${pick(tier.name)}${L('، ', ', ')}${formatIQD(reelPrice(id))}`}>
       <View style={styles.head}>
         <View style={ui.flex}>
           <View style={styles.titleRow}>
             <AppText weight="semibold" size={16}>
-              {tier.name}
+              {pick(tier.name)}
             </AppText>
-            {id === 'pro' && <Badge label="الأكثر طلبًا" tone="acc" />}
+            {id === 'pro' && <Badge label={L('الأكثر طلبًا', 'Most popular')} tone="acc" />}
           </View>
           <AppText size={12.5} color={c.muted}>
-            {tier.summary}
+            {pick(tier.summary)}
           </AppText>
         </View>
         <AppText weight="semibold" size={16} style={ui.tabular}>
@@ -70,9 +84,9 @@ function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onS
       </View>
 
       <View style={styles.specs}>
-        <Spec icon="clock" label={`خلال ${tier.deliveryHours} ساعات`} />
+        <Spec icon="clock" label={L(`خلال ${tier.deliveryHours} ساعات`, `In ${tier.deliveryHours} hours`)} />
         <Spec icon="video" label={tier.resolution} />
-        <Spec icon="layers" label={`${tier.items.length} مراحل`} />
+        <Spec icon="layers" label={L(`${tier.items.length} مراحل`, `${tier.items.length} steps`)} />
       </View>
 
       <AppText size={12} color={c.placeholder} numberOfLines={2}>
@@ -81,12 +95,12 @@ function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onS
 
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={`ليش هالسعر؟ ${tier.name}`}
+        accessibilityLabel={L(`لماذا هذا السعر؟ ${tier.name.ar}`, `Why this price? ${tier.name.en}`)}
         onPress={() => router.push({ pathname: '/reel/receipt', params: { tier: id } })}
         style={styles.why}>
         <Icon name="receipt" color={c.primary} size={16} />
         <AppText weight="medium" size={13} color={c.primary}>
-          ليش هالسعر؟
+          {L('لماذا هذا السعر؟', 'Why this price?')}
         </AppText>
       </PressableScale>
     </RadioCard>

@@ -71,14 +71,14 @@ async function upstreamError(res: Response): Promise<AiError> {
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
-export async function chat(messages: ChatMessage[], opts: { maxTokens?: number; temperature?: number } = {}): Promise<string> {
+export async function chat(messages: ChatMessage[], opts: { maxTokens?: number; temperature?: number; model?: string } = {}): Promise<string> {
   const p = need();
   const url = p.name === 'fal' ? `${FAL_BASE}/openrouter/router/openai/v1/chat/completions` : `${OPENROUTER_BASE}/chat/completions`;
   const res = await fetch(url, {
     method: 'POST',
     headers: headers(p),
     body: JSON.stringify({
-      model: textModel,
+      model: opts.model ?? textModel,
       messages,
       max_tokens: opts.maxTokens ?? 900,
       temperature: opts.temperature ?? 0.7,

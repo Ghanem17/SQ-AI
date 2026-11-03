@@ -11,6 +11,7 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
+import { useI18n } from '@/i18n';
 import { useStudio } from '@/state/studio';
 
 type Phase = 'ready' | 'countdown' | 'recording' | 'done';
@@ -23,6 +24,7 @@ const scrim = 'rgba(0,0,0,0.45)';
 // length so every clip fits the edit.
 export default function CaptureScreen() {
   const { shot: shotParam } = useLocalSearchParams<{ shot?: string }>();
+  const { L, rtl } = useI18n();
   const { draft, updateDraft } = useStudio();
   const shots = draft.shots;
   const index = Math.max(0, Math.min(shots.length - 1, Number(shotParam ?? 0) || 0));
@@ -94,17 +96,17 @@ export default function CaptureScreen() {
           <Icon name="camera" color={brand.navy} size={26} />
         </View>
         <AppText weight="semibold" size={20} center>
-          نحتاج إذن الكاميرا
+          {L('نحتاج إلى إذن الكاميرا', 'We need camera access')}
         </AppText>
         <AppText size={14} center lineHeight={22} style={styles.permBody}>
-          نستخدم الكاميرا لتصوير لقطات الريل فقط، ولا نرفع أي فيديو قبل أن توافق عليه.
+          {L('نستخدم الكاميرا لتصوير لقطات الريل فقط، ولا نرفع أي فيديو قبل موافقتك.', 'We use the camera only to film reel shots, and upload nothing until you approve.')}
         </AppText>
         <Button
-          label={camPerm.canAskAgain ? 'اسمح بالكاميرا' : 'افتح الإعدادات'}
+          label={camPerm.canAskAgain ? L('اسمح باستخدام الكاميرا', 'Allow camera') : L('افتح الإعدادات', 'Open Settings')}
           onPress={() => (camPerm.canAskAgain ? requestCam() : Linking.openSettings())}
           style={styles.permBtn}
         />
-        <Button label="ليس الآن" variant="ghost" onPress={() => router.back()} style={styles.permBtn} />
+        <Button label={L('ليس الآن', 'Not now')} variant="ghost" onPress={() => router.back()} style={styles.permBtn} />
       </Screen>
     );
   }
@@ -113,7 +115,7 @@ export default function CaptureScreen() {
   const nextIndex = shots.findIndex((_, i) => i !== index && !draft.captured.includes(i));
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: rtl ? 'rtl' : 'ltr' }]}>
       <CameraView
         ref={camera}
         style={StyleSheet.absoluteFill}
@@ -144,24 +146,24 @@ export default function CaptureScreen() {
 
       <SafeAreaView edges={['top', 'bottom']} style={styles.overlay}>
         <View style={styles.top}>
-          <PressableScale accessibilityRole="button" accessibilityLabel="إغلاق" onPress={() => router.back()} style={styles.round}>
+          <PressableScale accessibilityRole="button" accessibilityLabel={L('إغلاق', 'Close')} onPress={() => router.back()} style={styles.round}>
             <Icon name="close" color={white} size={22} />
           </PressableScale>
           <View style={styles.topText}>
             <AppText weight="semibold" size={14} color={white} center>
-              اللقطة {index + 1} من {shots.length}
+              {L(`اللقطة ${index + 1} من ${shots.length}`, `Shot ${index + 1} of ${shots.length}`)}
             </AppText>
             <AppText size={12} color="rgba(255,255,255,0.8)" center>
               {shot.title}
             </AppText>
           </View>
           <View style={styles.topTools}>
-            <PressableScale accessibilityRole="button" accessibilityLabel="الشبكة" accessibilityState={{ selected: grid }} onPress={() => setGrid((g) => !g)} style={styles.round}>
+            <PressableScale accessibilityRole="button" accessibilityLabel={L('الشبكة', 'Grid')} accessibilityState={{ selected: grid }} onPress={() => setGrid((g) => !g)} style={styles.round}>
               <Icon name="grid" color={grid ? brand.orange : white} size={20} />
             </PressableScale>
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel="بدّل الكاميرا"
+              accessibilityLabel={L('بدّل الكاميرا', 'Flip camera')}
               disabled={phase === 'recording'}
               onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
               style={styles.round}>
@@ -171,9 +173,9 @@ export default function CaptureScreen() {
         </View>
 
         <View style={styles.checks}>
-          <Check ok label="عمودي 9:16" />
-          <Check ok={ready} label={ready ? 'الكاميرا جاهزة' : 'جارٍ تشغيل الكاميرا'} />
-          {!micPerm?.granted && <Check ok={false} label="بدون صوت" />}
+          <Check ok label={L('عمودي 9:16', 'Vertical 9:16')} />
+          <Check ok={ready} label={ready ? L('الكاميرا جاهزة', 'Camera ready') : L('جارٍ تشغيل الكاميرا', 'Starting camera')} />
+          {!micPerm?.granted && <Check ok={false} label={L('دون صوت', 'No sound')} />}
         </View>
 
         {phase === 'countdown' && (
@@ -187,7 +189,7 @@ export default function CaptureScreen() {
         <View style={styles.bottom}>
           <View style={styles.hint}>
             <AppText size={13.5} color={white} center lineHeight={20}>
-              {phase === 'done' ? 'تم حفظ اللقطة. شاهدها في المعاينة بعد المونتاج.' : shot.hint}
+              {phase === 'done' ? L('حُفظت اللقطة. شاهدها في المعاينة بعد المونتاج.', 'Shot saved. See it in the preview after editing.') : shot.hint}
             </AppText>
           </View>
 
@@ -195,20 +197,20 @@ export default function CaptureScreen() {
             <View style={[styles.barFill, { width: `${progress * 100}%` }]} />
           </View>
           <AppText size={12} color="rgba(255,255,255,0.85)" center style={styles.tabular}>
-            {phase === 'recording' ? `${elapsed.toFixed(1)} / ${shot.seconds} ث` : `مدة اللقطة ${shot.seconds} ثوانٍ`}
+            {phase === 'recording' ? L(`${elapsed.toFixed(1)} / ${shot.seconds} ث`, `${elapsed.toFixed(1)} / ${shot.seconds}s`) : L(`مدة اللقطة ${shot.seconds} ثوانٍ`, `Shot length ${shot.seconds} seconds`)}
           </AppText>
 
           {phase === 'done' ? (
             <View style={styles.doneRow}>
               <Button
-                label="أعد اللقطة"
+                label={L('أعد اللقطة', 'Retake')}
                 icon="refresh"
                 colors={{ bg: 'rgba(255,255,255,0.14)', fg: white }}
                 style={styles.flex}
                 onPress={() => setPhase('ready')}
               />
               <Button
-                label={nextIndex === -1 ? 'اختر جودة الريل' : `اللقطة ${nextIndex + 1}`}
+                label={nextIndex === -1 ? L('اختر جودة الريل', 'Choose reel quality') : L(`اللقطة ${nextIndex + 1}`, `Shot ${nextIndex + 1}`)}
                 colors={{ bg: brand.orange, fg: brand.navyDeep }}
                 style={styles.flex}
                 onPress={() => {
@@ -222,7 +224,7 @@ export default function CaptureScreen() {
             <View style={styles.shutterRow}>
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel={phase === 'recording' ? 'إيقاف' : 'ابدأ التسجيل'}
+                accessibilityLabel={phase === 'recording' ? L('إيقاف', 'Stop') : L('ابدأ التسجيل', 'Start recording')}
                 disabled={phase === 'countdown'}
                 onPress={phase === 'recording' ? stop : begin}
                 style={styles.shutter}>
@@ -249,7 +251,7 @@ function Check({ ok, label }: { ok: boolean; label: string }) {
 
 const C = 26;
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000', direction: 'rtl' },
+  root: { flex: 1, backgroundColor: '#000' },
   flex: { flex: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
   overlay: { flex: 1, justifyContent: 'space-between' },

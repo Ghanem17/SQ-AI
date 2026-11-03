@@ -5,6 +5,7 @@ import { platformNames, type Platform } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Icon, type IconName } from '@/components/Icon';
 import { Badge, Card, ListRow, Note, PageTitle, PlatformTag, ScrollScreen, SectionTitle, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
@@ -34,17 +35,18 @@ function Empty({ icon, title, body }: { icon: IconName; title: string; body: str
 
 function TryCard() {
   const { c } = useTheme();
+  const { L } = useI18n();
   return (
-    <Card onPress={() => router.push('/test-chat')} accessibilityLabel="جرّب الرد على زبون" style={styles.try}>
+    <Card onPress={() => router.push('/test-chat')} accessibilityLabel={L('جرّب الرد على عميل', 'Try answering a customer')} style={styles.try}>
       <View style={[styles.tryIcon, { backgroundColor: c.priSoft }]}>
         <Icon name="sparkle" color={c.onPriSoft} size={17} />
       </View>
       <View style={ui.flex}>
         <AppText weight="medium" size={14.5}>
-          جرّب الرد على زبون
+          {L('جرّب الرد على عميل', 'Try answering a customer')}
         </AppText>
         <AppText size={12.5} color={c.muted}>
-          اكتب كأنك زبون وشوف كيف يرد المساعد من معلومات محلك
+          {L('اكتب كأنك عميل وشاهد كيف يرد المساعد من معلومات نشاطك', 'Write as a customer and see how the assistant answers from your business details')}
         </AppText>
       </View>
       <Icon name="chevronLeft" color={c.placeholder} size={18} />
@@ -54,23 +56,36 @@ function TryCard() {
 
 function Inbox() {
   const { businessInfo } = useSession();
+  const { L, pick } = useI18n();
   return (
     <ScrollScreen inTabs>
-      <PageTitle title="الرسائل" subtitle="واتساب وإنستغرام وفيسبوك وماسنجر في مكان واحد" />
-      <Empty icon="chat" title="لا توجد رسائل بعد" body="بعد ربط حساباتك تصل رسائل الزبائن هنا، ويرد عليها المساعد ويسجّل الطلبات ويحوّل لك ما يحتاج تدخلك." />
+      <PageTitle title={L('الرسائل', 'Messages')} subtitle={L('واتساب وإنستغرام وفيسبوك وماسنجر في مكان واحد', 'WhatsApp, Instagram, Facebook and Messenger in one place')} />
+      <Empty
+        icon="chat"
+        title={L('لا توجد رسائل بعد', 'No messages yet')}
+        body={L(
+          'بعد ربط حساباتك تصل رسائل العملاء إلى هنا، فيرد عليها المساعد ويسجّل الطلبات ويحيل إليك ما يحتاج إلى تدخلك.',
+          'Once your accounts are linked, customer messages arrive here. The assistant answers, logs orders and hands you anything that needs you.',
+        )}
+      />
       <TryCard />
       {!businessInfo.trim() && (
-        <Note icon="info">قبل التجربة، اكتب أصنافك وأسعارك في «معلومات المحل» من الإعدادات، حتى يرد المساعد بمعلومات صحيحة.</Note>
+        <Note icon="info">
+          {L(
+            'قبل التجربة، اكتب أصنافك وأسعارك في «معلومات النشاط» من الإعدادات، ليرد المساعد بمعلومات صحيحة.',
+            'Before trying, add your items and prices under "About your business" in Settings so the assistant answers correctly.',
+          )}
+        </Note>
       )}
-      <SectionTitle title="القنوات" />
+      <SectionTitle title={L('القنوات', 'Channels')} />
       <Card style={styles.list}>
         {channels.map((p, i) => (
           <ListRow
             key={p}
             leading={<PlatformTag platform={p} size={34} />}
-            title={platformNames[p]}
-            subtitle="يُربط عند تشغيل السيرفر"
-            trailing={<Badge label="غير مربوط" />}
+            title={pick(platformNames[p])}
+            subtitle={L('يُربط عند تشغيل الخادم', 'Links once the server runs')}
+            trailing={<Badge label={L('غير مربوط', 'Not linked')} />}
             last={i === channels.length - 1}
           />
         ))}
@@ -80,15 +95,24 @@ function Inbox() {
 }
 
 function Collabs() {
+  const { L } = useI18n();
   return (
     <ScrollScreen inTabs>
-      <PageTitle title="التعاونات" subtitle="عروض من محلات ومطاعم تريد العمل معك" />
+      <PageTitle title={L('التعاونات', 'Collaborations')} subtitle={L('عروض من متاجر ومطاعم تريد العمل معك', 'Offers from shops and restaurants that want to work with you')} />
       <Empty
         icon="handshake"
-        title="لا توجد عروض بعد"
-        body="عندما يطلب محل تعاونًا معك يصل العرض هنا بالسعر والموعد، وتقبله أو تعتذر بضغطة."
+        title={L('لا توجد عروض بعد', 'No offers yet')}
+        body={L(
+          'عندما يطلب متجر التعاون معك يصل العرض إلى هنا بالسعر والموعد، فتقبله أو تعتذر بضغطة واحدة.',
+          'When a shop asks to work with you, the offer arrives here with the price and date. Accept or decline with one tap.',
+        )}
       />
-      <Note>اكتب مجالك وجمهورك في «عن محتواك» من الإعدادات، حتى تظهر للمحلات المناسبة.</Note>
+      <Note>
+        {L(
+          'اكتب مجالك وجمهورك في «عن محتواك» من الإعدادات، لتظهر للمتاجر المناسبة.',
+          'Describe your niche and audience under "About your content" in Settings so the right shops find you.',
+        )}
+      </Note>
     </ScrollScreen>
   );
 }

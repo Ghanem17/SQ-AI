@@ -4,6 +4,7 @@ export type Country = {
   code: string;
   dial: string;
   nameAr: string;
+  nameEn: string;
   // National number length and allowed first digits, without the trunk 0.
   length: number;
   startsWith: string[];
@@ -12,14 +13,14 @@ export type Country = {
 };
 
 export const countries: Country[] = [
-  { code: 'IQ', dial: '964', nameAr: 'العراق', length: 10, startsWith: ['7'], groups: [3, 3, 4] },
-  { code: 'SA', dial: '966', nameAr: 'السعودية', length: 9, startsWith: ['5'], groups: [2, 3, 4] },
-  { code: 'AE', dial: '971', nameAr: 'الإمارات', length: 9, startsWith: ['5'], groups: [2, 3, 4] },
-  { code: 'KW', dial: '965', nameAr: 'الكويت', length: 8, startsWith: ['5', '6', '9'], groups: [4, 4] },
-  { code: 'JO', dial: '962', nameAr: 'الأردن', length: 9, startsWith: ['7'], groups: [1, 4, 4] },
-  { code: 'SY', dial: '963', nameAr: 'سوريا', length: 9, startsWith: ['9'], groups: [3, 3, 3] },
-  { code: 'EG', dial: '20', nameAr: 'مصر', length: 10, startsWith: ['1'], groups: [3, 3, 4] },
-  { code: 'TR', dial: '90', nameAr: 'تركيا', length: 10, startsWith: ['5'], groups: [3, 3, 4] },
+  { code: 'IQ', dial: '964', nameAr: 'العراق', nameEn: 'Iraq', length: 10, startsWith: ['7'], groups: [3, 3, 4] },
+  { code: 'SA', dial: '966', nameAr: 'السعودية', nameEn: 'Saudi Arabia', length: 9, startsWith: ['5'], groups: [2, 3, 4] },
+  { code: 'AE', dial: '971', nameAr: 'الإمارات', nameEn: 'UAE', length: 9, startsWith: ['5'], groups: [2, 3, 4] },
+  { code: 'KW', dial: '965', nameAr: 'الكويت', nameEn: 'Kuwait', length: 8, startsWith: ['5', '6', '9'], groups: [4, 4] },
+  { code: 'JO', dial: '962', nameAr: 'الأردن', nameEn: 'Jordan', length: 9, startsWith: ['7'], groups: [1, 4, 4] },
+  { code: 'SY', dial: '963', nameAr: 'سوريا', nameEn: 'Syria', length: 9, startsWith: ['9'], groups: [3, 3, 3] },
+  { code: 'EG', dial: '20', nameAr: 'مصر', nameEn: 'Egypt', length: 10, startsWith: ['1'], groups: [3, 3, 4] },
+  { code: 'TR', dial: '90', nameAr: 'تركيا', nameEn: 'Türkiye', length: 10, startsWith: ['5'], groups: [3, 3, 4] },
 ];
 
 export const defaultCountry = countries[0];

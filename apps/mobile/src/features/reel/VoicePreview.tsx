@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Segmented, ui } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useAiStatus, voiceSource } from '@/lib/ai';
 import { useTheme } from '@/theme/theme';
 
@@ -26,6 +27,7 @@ function spoken(caption: string): string {
 // Plays the caption as a voice-over through ElevenLabs on fal.ai.
 export function VoicePreview({ caption }: { caption: string }) {
   const { c } = useTheme();
+  const { L } = useI18n();
   const status = useAiStatus();
   const [voice, setVoice] = useState<Voice>('brian');
   const player = useAudioPlayer(null);
@@ -49,7 +51,7 @@ export function VoicePreview({ caption }: { caption: string }) {
     <View style={styles.wrap}>
       <View style={ui.between}>
         <AppText weight="medium" size={14}>
-          التعليق الصوتي
+          {L('التعليق الصوتي', 'Voice-over')}
         </AppText>
         <AppText size={12} color={c.muted}>
           ElevenLabs v4
@@ -57,8 +59,8 @@ export function VoicePreview({ caption }: { caption: string }) {
       </View>
       <Segmented<Voice>
         options={[
-          { value: 'brian', label: 'صوت رجالي' },
-          { value: 'sarah', label: 'صوت نسائي' },
+          { value: 'brian', label: L('صوت رجالي', 'Male voice') },
+          { value: 'sarah', label: L('صوت نسائي', 'Female voice') },
         ]}
         value={voice}
         onChange={(v) => {
@@ -68,7 +70,7 @@ export function VoicePreview({ caption }: { caption: string }) {
         }}
       />
       <Button
-        label={playback.playing ? 'إيقاف' : loading ? 'جارٍ التحضير…' : 'اسمع التعليق الصوتي'}
+        label={playback.playing ? L('إيقاف', 'Pause') : loading ? L('جارٍ التحضير…', 'Preparing…') : L('استمع إلى التعليق الصوتي', 'Play the voice-over')}
         icon={playback.playing ? 'minus' : 'play'}
         variant="secondary"
         height={42}
@@ -77,7 +79,7 @@ export function VoicePreview({ caption }: { caption: string }) {
       />
       {(status === 'offline' || status === 'locked') && (
         <AppText size={12} color={c.placeholder}>
-          {status === 'locked' ? 'أدخل رمز الوصول من الإعدادات لتسمع الصوت.' : 'الخدمة غير متاحة الآن.'}
+          {status === 'locked' ? L('أدخل رمز الوصول من الإعدادات لتسمع الصوت.', 'Enter the access code in Settings to hear the voice.') : L('الخدمة غير متاحة الآن.', 'Not available right now.')}
         </AppText>
       )}
     </View>
