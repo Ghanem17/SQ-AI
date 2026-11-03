@@ -102,7 +102,7 @@ export function PillStack({ art, result, figure }: { art: Art; result: string; f
         <AppText weight="semibold" size={12} color={art.finalPill.fg}>
           {result}
         </AppText>
-        <AppText weight="semibold" size={12} color={art.finalPill.fg} style={styles.ltr}>
+        <AppText weight="semibold" size={12} color={art.finalPill.fg}>
           {figure}
         </AppText>
       </View>

@@ -270,7 +270,7 @@ export default function AuthScreen() {
                 </Animated.View>
               ) : (
                 <Animated.View key="pills" entering={appear} style={styles.pillsWrap}>
-                  <PillStack art={art} result="طلبات أكثر" figure="2,100 د.ع / طلب" />
+                  <PillStack art={art} result="طلبات أكثر" figure={"\u20662,100\u2069 د.ع للطلب"} />
                 </Animated.View>
               )}
               <View style={styles.titles}>
