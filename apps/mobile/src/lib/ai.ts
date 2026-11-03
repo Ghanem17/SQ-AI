@@ -8,8 +8,13 @@ import { Platform } from 'react-native';
 
 import { useSession } from '@/state/session';
 
+// Installed builds talk to the hosted server; Expo Go talks to the computer
+// that serves the app.
+const hosted = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+
 export function apiBase(): string {
   if (Platform.OS === 'web') return '';
+  if (hosted) return hosted;
   const host = Constants.expoConfig?.hostUri;
   if (!host) return '';
   // LAN addresses carry a port and plain http; tunnels are https on 443.

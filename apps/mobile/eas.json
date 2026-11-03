@@ -1,0 +1,22 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "environment": "preview",
+      "env": { "EXPO_PUBLIC_API_URL": "https://sq-ai.expo.app" }
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production",
+      "env": { "EXPO_PUBLIC_API_URL": "https://sq-ai.expo.app" }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
