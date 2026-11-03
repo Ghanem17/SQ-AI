@@ -54,6 +54,8 @@ export default function SettingsScreen() {
           onPress={() => router.push('/automation')}
         />
         <ListRow icon="receipt" title="الطلبات" subtitle={orders.length ? `${orders.length} طلبات في هذا الجهاز` : 'لا توجد طلبات بعد'} />
+        <ListRow icon="layers" title="طلبات الخدمات" subtitle="مونتاج، تصميم، فيديو، نصوص وصوت" onPress={() => router.push('/jobs')} />
+        <ListRow icon="wallet" title="الأسعار والأرباح" subtitle="كلفة كل أداة، سعر الدولار وهامش الربح" onPress={() => router.push('/pricing')} />
         <ListRow
           icon="sparkle"
           title="الذكاء الاصطناعي"

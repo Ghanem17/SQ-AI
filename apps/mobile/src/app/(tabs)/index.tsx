@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { formatIQD, formatNumber, tiers } from '@sq/shared';
+import { formatIQD, formatNumber, serviceOrder, services, tiers, type ServiceKind } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Appear, Avatar, Card, ListRow, Progress, ScrollScreen, SectionTitle, ui } from '@/components/ui';
 import { starterShots } from '@/features/reel/shots';
+import { useServices } from '@/features/services/store';
 import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -27,6 +28,8 @@ export default function HomeScreen() {
   const { orders, plan, automation, spentThisMonth, draft, startDraft } = useStudio();
   const creator = accountType === 'creator';
   const name = displayName ?? 'حسابي';
+  const { jobs } = useServices();
+  const serviceIcons: Record<ServiceKind, IconName> = { editVideo: 'video', adImage: 'camera', textVideo: 'sparkle', copy: 'edit', voice: 'mic' };
 
   const steps: { done: boolean; icon: IconName; title: string; detail: string; go: () => void }[] = [
     {
@@ -103,6 +106,50 @@ export default function HomeScreen() {
                 router.push('/(tabs)/camera');
               }}
             />
+          </View>
+        </Card>
+      </Appear>
+
+      <SectionTitle title="خدمات بالقطعة · بدون اشتراك" action={jobs.length ? `طلباتك (${jobs.length})` : undefined} onAction={() => router.push('/jobs')} />
+      <Appear order={2}>
+        <Card style={styles.servicesCard}>
+          <AppText size={12.5} color={c.muted} lineHeight={19}>
+            احكي مع المساعد شو بدك، وبيقلك أي أدوات رح نستخدم وكم بتكلف كل وحدة قبل ما تدفع.
+          </AppText>
+          <View style={styles.servicesGrid}>
+            {serviceOrder.map((k) => (
+              <PressableScale
+                key={k}
+                accessibilityRole="button"
+                accessibilityLabel={services[k].name}
+                onPress={() => router.push({ pathname: '/order', params: { service: k } })}
+                style={[styles.service, { backgroundColor: c.tile }]}>
+                <View style={[styles.serviceIcon, { backgroundColor: c.card }]}>
+                  <Icon name={serviceIcons[k]} color={c.primary} size={18} />
+                </View>
+                <AppText weight="semibold" size={13.5}>
+                  {services[k].name}
+                </AppText>
+                <AppText size={11.5} color={c.muted} lineHeight={16} numberOfLines={2}>
+                  {services[k].pitch}
+                </AppText>
+              </PressableScale>
+            ))}
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="اطلب أي شي"
+              onPress={() => router.push('/order')}
+              style={[styles.service, { backgroundColor: c.hero }]}>
+              <View style={[styles.serviceIcon, { backgroundColor: c.heroBtn }]}>
+                <Icon name="chat" color={c.heroBtnText} size={18} />
+              </View>
+              <AppText weight="semibold" size={13.5} color={c.heroText}>
+                اطلب أي شي
+              </AppText>
+              <AppText size={11.5} color={c.heroMuted} lineHeight={16} numberOfLines={2}>
+                احكي طلبك بكلماتك والمساعد بيفهمه
+              </AppText>
+            </PressableScale>
           </View>
         </Card>
       </Appear>
@@ -210,4 +257,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 22 },
   emptyIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   list: { paddingVertical: 2, gap: 0 },
+  servicesCard: { gap: 12 },
+  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  service: { width: '48.5%', borderRadius: 12, padding: 12, gap: 4, minHeight: 112 },
+  serviceIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
 });

@@ -15,6 +15,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider, useSession } from '@/state/session';
 import { StudioProvider } from '@/state/studio';
+import { ServicesProvider } from '@/features/services/store';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -43,9 +44,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <SessionProvider>
           <StudioProvider>
-            <ThemeProvider>
-              <AppShell fontsReady={fontsLoaded || fontError != null} />
-            </ThemeProvider>
+            <ServicesProvider>
+              <ThemeProvider>
+                <AppShell fontsReady={fontsLoaded || fontError != null} />
+              </ThemeProvider>
+            </ServicesProvider>
           </StudioProvider>
         </SessionProvider>
       </SafeAreaProvider>
@@ -74,6 +77,7 @@ function AppShell({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="assistant" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="capture" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        <Stack.Screen name="order" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="reel/receipt" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </View>

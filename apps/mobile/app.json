@@ -65,7 +65,16 @@
           "recordAudioAndroid": true
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-video",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يستخدم SQ AI الاستوديو لتختار فيديو أو صورة تريد مونتاجها أو تصميمها.",
+          "cameraPermission": "يستخدم SQ AI الكاميرا لتصوير لقطات الريل."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

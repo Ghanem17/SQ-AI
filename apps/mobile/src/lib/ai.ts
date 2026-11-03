@@ -40,15 +40,15 @@ export const unavailableText: Record<AiUnavailable['reason'], string> = {
   failed: 'لم يكتمل الطلب. جرّب مرة أخرى.',
 };
 
-export async function postJson<T>(path: string, body: unknown, timeoutMs = 60000): Promise<T> {
+async function request<T>(path: string, init: { method: 'GET' | 'POST'; body?: unknown }, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${apiBase()}${path}`, {
-      method: 'POST',
+      method: init.method,
       headers: { 'Content-Type': 'application/json', ...accessHeaders() },
-      body: JSON.stringify(body),
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
       signal: controller.signal,
     });
   } catch {
@@ -60,8 +60,24 @@ export async function postJson<T>(path: string, body: unknown, timeoutMs = 60000
   if (res.status === 402) throw new AiUnavailable('credit', 'credit');
   if (res.status === 401) throw new AiUnavailable('badKey', 'bad key');
   if (res.status === 403) throw new AiUnavailable('access', 'access');
-  if (!res.ok) throw new AiUnavailable('failed', `status ${res.status}`);
+  if (!res.ok) {
+    let detail = `status ${res.status}`;
+    try {
+      detail = ((await res.json()) as { error?: string }).error ?? detail;
+    } catch {
+      // Keep the status as the detail.
+    }
+    throw new AiUnavailable('failed', detail);
+  }
   return (await res.json()) as T;
+}
+
+export function postJson<T>(path: string, body: unknown, timeoutMs = 60000): Promise<T> {
+  return request<T>(path, { method: 'POST', body }, timeoutMs);
+}
+
+export function getJson<T>(path: string, timeoutMs = 30000): Promise<T> {
+  return request<T>(path, { method: 'GET' }, timeoutMs);
 }
 
 export function voiceSource(text: string, voice = 'brian') {
