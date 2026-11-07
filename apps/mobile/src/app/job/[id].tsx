@@ -12,7 +12,7 @@ import { useI18n, type I18n } from '@/i18n';
 import { useBusiness } from '@/lib/ai';
 import { serviceIcons } from '@/features/services/OrderRow';
 import { ResultView } from '@/features/services/Result';
-import { explain, runOrder, stepNames, stepsFor, type StepKey } from '@/features/services/runner';
+import { failCode, failMessage, runOrder, stepNames, stepsFor, type StepKey } from '@/features/services/runner';
 import { useServices, type ServiceJob } from '@/features/services/store';
 import { useTheme } from '@/theme/theme';
 
@@ -29,7 +29,7 @@ function levelLabel(job: ServiceJob, i18n: I18n): string {
   const name = i18n.pick(tierNames[job.tier]);
   if (job.params.kind !== 'textVideo') return name;
   const s = videoSeconds(job.params.duration, job.tier);
-  return i18n.L(`${name} · ${s} ثوانٍ`, `${name} · ${s} seconds`);
+  return `${name} · ${i18n.n(s, 'second')}`;
 }
 
 function receiptText(job: ServiceJob, i18n: I18n): string {
@@ -64,7 +64,7 @@ export default function JobScreen() {
     updateJob(job.id, { status: 'running', error: undefined, step: '', progress: 0 });
     runOrder(job.params, job.media, business, job.tier, lang, (step, progress) => updateJob(job.id, { step, progress }))
       .then((result) => updateJob(job.id, { status: 'done', result, progress: 1, step: '' }))
-      .catch((err) => updateJob(job.id, { status: 'failed', error: explain(err, i18n) }));
+      .catch((err) => updateJob(job.id, { status: 'failed', error: failCode(err) }));
   };
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function JobScreen() {
   const done = job.status === 'done';
   const failed = job.status === 'failed';
   const pct = Math.round((done ? 1 : job.progress) * 100);
-  const error = job.error === 'interrupted' ? L('توقف التنفيذ لأن التطبيق أُغلق. أعد المحاولة.', 'The run stopped because the app was closed. Try again.') : job.error;
+  const error = failMessage(job.error, lang);
   const track: { label: string; state: StepState }[] = [
     { label: L('تأكيد الطلب', 'Order confirmed'), state: 'done' },
     ...runSteps.map((s, i) => ({
@@ -163,7 +163,7 @@ export default function JobScreen() {
             <Badge tone="warn" icon="clock" label={`⁦${pct}%⁩`} />
           )}
         </View>
-        <Progress value={failed ? job.progress : done ? 1 : Math.max(0.05, job.progress)} />
+        <Progress value={done ? 1 : job.progress} />
         {track.length <= 5 ? (
           <StepTrack steps={track} />
         ) : (
@@ -198,7 +198,7 @@ export default function JobScreen() {
       {failed && (
         <>
           <Note tone="bad" icon="alert">
-            {error ?? L('تعذر إكمال الطلب.', 'Could not complete the order.')}
+            {error}
           </Note>
           <Button label={L('أعد المحاولة', 'Try again')} icon="refresh" onPress={start} />
         </>

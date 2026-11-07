@@ -37,13 +37,19 @@ export default function HomeScreen() {
     { title: L('أنشئ حسابك', 'Create your account'), detail: L('تم التحقق من رقم هاتفك', 'Your phone number is verified'), done: true, href: '/account' },
     {
       title: creator ? L('عرّف بمحتواك', 'Describe your content') : L('أضف معلومات نشاطك', 'Add your business details'),
-      detail: L('يساعد المساعد على الرد بدقة', 'Helps the assistant answer accurately'),
+      detail: creator ? L('يساعد المساعد على اقتراح أفكار تناسبك', 'For ideas that fit you') : L('يساعد المساعد على الرد بدقة', 'For accurate replies'),
       done: businessInfo.trim().length > 0,
       href: '/account',
       action: L('أضف الآن', 'Add now'),
     },
     { title: L('اربط حساباتك', 'Link your accounts'), detail: L('إنستغرام وفيسبوك وتيك توك', 'Instagram, Facebook and TikTok'), done: false, href: '/account', action: L('اربط', 'Link') },
-    { title: L('صوّر أول ريل', 'Film your first reel'), detail: L('نرشدك لقطةً بلقطة', 'We guide you shot by shot'), done: orders.length > 0, href: '/camera', action: L('ابدأ', 'Start') },
+    {
+      title: creator ? L('صوّر أول فيديو', 'Film your first video') : L('صوّر أول ريل', 'Film your first reel'),
+      detail: L('نرشدك لقطةً بلقطة', 'We guide you shot by shot'),
+      done: orders.length > 0,
+      href: '/camera',
+      action: L('ابدأ', 'Start'),
+    },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const current = steps.findIndex((s) => !s.done);
@@ -58,7 +64,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollScreen inTabs bleed>
-      <HomeHero name={displayName} steps={steps.length} done={doneCount} />
+      <HomeHero name={displayName} steps={steps.length} done={doneCount} creator={creator} />
 
       <View style={styles.body}>
         <Appear order={1}>
@@ -81,7 +87,7 @@ export default function HomeScreen() {
                 icon="video"
                 iconTone="warn"
                 title={draft.title}
-                subtitle={L(`ريل قيد التصوير · ${draft.captured.length} من ${draft.shots.length} لقطات`, `Reel in progress · ${draft.captured.length} of ${draft.shots.length} shots`)}
+                subtitle={L(`ريل قيد التصوير · اللقطات المصوّرة: ${draft.captured.length} من ${draft.shots.length}`, `Reel in progress · ${draft.captured.length} of ${draft.shots.length} shots filmed`)}
                 onPress={() => router.push('/camera')}
                 last
               />
@@ -213,13 +219,15 @@ export default function HomeScreen() {
 
 // The deep hero: brand row, welcome and setup progress, then the three
 // headline metrics, which stay "—" until ad accounts are linked.
-function HomeHero({ name, steps, done }: { name: string | null; steps: number; done: number }) {
+function HomeHero({ name, steps, done, creator }: { name: string | null; steps: number; done: number; creator: boolean }) {
   const { c } = useTheme();
   const { L } = useI18n();
   const insets = useSafeAreaInsets();
   // The hero is dark in every theme, so the status bar is light over it.
   const focused = useIsFocused();
-  const metrics = [L('الطلبات', 'Orders'), L('الإنفاق الإعلاني', 'Ad spend'), L('نسبة الرد', 'Reply rate')];
+  const metrics = creator
+    ? [L('المتابعون', 'Followers'), L('المشاهدات', 'Views'), L('التفاعل', 'Engagement')]
+    : [L('الطلبات', 'Orders'), L('الإنفاق الإعلاني', 'Ad spend'), L('نسبة الرد', 'Reply rate')];
   return (
     <HeroSurface style={[styles.hero, { paddingTop: insets.top + 8 }]}>
       {focused && <StatusBar style="light" />}
@@ -242,7 +250,9 @@ function HomeHero({ name, steps, done }: { name: string | null; steps: number; d
         {L('أهلًا بك في SQ AI', 'Welcome to SQ AI')}
       </AppText>
       <AppText variant="small" color={c.heroMuted}>
-        {L('حسابك جاهز. أكمل الخطوات التالية لتبدأ أول حملة.', 'Your account is ready. Finish these steps to launch your first campaign.')}
+        {creator
+          ? L('حسابك جاهز. أكمل الخطوات التالية لتنشر أول فيديو.', 'Your account is ready. Finish these steps to post your first video.')
+          : L('حسابك جاهز. أكمل الخطوات التالية لتبدأ أول حملة.', 'Your account is ready. Finish these steps to launch your first campaign.')}
       </AppText>
       <View style={[styles.between, styles.setupHead]}>
         <AppText size={11} lineHeight={16} color={c.heroMuted}>

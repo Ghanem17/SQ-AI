@@ -4,7 +4,7 @@
 
 import { router } from 'expo-router';
 import { useState, type ReactNode, type Ref } from 'react';
-import { ScrollView, StyleSheet, Switch, TextInput, View, type StyleProp, type TextInputProps, type TextInputInstance, type ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type TextInputInstance, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -369,7 +369,7 @@ export function ModelChip({ label }: { label: string }) {
   const { c } = useTheme();
   return (
     <View style={[styles.model, { backgroundColor: c.priSoft }]}>
-      <AppText weight="semibold" size={11.5} lineHeight={16} color={c.onPriSoft} style={styles.ltr} numberOfLines={1}>
+      <AppText weight="semibold" size={11.5} lineHeight={17} color={c.onPriSoft} style={styles.ltr}>
         {label}
       </AppText>
     </View>
@@ -536,21 +536,28 @@ export function ToggleRow({
           </AppText>
         )}
       </View>
-      {/* Kept left to right: the web switch misplaces its thumb in RTL. */}
-      <View style={styles.switchWrap}>
-        <Switch
-          accessibilityLabel={title}
-          value={value}
-          disabled={disabled}
-          onValueChange={onChange}
-          trackColor={{ true: c.primary, false: c.track }}
-          thumbColor="#FFFFFF"
-          ios_backgroundColor={c.track}
-          // react-native-web colours the thumb separately when it is on.
-          {...({ activeThumbColor: '#FFFFFF' } as object)}
-        />
-      </View>
+      <Toggle label={title} value={value} disabled={disabled} onChange={onChange} />
     </View>
+  );
+}
+
+// The switch from the spec (44×26, 20 knob). Drawn here so it looks the same
+// on every platform and mirrors with the language: on puts the knob at the
+// end side (left in Arabic, right in English).
+export function Toggle({ value, onChange, label, disabled }: { value: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <PressableScale
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: value, disabled: !!disabled }}
+      disabled={disabled}
+      haptic
+      pressedScale={0.96}
+      onPress={() => onChange(!value)}
+      style={[styles.toggle, { backgroundColor: value ? c.primary : c.track, justifyContent: value ? 'flex-end' : 'flex-start' }]}>
+      <View style={[styles.knob, { backgroundColor: value ? c.onPrimary : '#FFFFFF' }]} />
+    </PressableScale>
   );
 }
 
@@ -570,7 +577,7 @@ export function Progress({ value, onHero, color }: { value: number; onHero?: boo
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(pct * 100) }}
       style={[styles.progress, { backgroundColor: onHero ? 'rgba(255,255,255,0.10)' : c.track }]}>
-      <View style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: color ?? (onHero ? c.heroAccent : c.primary) }]} />
+      {pct > 0 && <View style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: color ?? (onHero ? c.heroAccent : c.primary) }]} />}
     </View>
   );
 }
@@ -702,19 +709,20 @@ export function Avatar({ name, size = 40, hero }: { name: string; size?: number;
   );
 }
 
+// Minus at the start, plus at the end, mirrored with the reading direction.
 export function Stepper({ value, onChange, min, max, step = 1, format }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; format?: (v: number) => string }) {
   const { c } = useTheme();
   const { L } = useI18n();
   return (
     <View style={[styles.stepper, { borderColor: c.line, backgroundColor: c.card }]}>
-      <PressableScale accessibilityRole="button" accessibilityLabel={L('زيادة', 'Increase')} disabled={value >= max} onPress={() => onChange(Math.min(max, value + step))} style={styles.stepBtn}>
-        <Icon name="plus" color={value >= max ? c.placeholder : c.text} size={16} />
+      <PressableScale accessibilityRole="button" accessibilityLabel={L('إنقاص', 'Decrease')} disabled={value <= min} onPress={() => onChange(Math.max(min, value - step))} style={styles.stepBtn}>
+        <Icon name="minus" color={value <= min ? c.placeholder : c.text} size={16} />
       </PressableScale>
       <AppText weight="semibold" size={15} style={styles.stepValue} center>
         {format ? format(value) : String(value)}
       </AppText>
-      <PressableScale accessibilityRole="button" accessibilityLabel={L('إنقاص', 'Decrease')} disabled={value <= min} onPress={() => onChange(Math.max(min, value - step))} style={styles.stepBtn}>
-        <Icon name="minus" color={value <= min ? c.placeholder : c.text} size={16} />
+      <PressableScale accessibilityRole="button" accessibilityLabel={L('زيادة', 'Increase')} disabled={value >= max} onPress={() => onChange(Math.min(max, value + step))} style={styles.stepBtn}>
+        <Icon name="plus" color={value >= max ? c.placeholder : c.text} size={16} />
       </PressableScale>
     </View>
   );
@@ -917,7 +925,7 @@ const styles = StyleSheet.create({
   statValue: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
   delta: { flexDirection: 'row', alignItems: 'center', gap: 2, direction: 'ltr' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, borderRadius: radius.badge },
-  model: { borderRadius: radius.badge, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' },
+  model: { borderRadius: radius.badge, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start', maxWidth: '100%' },
   segmented: { flexDirection: 'row', borderRadius: radius.control, padding: 3, gap: 2 },
   segCompact: { padding: 2, width: 170 },
   segment: { flex: 1, height: 34, borderRadius: radius.segItem, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
@@ -927,7 +935,8 @@ const styles = StyleSheet.create({
   listRowCompact: { minHeight: 52, paddingVertical: 8 },
   rowValue: { maxWidth: '45%' },
   trailing: { justifyContent: 'center' },
-  switchWrap: { direction: 'ltr', marginStart: 6 },
+  toggle: { width: 44, height: 26, borderRadius: 13, padding: 3, flexDirection: 'row', alignItems: 'center', marginStart: 6 },
+  knob: { width: 20, height: 20, borderRadius: 10, boxShadow: '0px 1px 3px rgba(0,0,0,0.2)' },
   progress: { height: 6, borderRadius: 3, overflow: 'hidden', flexDirection: 'row' },
   progressFill: { height: 6, borderRadius: 3 },
   kv: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 42, paddingVertical: 6 },

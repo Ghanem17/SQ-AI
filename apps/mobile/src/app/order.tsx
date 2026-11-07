@@ -26,7 +26,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, Divider, Footer, GUTTER, IconBadge, IconButton, ModelChip, Note, RadioCard, SectionTitle, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
-import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
+import { AiUnavailable, aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { pickMedia, type PickedMedia } from '@/features/services/media';
 import { serviceIcons } from '@/features/services/OrderRow';
 import { useServices } from '@/features/services/store';
@@ -75,7 +75,7 @@ function brief(params: ServiceParams, L: (a: string, e: string) => string): stri
 // model, its cost and the total before anything runs.
 export default function OrderScreen() {
   const { c } = useTheme();
-  const { L, pick, lang, rtl } = useI18n();
+  const { L, pick, lang, rtl, n } = useI18n();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const { service } = useLocalSearchParams<{ service?: ServiceKind }>();
@@ -103,6 +103,8 @@ export default function OrderScreen() {
   const [tier, setTier] = useState<ServiceTier>('mid');
   const [showLevels, setShowLevels] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Set when the last request failed, so the badge stops saying online.
+  const [failed, setFailed] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   const nextId = useRef(1);
   const input = useRef<TextInputInstance>(null);
@@ -152,12 +154,14 @@ export default function OrderScreen() {
         90000,
       );
       setTurns((t) => [...t, { id: nextId.current++, from: 'ai', text: r.reply }]);
+      setFailed(false);
       if (r.ready && r.params) {
         setPlan({ title: r.title || pick(services[r.params.kind].name), params: r.params });
         setView('quote');
       }
     } catch (err) {
-      setNote(aiErrorText(err, lang));
+      setFailed(!(err instanceof AiUnavailable && err.reason === 'access'));
+      setNote(aiErrorText(err, lang, 'chat'));
     } finally {
       setBusy(false);
     }
@@ -189,6 +193,9 @@ export default function OrderScreen() {
     });
     router.replace({ pathname: '/job/[id]', params: { id } });
   };
+
+  const videoLabel = (m: PickedMedia) =>
+    m.estimated ? L(`فيديو · نحو ${Math.round(m.seconds)} ث (تقديري)`, `Video · ~${Math.round(m.seconds)}s (estimate)`) : L(`فيديو · ${Math.round(m.seconds)} ث`, `Video · ${Math.round(m.seconds)}s`);
 
   const editRequest = (openAttach = false) => {
     setView('chat');
@@ -223,7 +230,7 @@ export default function OrderScreen() {
                   <Badge
                     tone="pri"
                     icon={orderMedia.kind === 'video' ? 'video' : 'image'}
-                    label={orderMedia.kind === 'video' ? L(`فيديو · ${Math.round(orderMedia.seconds)} ث`, `Video · ${Math.round(orderMedia.seconds)}s`) : L('صورة مرفقة', 'Photo attached')}
+                    label={orderMedia.kind === 'video' ? videoLabel(orderMedia) : L('صورة مرفقة', 'Photo attached')}
                   />
                 </View>
               )}
@@ -262,7 +269,7 @@ export default function OrderScreen() {
             ))}
           </View>
 
-          <SectionTitle title={L('لماذا هذا السعر؟', 'Why this price?')} icon="cpu" action={L(`${q.lines.length} أدوات`, `${q.lines.length} tools`)} />
+          <SectionTitle title={L('لماذا هذا السعر؟', 'Why this price?')} icon="cpu" action={n(q.lines.length, 'tool')} />
           <Card style={styles.lines}>
             {q.lines.map((l, i) => (
               <View key={`${l.tool}${i}`} style={styles.line}>
@@ -295,6 +302,14 @@ export default function OrderScreen() {
             </View>
           </Card>
 
+          {orderMedia?.estimated && needs === 'video' && (
+            <Note tone="info" icon="clock">
+              {L(
+                `تعذرت قراءة مدة الفيديو، فحسبنا السعر على أساس ${Math.round(orderMedia.seconds)} ثانية. قد يختلف السعر قليلًا عن المدة الفعلية.`,
+                `We could not read the video length, so the price assumes ${Math.round(orderMedia.seconds)} seconds. It may differ slightly from the real length.`,
+              )}
+            </Note>
+          )}
           {missingMedia && (
             <>
               <Note tone="acc" icon="alert">
@@ -336,7 +351,9 @@ export default function OrderScreen() {
         subtitle={L('دون اشتراك، تدفع ثمن الطلب فقط', 'No subscription, pay per order')}
         mode="close"
         right={
-          status === 'online' ? (
+          failed ? (
+            <Badge label={L('تعذّر الاتصال', 'Connection problem')} tone="bad" />
+          ) : status === 'online' ? (
             <Badge label={L('متصل', 'Online')} tone="ok" />
           ) : status === 'locked' ? (
             <Badge label={L('يحتاج إلى رمز', 'Needs code')} tone="acc" />
@@ -353,7 +370,7 @@ export default function OrderScreen() {
                 <View style={[styles.attachment, { backgroundColor: c.priSoft }]}>
                   <Icon name={t.media.kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
                   <AppText size={12} color={c.onPriSoft} numberOfLines={1} style={ui.flex}>
-                    {t.media.kind === 'video' ? L(`فيديو · ${Math.round(t.media.seconds)} ث`, `Video · ${Math.round(t.media.seconds)}s`) : L('صورة', 'Photo')}
+                    {t.media.kind === 'video' ? videoLabel(t.media) : L('صورة', 'Photo')}
                   </AppText>
                 </View>
               )}
@@ -406,7 +423,7 @@ export default function OrderScreen() {
               <Icon name={media.kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
               <AppText size={12.5} color={c.onPriSoft} style={ui.flex} numberOfLines={1}>
                 {media.kind === 'video'
-                  ? L(`فيديو جاهز للإرسال · ${Math.round(media.seconds)} ث`, `Video ready to send · ${Math.round(media.seconds)}s`)
+                  ? L(`فيديو جاهز للإرسال · ${Math.round(media.seconds)} ث${media.estimated ? ' تقديريًا' : ''}`, `Video ready to send · ${media.estimated ? '~' : ''}${Math.round(media.seconds)}s`)
                   : L('صورة جاهزة للإرسال', 'Photo ready to send')}
               </AppText>
               <PressableScale accessibilityRole="button" accessibilityLabel={L('إزالة المرفق', 'Remove attachment')} onPress={() => setMedia(null)} style={styles.remove}>

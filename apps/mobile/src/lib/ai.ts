@@ -35,14 +35,21 @@ export const unavailableText: Record<AiUnavailable['reason'], { ar: string; en: 
   noKey: { ar: 'الذكاء الاصطناعي غير متاح الآن. حاول بعد قليل.', en: 'AI is not available right now. Try again shortly.' },
   badKey: { ar: 'خدمة الذكاء الاصطناعي متوقفة مؤقتًا. أبلغ صاحب الحساب.', en: 'The AI service is paused. Let the account owner know.' },
   credit: { ar: 'نفد رصيد الذكاء الاصطناعي. على صاحب الحساب شحن رصيد fal.', en: 'The AI credit has run out. The account owner needs to top up fal.' },
-  access: { ar: 'أدخل رمز الوصول من الإعدادات لتشغيل الذكاء الاصطناعي.', en: 'Enter the access code in Settings to turn on AI.' },
+  access: { ar: 'أدخل رمز الوصول من «حسابي» لتشغيل الذكاء الاصطناعي.', en: 'Enter the access code in Account to turn on AI.' },
   network: { ar: 'تعذر الاتصال بالخادم. تحقق من الإنترنت.', en: 'Could not reach the server. Check your connection.' },
   failed: { ar: 'لم يكتمل الطلب. حاول مرة أخرى.', en: 'The request did not complete. Try again.' },
 };
 
-// The message for any AI error, in the interface language.
-export function aiErrorText(err: unknown, lang: 'ar' | 'en'): string {
-  return (err instanceof AiUnavailable ? unavailableText[err.reason] : unavailableText.failed)[lang];
+const chatFailed = { ar: 'لم يصل الرد. حاول مرة أخرى.', en: 'No reply came back. Try again.' };
+
+// The message for any AI error, in the interface language. Raw details
+// (status codes, hosts) are logged, never shown. Chats use reply wording.
+export function aiErrorText(err: unknown, lang: 'ar' | 'en', context: 'order' | 'chat' = 'order'): string {
+  if (err instanceof AiUnavailable && err.message !== err.reason) console.warn('[ai]', err.reason, err.message);
+  else if (!(err instanceof AiUnavailable)) console.warn('[ai]', err);
+  const reason = err instanceof AiUnavailable ? err.reason : 'failed';
+  if (reason === 'failed' && context === 'chat') return chatFailed[lang];
+  return unavailableText[reason][lang];
 }
 
 async function request<T>(path: string, init: { method: 'GET' | 'POST'; body?: unknown }, timeoutMs: number): Promise<T> {

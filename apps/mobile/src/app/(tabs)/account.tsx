@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { formatE164, formatIQD, formatNumber, paletteNames, palettes, platformNames, tiers, type AccountType, type PaletteName, type Platform, type ThemePreference } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PressableScale } from '@/components/PressableScale';
 import { Avatar, Badge, Card, Field, GroupLabel, IconBadge, ListCard, ListRow, PageTitle, PlatformTag, ScrollScreen, Segmented } from '@/components/ui';
 import { useServices } from '@/features/services/store';
@@ -25,11 +26,12 @@ const swatch: Record<PaletteName, string> = { ocean: palettes.ocean.light.primar
 export default function AccountTab() {
   const { c, dark } = useTheme();
   const { themePreference, setThemePreference, palette, setPalette, signOut, displayName, phone, accountType, chooseAccountType, lang, setLang, businessInfo, accessCode } = useSession();
-  const { L, pick } = useI18n();
+  const { L, pick, n } = useI18n();
   const { plan, automation, orders } = useStudio();
   const { jobs, settings } = useServices();
   const ai = useAiStatus();
   const [editing, setEditing] = useState<'info' | 'code' | null>(null);
+  const [confirmOut, setConfirmOut] = useState(false);
   const name = displayName ?? L('حسابي', 'My account');
   const creator = accountType === 'creator';
   const toggle = (k: 'info' | 'code') => setEditing((e) => (e === k ? null : k));
@@ -45,12 +47,17 @@ export default function AccountTab() {
             {name}
           </AppText>
           {phone && (
-            <AppText variant="small" color={c.muted} style={styles.ltr}>
-              {formatE164(phone)}
+            <AppText variant="small" color={c.muted} numberOfLines={1} style={styles.ltr}>
+              {`\u2066${formatE164(phone)}\u2069`}
             </AppText>
           )}
+          <Badge
+            icon={creator ? 'video' : 'store'}
+            label={creator ? L('صانع محتوى', 'Creator') : L('متجر أو مطعم', 'Shop or restaurant')}
+            tone="pri"
+            style={styles.profileBadge}
+          />
         </View>
-        <Badge icon={creator ? 'video' : 'store'} label={creator ? L('صانع محتوى', 'Creator') : L('متجر أو مطعم', 'Shop or restaurant')} tone="pri" />
       </Card>
 
       <GroupLabel title={L('المظهر واللغة', 'Appearance and language')} />
@@ -112,7 +119,19 @@ export default function AccountTab() {
           compact
           icon="key"
           title={L('رمز الوصول', 'Access code')}
-          trailing={accessCode ? <Badge label={L('مفعّل', 'Active')} tone="ok" /> : <Badge label={L('غير مضاف', 'Not added')} />}
+          trailing={
+            !accessCode ? (
+              <Badge label={L('غير مضاف', 'Not added')} />
+            ) : ai === 'online' ? (
+              <Badge label={L('مفعّل', 'Active')} tone="ok" />
+            ) : ai === 'locked' ? (
+              <Badge label={L('غير صحيح', 'Not valid')} tone="bad" />
+            ) : ai === 'offline' ? (
+              <Badge label={L('غير متصل', 'Offline')} />
+            ) : (
+              <Badge label={L('جارٍ الفحص', 'Checking')} />
+            )
+          }
           onPress={() => toggle('code')}
         />
         <View style={[styles.row, styles.last]}>
@@ -140,7 +159,7 @@ export default function AccountTab() {
           compact
           icon="calendar"
           title={L('الخطة الشهرية', 'Monthly plan')}
-          value={plan.active ? L(`${plan.reels} ريلز · ${tiers[plan.tier].name.ar}`, `${plan.reels} reels · ${tiers[plan.tier].name.en}`) : L('غير مفعّلة', 'Off')}
+          value={plan.active ? `${n(plan.reels, 'reel')} · ${pick(tiers[plan.tier].name)}` : L('غير مفعّلة', 'Off')}
           onPress={() => router.push('/plan')}
         />
         <ListRow
@@ -180,10 +199,7 @@ export default function AccountTab() {
           icon="coins"
           iconTone="acc"
           title={L('الأسعار والأرباح', 'Prices and margin')}
-          value={L(
-            `هامش ${Math.round(settings.markup * 100)}% · ${formatNumber(settings.usdToIqd)} د.ع/$`,
-            `${Math.round(settings.markup * 100)}% margin · IQD ${formatNumber(settings.usdToIqd)}/$`,
-          )}
+          value={L(`هامش ${Math.round(settings.markup * 100)}% · ${formatNumber(settings.usdToIqd)} د.ع/$`, `${Math.round(settings.markup * 100)}% · ${formatNumber(settings.usdToIqd)}/$`)}
           onPress={() => router.push('/pricing')}
           last
         />
@@ -211,7 +227,21 @@ export default function AccountTab() {
         variant="danger"
         icon="logout"
         style={styles.signOut}
-        onPress={() => {
+        onPress={() => setConfirmOut(true)}
+      />
+      <ConfirmDialog
+        visible={confirmOut}
+        title={L('تسجيل الخروج؟', 'Sign out?')}
+        body={L(
+          'ستبقى معلومات نشاطك محفوظة على هذا الجهاز، وتعود عند الدخول بالرقم نفسه.',
+          'Your business details stay on this device and come back when you sign in with the same number.',
+        )}
+        confirm={L('تسجيل الخروج', 'Sign out')}
+        cancel={L('إلغاء', 'Cancel')}
+        danger
+        onCancel={() => setConfirmOut(false)}
+        onConfirm={() => {
+          setConfirmOut(false);
           signOut();
           router.replace('/auth');
         }}
@@ -316,6 +346,7 @@ function AccessCodeCard({ onDone }: { onDone: () => void }) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   ltr: { writingDirection: 'ltr', alignSelf: 'flex-start' },
+  profileBadge: { marginTop: 6 },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 8, paddingHorizontal: 14, borderBottomWidth: 1 },
   last: { borderBottomWidth: 0 },

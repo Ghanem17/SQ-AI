@@ -23,7 +23,7 @@ type Area = 'city' | 'near' | 'all';
 // reach. Orders are estimated once the account has its own results.
 export default function PromoteScreen() {
   const { c } = useTheme();
-  const { L, pick } = useI18n();
+  const { L, pick, n } = useI18n();
   const { draft, updateDraft, automation, spentThisMonth } = useStudio();
   const [area, setArea] = useState<Area>('near');
   const spend = promotionCost(draft.promo, draft.promoDays);
@@ -73,7 +73,7 @@ export default function PromoteScreen() {
               <AppText weight="medium" size={14}>
                 {L('عدد الأيام', 'Days')}
               </AppText>
-              <Stepper value={draft.promoDays} onChange={(promoDays) => updateDraft({ promoDays })} min={1} max={14} format={(v) => L(`${v} أيام`, `${v} days`)} />
+              <Stepper value={draft.promoDays} onChange={(promoDays) => updateDraft({ promoDays })} min={1} max={14} format={(v) => n(v, 'day')} />
             </View>
             <Divider />
             <AppText size={12.5} color={c.muted}>
@@ -99,7 +99,7 @@ export default function PromoteScreen() {
             <Divider />
             <KeyValue
               label={L('ميزانية الترويج', 'Promotion budget')}
-              sub={L(`${formatIQD(promoLevels[draft.promo].daily)} × ${draft.promoDays} أيام`, `${formatIQD(promoLevels[draft.promo].daily)} × ${draft.promoDays} days`)} value={formatIQD(spend)} strong />
+              sub={`${formatIQD(promoLevels[draft.promo].daily)} × ${n(draft.promoDays, 'day')}`} value={formatIQD(spend)} strong />
           </Card>
 
           <Note tone={overCap ? 'bad' : 'neutral'} icon={overCap ? 'alert' : 'wallet'}>

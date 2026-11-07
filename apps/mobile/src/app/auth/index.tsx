@@ -25,7 +25,7 @@ type Mode = 'signIn' | 'signUp';
 // they go straight to the app after the code.
 export default function AuthScreen() {
   const { c, palette } = useTheme();
-  const { setPalette, signIn, chooseAccountType, accountType } = useSession();
+  const { setPalette, signIn, chooseAccountType } = useSession();
   const { t: all, L, rtl, pick } = useI18n();
   const t = all.auth;
   const reduceMotion = useReducedMotion();
@@ -74,12 +74,12 @@ export default function AuthScreen() {
 
   const verified = () => {
     if (!sent) return;
-    signIn(sent.e164, signUp && name.trim() ? name.trim() : null);
+    const restored = signIn(sent.e164, signUp && name.trim() ? name.trim() : null);
     if (signUp) {
       chooseAccountType(type);
       router.replace('/');
     } else {
-      router.replace(accountType ? '/' : '/auth/account-type');
+      router.replace(restored ? '/' : '/auth/account-type');
     }
   };
 

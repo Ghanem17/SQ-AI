@@ -1,3 +1,4 @@
+import { count, type Noun } from '@sq/shared';
 import { useSession } from '@/state/session';
 
 import { ar } from './ar';
@@ -14,6 +15,8 @@ export type I18n = {
   L: (arText: string, enText: string) => string;
   // Picks from a { ar, en } pair.
   pick: (text: { ar: string; en: string }) => string;
+  // A counted noun that agrees with the number: n(2, 'tool') → "أداتان" / "2 tools".
+  n: (value: number, noun: Noun) => string;
 };
 
 export function i18nFor(lang: Lang): I18n {
@@ -23,6 +26,7 @@ export function i18nFor(lang: Lang): I18n {
     t: lang === 'ar' ? ar : en,
     L: (a, e) => (lang === 'ar' ? a : e),
     pick: (text) => text[lang],
+    n: (value, noun) => count(value, noun, lang),
   };
 }
 

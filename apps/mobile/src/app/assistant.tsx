@@ -12,7 +12,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, IconBadge, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
-import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
+import { AiUnavailable, aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { starterShots, type Shot } from '@/features/reel/shots';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -63,6 +63,8 @@ export default function AssistantScreen() {
   ]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  // Set when the last request failed, so the badge stops saying online.
+  const [failed, setFailed] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   const nextId = useRef(1);
 
@@ -83,22 +85,24 @@ export default function AssistantScreen() {
     try {
       const reply = await postJson<ApiReply>('/api/assistant', { business, messages: history(next) });
       setEntries((e) => [...e, { id, from: 'ai', text: reply.text ?? '', ideas: reply.ideas, shots: reply.shots, idea }]);
+      setFailed(false);
     } catch (err) {
+      setFailed(!(err instanceof AiUnavailable && err.reason === 'access'));
       // Without the AI: general filming tips and the starter shot list are
       // still true for anyone; ideas are not made up.
-      const offline = aiErrorText(err, lang);
+      const offline = aiErrorText(err, lang, 'chat');
       const fallback: Entry = idea
         ? {
             id,
             from: 'ai',
-            text: L('المساعد غير متاح الآن، وهذه قائمة لقطات أساسية تصلح لأي فكرة:', 'The assistant is not available now; here is a basic shot list that suits any idea:'),
+            text: L('إليك قائمة لقطات أساسية تصلح لأي فكرة:', 'Here is a basic shot list that suits any idea:'),
             shots: starterShots(business.kind, lang),
             idea,
             offline,
           }
         : /كيف|نصيح|ضو|إضاء|اضاء|how|tip|light/i.test(body)
           ? { id, from: 'ai', text: tips[lang], offline }
-          : { id, from: 'ai', text: L('تعذر تجهيز الأفكار الآن.', 'Could not prepare ideas right now.'), offline };
+          : { id, from: 'ai', text: '', offline };
       setEntries((e) => [...e, fallback]);
     } finally {
       setBusy(false);
@@ -116,8 +120,10 @@ export default function AssistantScreen() {
         subtitle={L('أفكار وقوائم لقطات', 'Ideas and shot lists')}
         mode="close"
         right={
-          status === 'online' ? (
-            <Badge label={L('Claude متصل', 'Claude online')} tone="ok" />
+          failed ? (
+            <Badge label={L('تعذّر الاتصال', 'Connection problem')} tone="bad" />
+          ) : status === 'online' ? (
+            <Badge label={L('متصل', 'Online')} tone="ok" />
           ) : status === 'locked' ? (
             <Badge label={L('يحتاج إلى رمز', 'Needs code')} tone="acc" />
           ) : status === 'offline' ? (

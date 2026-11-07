@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
@@ -16,16 +16,19 @@ export default function VerifyScreen() {
   const { c } = useTheme();
   const { t } = useI18n();
   const { phone, display, mode, name, accountType: pickedType } = useLocalSearchParams<{ phone: string; display: string; mode: string; name?: string; accountType?: string }>();
-  const { signIn, accountType, chooseAccountType } = useSession();
+  const { signIn, chooseAccountType } = useSession();
+
+  // Opened without a number (an old link): start sign-in again.
+  if (!phone) return <Redirect href="/auth" />;
 
   const verified = () => {
-    signIn(phone, mode === 'signUp' && name ? name : null);
+    const restored = signIn(phone, mode === 'signUp' && name ? name : null);
     // New accounts chose their type on the sign-up form.
     if (mode === 'signUp' && (pickedType === 'shop' || pickedType === 'creator')) {
       chooseAccountType(pickedType);
       router.replace('/');
     } else {
-      router.replace(accountType ? '/' : '/auth/account-type');
+      router.replace(restored ? '/' : '/auth/account-type');
     }
   };
 

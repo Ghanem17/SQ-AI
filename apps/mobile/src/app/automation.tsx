@@ -131,8 +131,8 @@ export default function AutomationScreen() {
                   <AppText size={12} color={c.muted}>
                     {pick(step.detail)}
                   </AppText>
+                  <View style={styles.chip}>{names ? <ModelChip label={names} /> : <Badge label={L('على الهاتف', 'On the phone')} />}</View>
                 </View>
-                {names ? <ModelChip label={names} /> : <Badge label={L('على الهاتف', 'On the phone')} />}
                 <Icon name={expanded ? 'chevronUp' : 'chevronDown'} color={c.placeholder} size={16} />
               </PressableScale>
               {expanded && (
@@ -174,7 +174,8 @@ const styles = StyleSheet.create({
   master: { height: 48, borderRadius: radius.control, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
   approval: { gap: 8, paddingVertical: 12, paddingHorizontal: 14 },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
+  chip: { marginTop: 6, alignItems: 'flex-start' },
+  step: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
   num: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   platforms: { borderRadius: radius.control, padding: 12, gap: 6, marginBottom: 12, marginHorizontal: 14 },
 });

@@ -19,7 +19,7 @@ export default function AdsScreen() {
 
 function Ads() {
   const { c } = useTheme();
-  const { L } = useI18n();
+  const { L, n } = useI18n();
   const { automation, setAutomation, spentThisMonth, orders } = useStudio();
   const promoted = orders.filter((o) => o.promo !== 'none');
 
@@ -81,7 +81,7 @@ function Ads() {
               key={o.id}
               icon="ads"
               title={o.title}
-              subtitle={L(`${o.promoDays} أيام · يبدأ بعد النشر`, `${o.promoDays} days · starts after posting`)}
+              subtitle={L(`${n(o.promoDays, 'day')} · يبدأ بعد النشر`, `${n(o.promoDays, 'day')} · starts after posting`)}
               trailing={formatIQD(o.promoCost)}
               last={i === promoted.length - 1}
             />

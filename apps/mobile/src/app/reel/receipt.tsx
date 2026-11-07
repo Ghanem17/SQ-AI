@@ -14,7 +14,7 @@ import { useTheme } from '@/theme/theme';
 // because it is paid to the ad platform.
 export default function ReceiptScreen() {
   const { c } = useTheme();
-  const { L, pick } = useI18n();
+  const { L, pick, n } = useI18n();
   const params = useLocalSearchParams<{ tier?: string }>();
   const { draft } = useStudio();
   const initial = (tierOrder as string[]).includes(params.tier ?? '') ? (params.tier as Tier) : draft.tier;
@@ -36,7 +36,7 @@ export default function ReceiptScreen() {
               {formatIQD(reelPrice(tier))}
             </AppText>
           </View>
-          <Badge tone="pri" icon="clock" label={`${spec.resolution} · ${L(`${spec.deliveryHours} ساعات`, `${spec.deliveryHours} hours`)}`} />
+          <Badge tone="pri" icon="clock" label={`${spec.resolution} · ${n(spec.deliveryHours, 'hour')}`} />
         </View>
         <Divider />
         {spec.items.map((item, i) => (
@@ -73,7 +73,7 @@ export default function ReceiptScreen() {
             {L('الترويج (يُدفع إلى منصة الإعلان)', 'Promotion (paid to the ad platform)')}
           </AppText>
           <KeyValue
-            label={L(`${promoLevels[draft.promo].name.ar} · ${draft.promoDays} أيام`, `${promoLevels[draft.promo].name.en} · ${draft.promoDays} days`)}
+            label={`${pick(promoLevels[draft.promo].name)} · ${n(draft.promoDays, 'day')}`}
             sub={L(`${formatIQD(promoLevels[draft.promo].daily)} يوميًا`, `${formatIQD(promoLevels[draft.promo].daily)} a day`)}
             value={formatIQD(promo)}
           />

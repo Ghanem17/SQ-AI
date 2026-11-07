@@ -19,12 +19,18 @@ type SessionData = {
   // What the business sells, prices, areas and hours, in the owner's words.
   // The assistant answers customers from this and nothing else.
   businessInfo: string;
+  // Profiles of numbers that signed out on this device, so signing in again
+  // with the same number brings back the name, account type and details.
+  profiles: Record<string, SavedProfile>;
 };
+
+type SavedProfile = { displayName: string | null; accountType: AccountType | null; businessInfo: string };
 
 type Session = SessionData & {
   ready: boolean;
   completeOnboarding: () => void;
-  signIn: (phone: string, displayName: string | null) => void;
+  // Returns the account type restored for this number, if any.
+  signIn: (phone: string, displayName: string | null) => AccountType | null;
   chooseAccountType: (type: AccountType) => void;
   setThemePreference: (pref: ThemePreference) => void;
   setPalette: (palette: PaletteName) => void;
@@ -47,6 +53,7 @@ const initial: SessionData = {
   lang: 'ar',
   accessCode: '',
   businessInfo: '',
+  profiles: {},
 };
 
 const SessionContext = createContext<Session | null>(null);
@@ -89,14 +96,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ...data,
     ready,
     completeOnboarding: () => update({ onboarded: true }),
-    signIn: (phone, displayName) => update({ signedIn: true, phone, displayName }),
+    signIn: (phone, displayName) => {
+      const saved = data.profiles[phone];
+      update({
+        signedIn: true,
+        phone,
+        displayName: displayName ?? saved?.displayName ?? null,
+        accountType: saved?.accountType ?? null,
+        businessInfo: saved?.businessInfo ?? '',
+      });
+      return saved?.accountType ?? null;
+    },
     chooseAccountType: (accountType) => update({ accountType }),
     setThemePreference: (themePreference) => update({ themePreference }),
     setPalette: (palette) => update({ palette }),
     setLang: (lang) => update({ lang }),
     setAccessCode: (accessCode) => update({ accessCode: accessCode.trim() }),
     setBusinessInfo: (businessInfo) => update({ businessInfo: businessInfo.slice(0, 2000) }),
-    signOut: () => update({ signedIn: false, phone: null, displayName: null, accountType: null, businessInfo: '' }),
+    signOut: () =>
+      setData((prev) => ({
+        ...prev,
+        profiles: prev.phone
+          ? { ...prev.profiles, [prev.phone]: { displayName: prev.displayName, accountType: prev.accountType, businessInfo: prev.businessInfo } }
+          : prev.profiles,
+        signedIn: false,
+        phone: null,
+        displayName: null,
+        accountType: null,
+        businessInfo: '',
+      })),
   };
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -7,7 +7,37 @@ import { Platform } from 'react-native';
 
 import { postJson } from '@/lib/ai';
 
-export type PickedMedia = { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string };
+// `estimated` marks a video whose length could not be read; it is priced at
+// DEFAULT_VIDEO_SECONDS and the quote says so.
+export type PickedMedia = { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string; estimated?: boolean };
+
+export const DEFAULT_VIDEO_SECONDS = 30;
+
+// The web picker often returns no duration; the browser can read it from the
+// file's metadata.
+function webDuration(uri: string): Promise<number> {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined') return resolve(0);
+    const video = document.createElement('video');
+    const done = (s: number) => {
+      video.removeAttribute('src');
+      video.load();
+      resolve(Number.isFinite(s) && s > 0 ? s : 0);
+    };
+    const timer = setTimeout(() => done(0), 8000);
+    video.preload = 'metadata';
+    video.muted = true;
+    video.onloadedmetadata = () => {
+      clearTimeout(timer);
+      done(video.duration);
+    };
+    video.onerror = () => {
+      clearTimeout(timer);
+      done(0);
+    };
+    video.src = uri;
+  });
+}
 
 const MAX_VIDEO_SECONDS = 180;
 
@@ -22,11 +52,17 @@ export async function pickMedia(kind: 'video' | 'image'): Promise<PickedMedia | 
   });
   if (res.canceled || !res.assets?.[0]) return null;
   const a = res.assets[0];
-  const seconds = a.duration ? a.duration / 1000 : 0;
+  // Phones report the duration in milliseconds. The web picker reports it
+  // in seconds (or not at all), so the browser reads it from the file.
+  let seconds = Platform.OS === 'web' ? 0 : (a.duration ?? 0) / 1000;
+  if (kind === 'video' && Platform.OS === 'web') seconds = (await webDuration(a.uri)) || (a.duration ?? 0);
   if (kind === 'video' && seconds > MAX_VIDEO_SECONDS) return { error: 'tooLong' };
+  // Never price a video at zero seconds.
+  const estimated = kind === 'video' && seconds === 0;
+  if (estimated) seconds = DEFAULT_VIDEO_SECONDS;
   const mimeType = a.mimeType ?? (kind === 'video' ? 'video/mp4' : 'image/jpeg');
   const fileName = a.fileName ?? `${kind}-${Date.now()}.${mimeType.split('/')[1] ?? 'bin'}`;
-  return { uri: a.uri, kind, mimeType, seconds, fileName };
+  return { uri: a.uri, kind, mimeType, seconds, fileName, estimated };
 }
 
 // Returns the public fal URL of the uploaded file.

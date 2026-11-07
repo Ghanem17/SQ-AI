@@ -79,7 +79,7 @@ export function VoicePreview({ caption }: { caption: string }) {
       />
       {(status === 'offline' || status === 'locked') && (
         <AppText size={12} color={c.placeholder}>
-          {status === 'locked' ? L('أدخل رمز الوصول من الإعدادات لتسمع الصوت.', 'Enter the access code in Settings to hear the voice.') : L('الخدمة غير متاحة الآن.', 'Not available right now.')}
+          {status === 'locked' ? L('أدخل رمز الوصول من «حسابي» لتسمع الصوت.', 'Enter the access code in Account to hear the voice.') : L('الخدمة غير متاحة الآن.', 'Not available right now.')}
         </AppText>
       )}
     </View>

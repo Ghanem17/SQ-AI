@@ -38,7 +38,10 @@ export function AppText({ variant: role, weight, size, color, center, lineHeight
   const { rtl } = useI18n();
   const [roleSize, roleLine] = role ? typeScale[role] : typeScale.body;
   const fontSize = size ?? roleSize;
-  const line = lineHeight ?? (size !== undefined && !role ? Math.round(fontSize * 1.45) : size !== undefined ? Math.max(roleLine, Math.round(fontSize * 1.35)) : roleLine);
+  const base = lineHeight ?? (size !== undefined && !role ? Math.round(fontSize * 1.45) : size !== undefined ? Math.max(roleLine, Math.round(fontSize * 1.35)) : roleLine);
+  // A clipped line (numberOfLines) cuts what falls outside the line box, so
+  // give it room for the dots under Arabic letters such as the final ي.
+  const line = rest.numberOfLines !== undefined ? Math.max(base, Math.round(fontSize * 1.55)) : base;
   return (
     <Text
       {...rest}

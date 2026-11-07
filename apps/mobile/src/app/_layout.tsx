@@ -32,6 +32,13 @@ if (Platform.OS === 'web' && !I18nManager.isRTL) {
   I18nManager.forceRTL(true);
 }
 
+// Text fields draw their own focus border; drop the browser's outline.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = 'input:focus, textarea:focus, input:focus-visible, textarea:focus-visible { outline: none !important; }';
+  document.head.appendChild(style);
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     ReadexPro_400Regular,

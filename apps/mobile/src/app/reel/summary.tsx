@@ -19,11 +19,12 @@ import { useTheme } from '@/theme/theme';
 // timeline of what happens next.
 export default function SummaryScreen() {
   const { c } = useTheme();
-  const { L, pick, lang } = useI18n();
+  const { L, pick, lang, n } = useI18n();
   const { draft, placeOrder, automation } = useStudio();
   const [order, setOrder] = useState<Order | null>(null);
   const price = reelPrice(draft.tier);
   const promo = promotionCost(draft.promo, draft.promoDays);
+  const filmed = draft.captured.length;
 
   if (order) return <Placed order={order} />;
 
@@ -40,13 +41,24 @@ export default function SummaryScreen() {
               {formatIQD(price + promo)}
             </AppText>
           </View>
-          <Button label={L('أكّد الطلب', 'Confirm order')} icon="check" onPress={() => setOrder(placeOrder())} />
+          {filmed > 0 ? (
+            <Button label={L('أكّد الطلب', 'Confirm order')} icon="check" onPress={() => setOrder(placeOrder())} />
+          ) : (
+            <Button label={L('صوّر اللقطات أولًا', 'Film the shots first')} icon="camera" onPress={() => router.navigate('/camera')} />
+          )}
         </>
       }>
+      {filmed === 0 && (
+        <Note tone="acc" icon="camera">
+          {L('صوّر لقطة واحدة على الأقل قبل تأكيد الطلب.', 'Film at least one shot before confirming the order.')}
+        </Note>
+      )}
       <Card>
         <Row
           label={L('اللقطات', 'Shots')}
-          value={L(`${draft.captured.length || draft.shots.length} من ${draft.shots.length}`, `${draft.captured.length || draft.shots.length} of ${draft.shots.length}`)} onEdit={() => router.navigate('/camera')} />
+          value={filmed > 0 ? L(`${filmed} من ${draft.shots.length}`, `${filmed} of ${draft.shots.length}`) : L('لم تُصوَّر أي لقطة بعد', 'No shots filmed yet')}
+          onEdit={() => router.navigate('/camera')}
+        />
         <Divider />
         <Row label={L('الجودة', 'Quality')} value={`${pick(tiers[draft.tier].name)} · ${tiers[draft.tier].resolution}`} onEdit={() => router.navigate('/reel/quality')} />
         <Divider />
@@ -59,7 +71,7 @@ export default function SummaryScreen() {
           value={
             draft.promo === 'none'
               ? L('دون ترويج', 'No promotion')
-              : L(`${promoLevels[draft.promo].name.ar} · ${draft.promoDays} أيام`, `${promoLevels[draft.promo].name.en} · ${draft.promoDays} days`)
+              : `${pick(promoLevels[draft.promo].name)} · ${n(draft.promoDays, 'day')}`
           }
           onEdit={() => router.navigate('/reel/promote')}
         />
@@ -106,14 +118,14 @@ function Row({ label, value, onEdit }: { label: string; value: string; onEdit: (
 
 function Placed({ order }: { order: Order }) {
   const { c } = useTheme();
-  const { L, lang } = useI18n();
+  const { L, lang, n } = useI18n();
   const { clearDraft } = useStudio();
   const reduceMotion = useReducedMotion();
   const steps = [
-    { title: L('استلمنا اللقطات', 'Shots received'), detail: L('رُفعت وفُحصت', 'Uploaded and checked'), done: true },
+    { title: L('اللقطات جاهزة', 'Shots ready'), detail: L('صُوّرت على هذا الجهاز', 'Filmed on this device'), done: true },
     {
       title: L('المونتاج بالذكاء الاصطناعي', 'AI editing'),
-      detail: L(`جاهز خلال ${tiers[order.tier].deliveryHours} ساعات تقريبًا`, `Ready in about ${tiers[order.tier].deliveryHours} hours`),
+      detail: L(`مدة التجهيز: ${n(tiers[order.tier].deliveryHours, 'hour')} تقريبًا`, `Ready in about ${n(tiers[order.tier].deliveryHours, 'hour')}`),
       done: false,
     },
     { title: L('مراجعتك وموافقتك', 'Your review and approval'), detail: L('يصلك إشعار عندما يجهز', 'You get a notice when it is ready'), done: false },
@@ -122,7 +134,7 @@ function Placed({ order }: { order: Order }) {
       ? [
           {
             title: L('الترويج', 'Promotion'),
-            detail: L(`${promoLevels[order.promo].name.ar} لمدة ${order.promoDays} أيام`, `${promoLevels[order.promo].name.en} for ${order.promoDays} days`),
+            detail: L(`${promoLevels[order.promo].name.ar} · المدة: ${n(order.promoDays, 'day')}`, `${promoLevels[order.promo].name.en} for ${n(order.promoDays, 'day')}`),
             done: false,
           },
         ]

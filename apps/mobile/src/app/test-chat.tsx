@@ -9,7 +9,7 @@ import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
 import { Badge, Card, KeyValue, Note, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
-import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
+import { AiUnavailable, aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { useTheme } from '@/theme/theme';
 
 type Order = { items: string; total: number; area: string };
@@ -32,6 +32,8 @@ export default function TestChatScreen() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A failed request (other than a missing access code) turns the badge red.
+  const [failed, setFailed] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   const nextId = useRef(0);
 
@@ -54,8 +56,10 @@ export default function TestChatScreen() {
         messages: next.map((t) => ({ role: t.from === 'customer' ? 'user' : 'assistant', content: t.text })),
       });
       setTurns((t) => [...t, { id: nextId.current++, from: 'assistant', text: reply.text, order: reply.order, escalate: reply.escalate }]);
+      setFailed(false);
     } catch (err) {
-      setError(aiErrorText(err, lang));
+      setError(aiErrorText(err, lang, 'chat'));
+      setFailed(!(err instanceof AiUnavailable && err.reason === 'access'));
     } finally {
       setBusy(false);
     }
@@ -64,11 +68,13 @@ export default function TestChatScreen() {
   return (
     <Screen edges={['top']}>
       <TopBar
-        title={L('جرّب الرد على عميل', 'Try answering a customer')}
+        title={L('جرّب الرد على عميل', 'Practice chat')}
         subtitle={L('اكتب كأنك عميل على واتساب', 'Write as a customer on WhatsApp')}
         right={
-          status === 'online' ? (
-            <Badge label={L('Claude متصل', 'Claude online')} tone="ok" />
+          failed ? (
+            <Badge label={L('تعذّر الاتصال', 'Connection problem')} tone="bad" />
+          ) : status === 'online' ? (
+            <Badge label={L('متصل', 'Online')} tone="ok" />
           ) : status === 'locked' ? (
             <Badge label={L('يحتاج إلى رمز', 'Needs code')} tone="acc" />
           ) : status === 'offline' ? (

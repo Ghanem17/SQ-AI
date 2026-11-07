@@ -26,7 +26,7 @@ const scrim = 'rgba(0,0,0,0.45)';
 // length so every clip fits the edit.
 export default function CaptureScreen() {
   const { shot: shotParam } = useLocalSearchParams<{ shot?: string }>();
-  const { L, rtl } = useI18n();
+  const { L, rtl, n } = useI18n();
   const { c } = useTheme();
   const { draft, updateDraft } = useStudio();
   const shots = draft.shots;
@@ -198,7 +198,7 @@ export default function CaptureScreen() {
             <View style={[styles.barFill, { width: `${progress * 100}%` }]} />
           </View>
           <AppText size={12} color="rgba(255,255,255,0.85)" center style={styles.tabular}>
-            {phase === 'recording' ? L(`${elapsed.toFixed(1)} / ${shot.seconds} ث`, `${elapsed.toFixed(1)} / ${shot.seconds}s`) : L(`مدة اللقطة ${shot.seconds} ثوانٍ`, `Shot length ${shot.seconds} seconds`)}
+            {phase === 'recording' ? L(`${elapsed.toFixed(1)} / ${shot.seconds} ث`, `${elapsed.toFixed(1)} / ${shot.seconds}s`) : L(`مدة اللقطة: ${n(shot.seconds, 'second')}`, `Shot length: ${n(shot.seconds, 'second')}`)}
           </AppText>
 
           {phase === 'done' ? (

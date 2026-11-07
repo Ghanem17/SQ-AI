@@ -16,7 +16,7 @@ import { useTheme } from '@/theme/theme';
 // once every shot is in, the reel moves on to quality and price.
 export default function CameraScreen() {
   const { c } = useTheme();
-  const { L, lang } = useI18n();
+  const { L, lang, n } = useI18n();
   const { draft, updateDraft, startDraft } = useStudio();
   const { accountType } = useSession();
   const creator = accountType === 'creator';
@@ -52,7 +52,7 @@ export default function CameraScreen() {
           <ListRow
             icon="camera"
             title={L('لديك فكرة جاهزة؟', 'Already have an idea?')}
-            subtitle={L(`ابدأ بثلاث لقطات: ${starters.map((s) => s.title).join('، ')}`, `Start with three shots: ${starters.map((s) => s.title).join(', ')}`)}
+            subtitle={L('ابدأ بثلاث لقطات أساسية وسترشدك الكاميرا', 'Start with three basic shots; the camera guides you')}
             subtitleLines={2}
             onPress={() => startDraft(creator ? L('فيديو جديد', 'New video') : L('ريل جديد', 'New reel'), starters)}
             last
@@ -85,8 +85,8 @@ export default function CameraScreen() {
         <Progress value={done / total} />
         <AppText variant="small" color={c.muted}>
           {L(
-            `المدة المتوقعة للريل ${shots.reduce((a, x) => a + x.seconds, 0)} ثانية · الإطار عمودي 9:16`,
-            `Expected length ${shots.reduce((a, x) => a + x.seconds, 0)} seconds · vertical 9:16`,
+            `المدة المتوقعة للريل: ${n(shots.reduce((a, x) => a + x.seconds, 0), 'second')} · الإطار عمودي 9:16`,
+            `Expected length ${n(shots.reduce((a, x) => a + x.seconds, 0), 'second')} · vertical 9:16`,
           )}
         </AppText>
       </Card>

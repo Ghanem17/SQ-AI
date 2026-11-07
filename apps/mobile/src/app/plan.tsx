@@ -30,7 +30,7 @@ function plannedDays(count: number, daysInMonth: number): Set<number> {
 
 export default function PlanScreen() {
   const { c } = useTheme();
-  const { L, pick, lang } = useI18n();
+  const { L, pick, lang, n: count } = useI18n();
   const { plan, savePlan } = useStudio();
   const [p, setP] = useState<Plan>(plan);
   const price = planPrice(p.reels, p.tier);
@@ -97,7 +97,7 @@ export default function PlanScreen() {
               key={n}
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
-              accessibilityLabel={L(`${n} ريلز`, `${n} reels`)}
+              accessibilityLabel={count(n, 'reel')}
               onPress={() => set({ reels: n })}
               style={[styles.size, { borderColor: active ? c.primary : c.line, borderWidth: active ? 1.5 : 1, backgroundColor: c.card }]}>
               <AppText weight="bold" size={20} lineHeight={26}>
@@ -176,7 +176,7 @@ export default function PlanScreen() {
 
       <SectionTitle title={L('السعر', 'Price')} />
       <Card style={styles.kv}>
-        <KeyValue label={L(`${p.reels} ريلز ${tiers[p.tier].name.ar}`, `${p.reels} ${tiers[p.tier].name.en} reels`)} value={formatIQD(price.full)} />
+        <KeyValue label={`${count(p.reels, 'reel')} · ${pick(tiers[p.tier].name)}`} value={formatIQD(price.full)} />
         {price.discount > 0 && <KeyValue divider label={L(`خصم الخطة ${planDiscount(p.reels) * 100}%`, `Plan discount ${planDiscount(p.reels) * 100}%`)} value={`− ${formatIQD(price.discount)}`} />}
         <KeyValue divider label={L('سعر الريل في الخطة', 'Price per reel in the plan')} value={formatIQD(price.perReel)} />
         <KeyValue divider label={L('الإعلانات', 'Ads')} value={formatIQD(p.adBudget)} />

@@ -21,7 +21,7 @@ function TryRow() {
         icon="sparkle"
         iconTone="solid"
         title={L('جرّب الرد على عميل', 'Try answering a customer')}
-        subtitle={L('اكتب كأنك عميل وشاهد كيف يرد المساعد من معلومات نشاطك', 'Write as a customer and see how the assistant answers from your business details')}
+        subtitle={L('اكتب كأنك عميل وشاهد كيف يرد المساعد من معلومات نشاطك', 'Write as a customer; see how the assistant replies')}
         subtitleLines={2}
         onPress={() => router.push('/test-chat')}
         last
@@ -34,7 +34,7 @@ function Inbox() {
   const { businessInfo } = useSession();
   const { L, pick } = useI18n();
   return (
-    <ScrollScreen header={<TopBar title={L('الرسائل', 'Messages')} subtitle={L('واتساب وإنستغرام وفيسبوك وماسنجر', 'WhatsApp, Instagram, Facebook and Messenger')} />}>
+    <ScrollScreen header={<TopBar title={L('الرسائل', 'Messages')} subtitle={L('واتساب وإنستغرام وفيسبوك وماسنجر', 'All your channels in one place')} />}>
       <EmptyState
         icon="chat"
         title={L('لا توجد رسائل بعد', 'No messages yet')}
@@ -48,7 +48,7 @@ function Inbox() {
         <Note tone="info">
           {L(
             'قبل التجربة، اكتب أصنافك وأسعارك في «معلومات النشاط» من حسابي، ليرد المساعد بمعلومات صحيحة.',
-            'Before trying, add your items and prices under "About your business" in Account so the assistant answers correctly.',
+            'Before trying, add your items and prices under "Business details" in Account so the assistant answers correctly.',
           )}
         </Note>
       )}

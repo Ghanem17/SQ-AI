@@ -64,7 +64,7 @@ export const en: Strings = {
   },
   accountType: {
     title: 'How will you use the app?',
-    subtitle: 'You can change this later in Settings.',
+    subtitle: 'You can change this later in Account.',
     shop: { title: 'I run a shop or restaurant', body: 'I want more orders and customers' },
     creator: { title: 'I am a content creator', body: 'I want more followers and collaborations' },
     continue: 'Continue',

@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { Platform, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -30,7 +30,11 @@ export function PressableScale({
   const scale = useSharedValue(1);
   const dim = useSharedValue(1);
   const reduceMotion = useReducedMotion();
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }], opacity: dim.get() }));
+  // The animated opacity would override a style's own opacity, so the press
+  // dim multiplies it; a disabled control renders at 40% (spec §5).
+  const flat = StyleSheet.flatten(style);
+  const base = disabled ? Math.min(typeof flat?.opacity === 'number' ? flat.opacity : 1, 0.4) : typeof flat?.opacity === 'number' ? flat.opacity : 1;
+  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }], opacity: dim.get() * base }));
 
   return (
     <AnimatedPressable

@@ -84,22 +84,43 @@ export default function ReportTab() {
       </HeroSurface>
 
       <View style={styles.grid}>
-        <View style={styles.gridRow}>
-          <StatCard icon="wallet" tone="acc" label={L('تكلفة الطلب', 'Cost per order')} value={null} />
-          <StatCard icon="chat" label={L('نسبة الرد', 'Reply rate')} value={null} />
-        </View>
-        <View style={styles.gridRow}>
-          <StatCard icon="users" tone="ok" label={L('متابعون جدد', 'New followers')} value={null} />
-          <StatCard icon="video" label={L('ريلز منشورة', 'Reels published')} value={null} />
-        </View>
+        {creator ? (
+          <>
+            <View style={styles.gridRow}>
+              <StatCard icon="eye" tone="acc" label={L('المشاهدات', 'Views')} value={null} />
+              <StatCard icon="trend" label={L('نسبة التفاعل', 'Engagement rate')} value={null} />
+            </View>
+            <View style={styles.gridRow}>
+              <StatCard icon="handshake" tone="ok" label={L('التعاونات', 'Collaborations')} value={null} />
+              <StatCard icon="video" label={L('فيديوهات منشورة', 'Videos posted')} value={null} />
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.gridRow}>
+              <StatCard icon="wallet" tone="acc" label={L('تكلفة الطلب', 'Cost per order')} value={null} />
+              <StatCard icon="chat" label={L('نسبة الرد', 'Reply rate')} value={null} />
+            </View>
+            <View style={styles.gridRow}>
+              <StatCard icon="users" tone="ok" label={L('متابعون جدد', 'New followers')} value={null} />
+              <StatCard icon="video" label={L('ريلز منشورة', 'Reels published')} value={null} />
+            </View>
+          </>
+        )}
       </View>
 
       <Card style={styles.chartCard}>
         <View style={styles.chartHead}>
           <AppText variant="h3" style={styles.flex}>
-            {L('الطلبات مقابل الإنفاق', 'Orders vs. spend')}
+            {creator ? L('المتابعون والمشاهدات', 'Followers and views') : L('الطلبات مقابل الإنفاق', 'Orders vs. spend')}
           </AppText>
-          <Legend items={[{ label: L('الطلبات', 'Orders') }, { label: L('الإنفاق', 'Spend'), second: true }]} />
+          <Legend
+            items={
+              creator
+                ? [{ label: L('المتابعون', 'Followers') }, { label: L('المشاهدات', 'Views'), second: true }]
+                : [{ label: L('الطلبات', 'Orders') }, { label: L('الإنفاق', 'Spend'), second: true }]
+            }
+          />
         </View>
         <LineChart
           labels={labels}
@@ -109,7 +130,9 @@ export default function ReportTab() {
           overlay={
             <View style={styles.overlay}>
               <AppText variant="small" color={c.muted} center style={[styles.overlayText, { backgroundColor: c.card }]}>
-                {L('تبدأ التقارير بعد ربط حساب إعلاني ونشر أول إعلان.', 'Reports start once an ad account is linked and your first ad runs.')}
+                {creator
+                  ? L('تبدأ التقارير بعد ربط حساباتك ونشر أول فيديو.', 'Reports start once your accounts are linked and your first video is posted.')
+                  : L('تبدأ التقارير بعد ربط حساب إعلاني ونشر أول إعلان.', 'Reports start once an ad account is linked and your first ad runs.')}
               </AppText>
               <Button small icon="link" label={L('اربط حساباتك', 'Link your accounts')} onPress={() => router.push('/account')} />
             </View>

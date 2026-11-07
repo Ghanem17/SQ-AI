@@ -3,7 +3,6 @@
 // which model runs each step. Progress is reported as it goes.
 
 import { tierTools, videoSeconds, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
-import type { I18n } from '@/i18n';
 import { AiUnavailable, postJson, unavailableText } from '@/lib/ai';
 import type { Business } from './types';
 import { uploadMedia, type PickedMedia } from './media';
@@ -196,9 +195,44 @@ export async function runOrder(
   }
 }
 
-export function explain(err: unknown, { L, lang }: I18n): string {
-  if (err instanceof AiUnavailable) return err.reason === 'failed' ? L(`تعذر التنفيذ: ${err.message}`, `Could not finish: ${err.message}`) : unavailableText[err.reason][lang];
-  if (err instanceof Error && err.message === 'timeout') return L('استغرق التنفيذ وقتًا أطول من المتوقع. أعد المحاولة بعد قليل.', 'This took longer than expected. Try again shortly.');
-  if (err instanceof Error && err.message.startsWith('upload')) return L('تعذر رفع الملف. تأكد من اتصالك بالإنترنت وأعد المحاولة.', 'Could not upload the file. Check your connection and try again.');
-  return L('تعذر إكمال الطلب. أعد المحاولة.', 'Could not complete the order. Try again.');
+export type FailCode = 'interrupted' | 'network' | 'unreachable' | 'provider' | 'timeout' | 'credit' | 'access' | 'noKey' | 'badKey' | 'upload' | 'failed';
+
+// Why an order stopped, as a code saved with the job; the screen turns it
+// into a sentence in the current language. Raw details are logged only.
+export function failCode(err: unknown): FailCode {
+  console.warn('[order failed]', err);
+  if (err instanceof AiUnavailable) {
+    if (err.reason !== 'failed') return err.reason;
+    const m = err.message.toLowerCase();
+    if (/econnrefused|enotfound|eai_again|econnreset|fetch failed|socket|unreachable/.test(m)) return 'unreachable';
+    if (/credit|balance|exhausted|top.?up/.test(m)) return 'credit';
+    if (/timeout|timed out/.test(m)) return 'timeout';
+    return 'provider';
+  }
+  if (err instanceof Error) {
+    if (err.message === 'timeout') return 'timeout';
+    if (err.message.startsWith('upload')) return 'upload';
+    return 'provider';
+  }
+  return 'failed';
+}
+
+const failText: Record<FailCode, { ar: string; en: string }> = {
+  interrupted: { ar: 'توقف التنفيذ لأن التطبيق أُغلق. أعد المحاولة.', en: 'The run stopped because the app was closed. Try again.' },
+  network: unavailableText.network,
+  unreachable: { ar: 'تعذر الوصول إلى خدمة الذكاء الاصطناعي الآن. أعد المحاولة بعد قليل.', en: 'The AI service could not be reached right now. Try again shortly.' },
+  provider: { ar: 'لم تكتمل المعالجة لدى مزوّد الذكاء الاصطناعي. أعد المحاولة بعد قليل.', en: 'The AI provider could not finish this step. Try again shortly.' },
+  timeout: { ar: 'استغرق التنفيذ وقتًا أطول من المتوقع. أعد المحاولة بعد قليل.', en: 'This took longer than expected. Try again shortly.' },
+  credit: unavailableText.credit,
+  access: unavailableText.access,
+  noKey: unavailableText.noKey,
+  badKey: unavailableText.badKey,
+  upload: { ar: 'تعذر رفع الملف. تأكد من اتصالك بالإنترنت وأعد المحاولة.', en: 'Could not upload the file. Check your connection and try again.' },
+  failed: { ar: 'تعذر إكمال الطلب. أعد المحاولة.', en: 'Could not complete the order. Try again.' },
+};
+
+// The sentence for a saved failure. Older orders may hold free text from
+// before codes existed; they get the general message.
+export function failMessage(code: string | undefined, lang: 'ar' | 'en'): string {
+  return (code && code in failText ? failText[code as FailCode] : failText.failed)[lang];
 }

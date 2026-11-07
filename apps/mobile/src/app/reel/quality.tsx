@@ -15,7 +15,7 @@ import { useTheme } from '@/theme/theme';
 // includes, and a link to the full receipt of the AI work behind it.
 export default function QualityScreen() {
   const { c } = useTheme();
-  const { L } = useI18n();
+  const { L, n } = useI18n();
   const { draft, updateDraft } = useStudio();
 
   return (
@@ -26,8 +26,8 @@ export default function QualityScreen() {
           <View style={ui.between}>
             <AppText size={11} lineHeight={16} color={c.muted} style={ui.flex}>
               {L(
-                `${tiers[draft.tier].name.ar} · جاهز خلال ${tiers[draft.tier].deliveryHours} ساعات`,
-                `${tiers[draft.tier].name.en} · ready in ${tiers[draft.tier].deliveryHours} hours`,
+                `${tiers[draft.tier].name.ar} · مدة التسليم: ${n(tiers[draft.tier].deliveryHours, 'hour')}`,
+                `${tiers[draft.tier].name.en} · ready in ${n(tiers[draft.tier].deliveryHours, 'hour')}`,
               )}
             </AppText>
             <AppText weight="bold" size={20} lineHeight={28}>
@@ -60,7 +60,7 @@ export default function QualityScreen() {
 
 function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onSelect: () => void }) {
   const { c } = useTheme();
-  const { L, pick } = useI18n();
+  const { L, pick, n } = useI18n();
   const tier = tiers[id];
   const usedTools = [...new Set(tier.items.flatMap((i) => i.tools))].map((t) => tools[t].name);
 
@@ -84,9 +84,9 @@ function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onS
       </View>
 
       <View style={styles.specs}>
-        <Spec icon="clock" label={L(`خلال ${tier.deliveryHours} ساعات`, `In ${tier.deliveryHours} hours`)} />
+        <Spec icon="clock" label={L(`التسليم: ${n(tier.deliveryHours, 'hour')}`, `In ${n(tier.deliveryHours, 'hour')}`)} />
         <Spec icon="video" label={tier.resolution} />
-        <Spec icon="layers" label={L(`${tier.items.length} مراحل`, `${tier.items.length} steps`)} />
+        <Spec icon="layers" label={n(tier.items.length, 'step')} />
       </View>
 
       <AppText weight="medium" size={11} lineHeight={16} color={c.placeholder} numberOfLines={2} style={styles.models}>
