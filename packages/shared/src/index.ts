@@ -9,3 +9,4 @@ export * from './pricing.ts';
 export * from './pipeline.ts';
 export * from './services.ts';
 export * from './dates.ts';
+export * from './plural.ts';

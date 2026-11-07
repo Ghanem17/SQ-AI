@@ -3,6 +3,8 @@
 // uses from their real per-unit costs plus the owner's margin. The customer
 // sees every model and its cost before agreeing.
 
+import { count } from './plural.ts';
+
 export type Lang = 'ar' | 'en';
 export type Bilingual = { ar: string; en: string };
 
@@ -97,19 +99,19 @@ export const services: Record<ServiceKind, ServiceInfo> = {
   editVideo: {
     kind: 'editVideo',
     name: { ar: 'مونتاج فيديوك', en: 'Edit your video' },
-    pitch: { ar: 'ارفع فيديو واكتب طلباتك: قص وترجمة وموسيقى', en: 'Upload a video and say what you want: trims, captions, music' },
+    pitch: { ar: 'قص وترجمة وموسيقى لفيديو تصوّره أنت', en: 'Trims, captions and music for your video' },
     needs: 'video',
   },
   adImage: {
     kind: 'adImage',
     name: { ar: 'إعلان من صورة', en: 'Ad from a photo' },
-    pitch: { ar: 'تتحول صورة منتجك إلى تصميم إعلان', en: 'Your product photo becomes an ad design' },
+    pitch: { ar: 'تتحول صورة منتجك إلى تصميم إعلان', en: 'Your product photo becomes an ad' },
     needs: 'image',
   },
   textVideo: {
     kind: 'textVideo',
     name: { ar: 'فيديو من نص', en: 'Video from text' },
-    pitch: { ar: 'صف الفيديو ونولّده بمشاهد وموسيقى', en: 'Describe it and we generate scenes and music' },
+    pitch: { ar: 'صف الفيديو ونولّده بمشاهد وموسيقى', en: 'Describe it; we make scenes and music' },
     needs: null,
   },
   copy: {
@@ -332,7 +334,7 @@ export function planLines(params: ServiceParams, mediaSeconds = 0, tier: Service
     }
     case 'textVideo': {
       const seconds = videoSeconds(params.duration, tier);
-      lines.push({ tool: tierTools.video[tier], qty: seconds, task: task(`توليد ${seconds} ثوانٍ من المشاهد`, `Generating ${seconds} seconds of scenes`) });
+      lines.push({ tool: tierTools.video[tier], qty: seconds, task: task(`توليد ${count(seconds, 'second', 'ar')} من المشاهد`, `Generating ${count(seconds, 'second', 'en')} of scenes`) });
       if (params.music && tier !== 'high') {
         lines.push({ tool: tierTools.music[tier], qty: 1, task: task('تأليف موسيقى للفيديو', 'Composing music') });
         lines.push({ tool: 'mergeAudio', qty: seconds, task: task('دمج الموسيقى مع الفيديو', 'Merging the music') });
