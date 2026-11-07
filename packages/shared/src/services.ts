@@ -342,3 +342,34 @@ export function planLines(params: ServiceParams, mediaSeconds = 0, tier: Service
   }
   return lines;
 }
+
+// The models behind each service, low to high, as listed on the services
+// screen.
+export const serviceModels: Record<ServiceKind, string> = {
+  editVideo: 'Lyria 2 · ElevenLabs Music · Topaz',
+  adImage: 'Nano Banana · Nano Banana Pro',
+  textVideo: 'Wan 2.2 · Kling 3 Pro · Veo 3.1',
+  copy: 'Claude Haiku · Sonnet · Opus',
+  voice: 'ElevenLabs Turbo · v4 · v3',
+};
+
+// The headline model of a level, shown as a chip on the level picker.
+export function tierModel(kind: ServiceKind, tier: ServiceTier): string {
+  switch (kind) {
+    case 'textVideo':
+      return serviceTools[tierTools.video[tier]].name;
+    case 'adImage':
+      return serviceTools[tierTools.image[tier]].name;
+    case 'voice':
+      return serviceTools[tierTools.voice[tier]].name;
+    case 'copy':
+      return serviceTools[tierTools.writer[tier]].name;
+    case 'editVideo':
+      return tier === 'high' ? 'Topaz' : serviceTools[tierTools.music[tier]].name;
+  }
+}
+
+// The lowest price any order can have: the low level's minimum.
+export function startingPrice(settings: PricingSettings = defaultPricing): number {
+  return roundUp(settings.minPrice * tierMinFactor.low, 250);
+}

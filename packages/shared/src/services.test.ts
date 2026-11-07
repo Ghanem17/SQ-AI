@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cleanParams, defaultPricing, formatUsd, planLines, quote, serviceTools, serviceToolKeys } from './services.ts';
+import { cleanParams, defaultPricing, formatUsd, planLines, quote, serviceOrder, serviceTiers, serviceTools, serviceToolKeys, startingPrice, tierModel } from './services.ts';
 
 test('every service tool has a fal endpoint and a positive price', () => {
   for (const key of serviceToolKeys) {
@@ -116,4 +116,24 @@ test('long voice-overs are billed per started thousand characters', () => {
   const p = cleanParams({ kind: 'voice', text: 'ا'.repeat(1200), voice: 'sarah' });
   assert.ok(p);
   assert.equal(planLines(p).find((l) => l.tool === 'voice')?.qty, 2);
+});
+
+test('each level names a headline model, and services start at the minimum price', () => {
+  assert.equal(tierModel('textVideo', 'low'), 'Wan 2.2');
+  assert.equal(tierModel('textVideo', 'mid'), 'Kling 3 Pro');
+  assert.equal(tierModel('textVideo', 'high'), 'Veo 3.1');
+  for (const k of serviceOrder) for (const t of serviceTiers) assert.ok(tierModel(k, t).length > 0);
+  assert.equal(startingPrice(), 3000);
+  assert.equal(startingPrice({ ...defaultPricing, minPrice: 3100 }), 3250);
+});
+
+test('a medium 10-second text video with music matches the approved quote', () => {
+  const lines = planLines({ kind: 'textVideo', prompt: 'x', duration: 10, music: 'calm' }, 0, 'mid');
+  const q = quote(lines, defaultPricing, {}, 'mid');
+  assert.deepEqual(
+    q.lines.map((l) => l.costIqd),
+    [15, 2100, 900, 3],
+  );
+  assert.equal(q.feeIqd, 1982);
+  assert.equal(q.totalIqd, 5000);
 });

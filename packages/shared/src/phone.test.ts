@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { checkPhone, findCountry, formatNational, nationalNumber } from './phone.ts';
+import { checkPhone, findCountry, formatE164, formatNational, nationalNumber } from './phone.ts';
 
 const iq = findCountry('IQ');
 
@@ -40,4 +40,10 @@ test('formats the national number in groups', () => {
 
 test('unknown country falls back to Iraq', () => {
   assert.equal(findCountry('XX').code, 'IQ');
+});
+
+test('formats a saved number for display', () => {
+  assert.equal(formatE164('+9647701234567'), '+964 770 123 4567');
+  assert.equal(formatE164('+201001234567'), '+20 100 123 4567');
+  assert.equal(formatE164('+1555'), '+1555');
 });

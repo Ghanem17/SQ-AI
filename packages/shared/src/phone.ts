@@ -67,3 +67,12 @@ export function formatNational(national: string, country: Country): string {
   if (i < national.length) parts.push(national.slice(i));
   return parts.join(' ');
 }
+
+// "+9647701234567" → "+964 770 123 4567", for showing a saved number.
+// Unknown numbers come back unchanged.
+export function formatE164(e164: string): string {
+  const digits = onlyDigits(e164);
+  const country = [...countries].sort((a, b) => b.dial.length - a.dial.length).find((c) => digits.startsWith(c.dial) && digits.length === c.dial.length + c.length);
+  if (!country) return e164;
+  return `+${country.dial} ${formatNational(digits.slice(country.dial.length), country)}`;
+}
