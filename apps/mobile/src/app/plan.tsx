@@ -37,7 +37,8 @@ export default function PlanScreen() {
 
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  // Zero-based, so these describe the current month.
+  const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay();
   const monthName = new Date(year, month, 1).toLocaleDateString(lang === 'ar' ? 'ar-IQ' : 'en-GB', { month: 'long' });
