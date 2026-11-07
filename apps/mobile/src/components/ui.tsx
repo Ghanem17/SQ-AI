@@ -536,18 +536,20 @@ export function ToggleRow({
           </AppText>
         )}
       </View>
-      <Switch
-        accessibilityLabel={title}
-        value={value}
-        disabled={disabled}
-        onValueChange={onChange}
-        trackColor={{ true: c.primary, false: c.track }}
-        thumbColor="#FFFFFF"
-        ios_backgroundColor={c.track}
-        style={styles.switch}
-        // react-native-web colours the thumb separately when it is on.
-        {...({ activeThumbColor: '#FFFFFF' } as object)}
-      />
+      {/* Kept left to right: the web switch misplaces its thumb in RTL. */}
+      <View style={styles.switchWrap}>
+        <Switch
+          accessibilityLabel={title}
+          value={value}
+          disabled={disabled}
+          onValueChange={onChange}
+          trackColor={{ true: c.primary, false: c.track }}
+          thumbColor="#FFFFFF"
+          ios_backgroundColor={c.track}
+          // react-native-web colours the thumb separately when it is on.
+          {...({ activeThumbColor: '#FFFFFF' } as object)}
+        />
+      </View>
     </View>
   );
 }
@@ -846,6 +848,7 @@ export function Field({
           ref={inputRef}
           placeholderTextColor={c.placeholder}
           multiline={multiline}
+          accessibilityLabel={label}
           {...input}
           onFocus={(e) => {
             setFocused(true);
@@ -889,7 +892,7 @@ export const ui = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  langSwitch: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: radius.chip, borderWidth: 1, alignSelf: 'flex-start' },
+  langSwitch: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: radius.chip, borderWidth: 1 },
   flex: { flex: 1 },
   ltr: { writingDirection: 'ltr' },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -924,7 +927,7 @@ const styles = StyleSheet.create({
   listRowCompact: { minHeight: 52, paddingVertical: 8 },
   rowValue: { maxWidth: '45%' },
   trailing: { justifyContent: 'center' },
-  switch: { marginStart: 6 },
+  switchWrap: { direction: 'ltr', marginStart: 6 },
   progress: { height: 6, borderRadius: 3, overflow: 'hidden', flexDirection: 'row' },
   progressFill: { height: 6, borderRadius: 3 },
   kv: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 42, paddingVertical: 6 },

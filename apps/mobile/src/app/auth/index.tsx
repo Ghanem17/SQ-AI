@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   number: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 52, borderRadius: radius.control, paddingHorizontal: 14 },
   phoneInput: { flex: 1, minWidth: 0, height: '100%', fontFamily: font.medium, fontSize: 15, letterSpacing: 0.5, textAlign: 'left', writingDirection: 'ltr', paddingVertical: 0 },
   pair: { flexDirection: 'row', gap: 8 },
-  tile: { flex: 1, minHeight: 72, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
+  tile: { flex: 1, minHeight: 72, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 8 },
   dots: { flexDirection: 'row', direction: 'ltr' },
   dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5 },
   actions: { gap: 14, marginTop: 4 },

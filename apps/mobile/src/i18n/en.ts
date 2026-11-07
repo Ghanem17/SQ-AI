@@ -27,7 +27,7 @@ export const en: Strings = {
   },
   auth: {
     welcome: 'Welcome',
-    subtitle: 'Sign up with your phone number and we will send you a code on WhatsApp.',
+    subtitle: 'Sign in with your phone number and we will send you a code on WhatsApp.',
     tabs: { signUp: 'New account', signIn: 'Sign in' },
     nameLabel: 'Business or your name',
     namePlaceholder: 'e.g. your shop or page name',

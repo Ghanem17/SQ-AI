@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { formatIQD, formatTime, services, tierNames, type ServiceKind } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import type { IconName } from '@/components/Icon';
-import { Badge, Chevron, IconBadge, type Tone } from '@/components/ui';
+import { Badge, IconBadge, type Tone } from '@/components/ui';
 import { PressableScale } from '@/components/PressableScale';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
@@ -47,7 +47,6 @@ export function OrderRow({ job, last }: { job: ServiceJob; last?: boolean }) {
           {formatIQD(job.quote.totalIqd)}
         </AppText>
       </View>
-      <Chevron />
     </PressableScale>
   );
 }

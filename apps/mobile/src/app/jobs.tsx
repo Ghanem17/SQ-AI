@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
-import { formatIQD } from '@sq/shared';
+import { formatIQD, formatNumber } from '@sq/shared';
 import { Button } from '@/components/Button';
 import { EmptyState, KeyValue, Card, ListCard, ScrollScreen, TopBar } from '@/components/ui';
 import { OrderRow } from '@/features/services/OrderRow';
@@ -27,8 +28,14 @@ export default function JobsScreen() {
         />
       ) : (
         <>
-          <Card style={{ paddingVertical: 4, gap: 0 }}>
-            <KeyValue icon="receipt" strong label={L(`المجموع (${jobs.length} طلبات)`, `Total (${jobs.length} orders)`)} value={formatIQD(total)} />
+          <Card style={styles.total}>
+            <KeyValue
+              icon="receipt"
+              strong
+              label={L('إجمالي طلباتك', 'All your orders')}
+              sub={L(`عدد الطلبات: ${formatNumber(jobs.length)}`, `Orders: ${formatNumber(jobs.length)}`)}
+              value={formatIQD(total)}
+            />
           </Card>
           <ListCard>
             {jobs.map((j, i) => (
@@ -40,3 +47,7 @@ export default function JobsScreen() {
     </ScrollScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  total: { paddingVertical: 6, gap: 0 },
+});
