@@ -71,10 +71,7 @@ export const ar = {
     creator: { title: 'أنا صانع محتوى', body: 'أريد مزيدًا من المتابعين والتعاونات' },
     continue: 'متابعة',
   },
-  tabs: {
-    shop: { today: 'اليوم', inbox: 'الرسائل', camera: 'صوّر', ads: 'الإعلانات', report: 'التقرير' },
-    creator: { today: 'الرئيسية', inbox: 'التعاونات', camera: 'صوّر', ads: 'الأفكار', report: 'النمو' },
-  },
+  tabs: { index: 'الرئيسية', services: 'الخدمات', report: 'التقارير', account: 'حسابي', action: 'إجراء جديد' },
 };
 
 type Widen<T> = T extends string ? string : T extends (...a: infer A) => string ? (...a: A) => string : T extends readonly (infer U)[] ? Widen<U>[] : { [K in keyof T]: Widen<T[K]> };

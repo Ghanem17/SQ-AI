@@ -1,209 +1,159 @@
 import { router } from 'expo-router';
-import { useState, type ComponentType } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import Animated, {
-  interpolate,
-  interpolateColor,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { brand } from '@sq/shared';
+import { brand, radius } from '@sq/shared';
 import { AppText } from '@/components/AppText';
+import { HeroSurface, Monogram } from '@/components/brand';
 import { Button } from '@/components/Button';
 import { PressableScale } from '@/components/PressableScale';
-import { CameraArt, ChatArt, CostArt, PublishArt } from '@/features/onboarding/illustrations';
 import { LangSwitch } from '@/components/ui';
+import { BrandArt } from '@/features/onboarding/art';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
+import { useTheme } from '@/theme/theme';
 
-type Slide = {
-  bg: string;
-  fg: string;
-  muted: string;
-  buttonBg: string;
-  buttonFg: string;
-  Art: ComponentType<{ active: boolean }>;
-};
+const COUNT = 4;
+// The onboarding hero keeps the ocean brand colors in every theme.
+const OCEAN = { from: brand.navyDeep, to: brand.navy, line: 'rgba(244,214,176,0.24)' };
 
-// One calm brand surface for every slide, the same in light and dark mode.
-const deep = { bg: brand.navyDeep, fg: brand.light, muted: brand.lightMuted, buttonBg: brand.orange, buttonFg: brand.navyDeep };
-const slides: Slide[] = [
-  { ...deep, Art: CameraArt },
-  { ...deep, Art: PublishArt },
-  { ...deep, Art: ChatArt },
-  { ...deep, Art: CostArt },
-];
-
-const LAST = slides.length - 1;
-// Plain arrays for the UI thread: worklets cannot call JS callbacks or capture
-// the slide objects, which hold React components.
-const SLIDE_STOPS = slides.map((_, i) => i);
-const SLIDE_COLORS = slides.map((s) => s.bg);
-const SPRING = { damping: 20, stiffness: 160, mass: 0.9 };
-
-function rubberBand(value: number) {
-  'worklet';
-  if (value < 0) return value * 0.3;
-  if (value > LAST) return LAST + (value - LAST) * 0.3;
-  return value;
-}
-
+// Four short slides on a deep brand hero with abstract panels, and an ivory
+// sheet with the copy, a pager and one primary action.
 export default function Onboarding() {
-  const { width } = useWindowDimensions();
+  const { c } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { completeOnboarding } = useSession();
-  const { t, rtl } = useI18n();
-  // Arabic keeps the next slide on the left, English on the right.
-  const sign = rtl ? 1 : -1;
+  const { t, L, rtl } = useI18n();
   const reduceMotion = useReducedMotion();
-  const position = useSharedValue(0);
-  const start = useSharedValue(0);
   const [index, setIndex] = useState(0);
+  const last = index === COUNT - 1;
+  const slide = t.onboarding.slides[index];
+  // Arabic moves forward when dragged to the right.
+  const forwardSign = rtl ? 1 : -1;
 
-  const settle = (target: number) => {
-    position.set(reduceMotion ? withTiming(target, { duration: 0 }) : withSpring(target, SPRING));
-    setIndex(target);
-  };
-
-  // Dragging toward the previous slide's side moves forward.
+  const go = (next: number) => setIndex(Math.max(0, Math.min(COUNT - 1, next)));
+  // Called from the gesture worklet with a direction only, so it never reads
+  // a stale slide index.
+  const step = (dir: number) => setIndex((i) => Math.max(0, Math.min(COUNT - 1, i + dir)));
   const pan = usePanGesture({
-    activeOffsetX: [-12, 12],
+    activeOffsetX: [-14, 14],
     failOffsetY: [-24, 24],
-    onBegin: () => {
-      'worklet';
-      start.value = position.value;
-    },
-    onUpdate: (e) => {
-      'worklet';
-      position.value = rubberBand(start.value + (sign * e.translationX) / width);
-    },
     onDeactivate: (e) => {
       'worklet';
-      const projected = position.value + ((sign * e.velocityX) / width) * 0.25;
-      const target = Math.max(0, Math.min(LAST, Math.round(projected)));
-      position.value = withSpring(target, SPRING);
-      scheduleOnRN(setIndex, target);
+      const dx = e.translationX * forwardSign;
+      if (dx > 40) scheduleOnRN(step, 1);
+      else if (dx < -40) scheduleOnRN(step, -1);
     },
   });
 
-  const finish = () => {
+  const finish = (mode: 'signIn' | 'signUp') => {
     completeOnboarding();
-    router.replace('/auth');
+    router.replace({ pathname: '/auth', params: { mode } });
   };
 
-  const background = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(position.value, SLIDE_STOPS, SLIDE_COLORS),
-  }));
-
-  const slide = slides[index];
+  const heroHeight = Math.max(420, Math.round(height * 0.66));
 
   return (
-    <View style={[styles.root, { direction: rtl ? 'rtl' : 'ltr' }]}>
-      <Animated.View style={[StyleSheet.absoluteFill, background]} />
-      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-        <View style={styles.topBar}>
-          {index < LAST ? (
-            <PressableScale accessibilityRole="button" accessibilityLabel={t.common.skip} onPress={finish} style={styles.skip}>
-              <AppText weight="medium" size={15} color={slide.fg}>
-                {t.common.skip}
+    <GestureDetector gesture={pan}>
+      <View style={[styles.root, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: c.bg }]}>
+        <StatusBar style="light" />
+        <HeroSurface colors={OCEAN} arcs={{ cx: width / 2, cy: heroHeight * 0.54 }} style={[styles.hero, { height: heroHeight, paddingTop: insets.top + 8 }]}>
+          <View style={styles.topBar}>
+            {!last ? (
+              <PressableScale accessibilityRole="button" accessibilityLabel={t.common.skip} onPress={() => finish('signUp')} style={styles.skip}>
+                <AppText weight="medium" size={14} color={brand.lightMuted}>
+                  {t.common.skip}
+                </AppText>
+              </PressableScale>
+            ) : (
+              <View style={styles.skip} />
+            )}
+            <LangSwitch color={brand.ivory} border="rgba(255,255,255,0.12)" background="rgba(255,255,255,0.06)" />
+          </View>
+          <View style={styles.brand}>
+            <Monogram size={52} colors={{ fill: brand.navy, ring: brand.peach }} />
+            <AppText weight="bold" size={20} lineHeight={26} color={brand.ivory} style={styles.wordmark}>
+              SQ AI
+            </AppText>
+            <AppText weight="medium" size={11} lineHeight={16} color={brand.lightMuted}>
+              {L('التسويق الذكي للأعمال', 'Smart marketing for businesses')}
+            </AppText>
+          </View>
+          <View style={styles.art}>
+            <BrandArt width={Math.min(width, 430)} />
+          </View>
+        </HeroSurface>
+
+        <View style={[styles.sheet, { backgroundColor: c.bg, paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.pager}>
+            {Array.from({ length: COUNT }, (_, i) => (
+              <PressableScale
+                key={i}
+                accessibilityRole="button"
+                accessibilityLabel={L(`الشريحة ${i + 1}`, `Slide ${i + 1}`)}
+                accessibilityState={{ selected: i === index }}
+                onPress={() => go(i)}
+                haptic={false}
+                style={styles.dotHit}>
+                <View style={[styles.dot, i === index ? { width: 22, backgroundColor: c.primary } : { width: 8, backgroundColor: c.lineStrong, opacity: 0.5 }]} />
+              </PressableScale>
+            ))}
+            <View style={styles.flex} />
+            <AppText weight="medium" size={11} lineHeight={16} color={c.placeholder} style={styles.count}>
+              {`${index + 1} / ${COUNT}`}
+            </AppText>
+          </View>
+          <Animated.View key={index} entering={reduceMotion ? undefined : FadeIn.duration(240)} style={styles.copy} accessibilityLiveRegion="polite">
+            <AppText variant="h1" accessibilityRole="header">
+              {slide.title}
+            </AppText>
+            <AppText variant="body" color={c.muted}>
+              {slide.body}
+            </AppText>
+          </Animated.View>
+          <Button label={last ? L('ابدأ الآن', 'Get started') : t.common.next} icon="arrow" iconEnd onPress={() => (last ? finish('signUp') : go(index + 1))} />
+          <PressableScale accessibilityRole="button" onPress={() => finish('signIn')} style={styles.signIn} haptic={false}>
+            <AppText variant="body" color={c.muted} center>
+              {L('لديك حساب؟ ', 'Have an account? ')}
+              <AppText variant="body" weight="semibold">
+                {L('سجّل الدخول', 'Sign in')}
               </AppText>
-            </PressableScale>
-          ) : (
-            <View style={styles.skip} />
-          )}
-          <View style={styles.flex} />
-          <LangSwitch color={slide.fg} border={slide.muted} />
+            </AppText>
+          </PressableScale>
         </View>
-
-        <GestureDetector gesture={pan}>
-          <View style={styles.pager} accessibilityRole="adjustable" accessibilityLabel={t.onboarding.slides[index].title}>
-            {slides.map((s, i) => (
-              <SlideView key={i} index={i} slide={s} position={position} width={width * sign} active={i === index} />
-            ))}
-          </View>
-        </GestureDetector>
-
-        <View style={styles.footer}>
-          <View style={styles.dots}>
-            {slides.map((s, i) => (
-              <Dot key={i} index={i} position={position} color={slide.fg} />
-            ))}
-          </View>
-          <Button
-            label={index === LAST ? t.common.start : t.common.next}
-            colors={{ bg: slide.buttonBg, fg: slide.buttonFg }}
-            onPress={() => (index === LAST ? finish() : settle(index + 1))}
-            style={styles.next}
-          />
-        </View>
-      </SafeAreaView>
-    </View>
-  );
-}
-
-function SlideView({
-  index,
-  slide,
-  position,
-  width,
-  active,
-}: {
-  index: number;
-  slide: Slide;
-  position: SharedValue<number>;
-  width: number;
-  active: boolean;
-}) {
-  const copy = useI18n().t.onboarding.slides[index];
-  const page = useAnimatedStyle(() => ({ transform: [{ translateX: (position.value - index) * width }] }));
-  // The illustration lags behind the text for a little depth.
-  const art = useAnimatedStyle(() => ({
-    transform: [{ translateX: (position.value - index) * width * 0.35 }],
-    opacity: interpolate(Math.abs(position.value - index), [0, 0.8], [1, 0], 'clamp'),
-  }));
-
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, styles.slide, page]} importantForAccessibility={active ? 'yes' : 'no-hide-descendants'}>
-      <Animated.View style={art}>
-        <slide.Art active={active} />
-      </Animated.View>
-      <View style={styles.text}>
-        <AppText weight="semibold" size={26} lineHeight={36} color={slide.fg} center>
-          {copy.title}
-        </AppText>
-        <AppText size={15} lineHeight={25} color={slide.muted} center>
-          {copy.body}
-        </AppText>
       </View>
-    </Animated.View>
+    </GestureDetector>
   );
-}
-
-function Dot({ index, position, color }: { index: number; position: SharedValue<number>; color: string }) {
-  const style = useAnimatedStyle(() => {
-    const d = Math.min(1, Math.abs(position.value - index));
-    return { width: 22 - 14 * d, opacity: 1 - 0.6 * d };
-  });
-  return <Animated.View style={[styles.dot, { backgroundColor: color }, style]} />;
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  flex: { flex: 1 },
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 },
+  root: { flex: 1, overflow: 'hidden' },
+  hero: {},
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
   skip: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
-  pager: { flex: 1, overflow: 'hidden' },
-  slide: { justifyContent: 'center', paddingHorizontal: 28, gap: 24 },
-  text: { gap: 10 },
-  footer: { paddingHorizontal: 24, paddingBottom: 12, gap: 22 },
-  dots: { flexDirection: 'row', gap: 6, justifyContent: 'center' },
+  brand: { alignItems: 'center', gap: 10, marginTop: 8 },
+  wordmark: { letterSpacing: 1.5, writingDirection: 'ltr', marginBottom: -8 },
+  art: { position: 'absolute', left: 0, right: 0, bottom: 4, alignItems: 'center' },
+  sheet: {
+    flex: 1,
+    marginTop: -40,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    paddingTop: 22,
+    paddingHorizontal: 24,
+    gap: 18,
+  },
+  pager: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dotHit: { height: 24, justifyContent: 'center' },
   dot: { height: 4, borderRadius: 2 },
-  next: { alignSelf: 'stretch' },
+  flex: { flex: 1 },
+  count: { writingDirection: 'ltr' },
+  copy: { gap: 6, flexGrow: 1 },
+  signIn: { minHeight: 40, justifyContent: 'center' },
 });

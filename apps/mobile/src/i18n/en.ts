@@ -69,8 +69,5 @@ export const en: Strings = {
     creator: { title: 'I am a content creator', body: 'I want more followers and collaborations' },
     continue: 'Continue',
   },
-  tabs: {
-    shop: { today: 'Today', inbox: 'Messages', camera: 'Film', ads: 'Ads', report: 'Report' },
-    creator: { today: 'Home', inbox: 'Collabs', camera: 'Film', ads: 'Ideas', report: 'Growth' },
-  },
+  tabs: { index: 'Home', services: 'Services', report: 'Reports', account: 'Account', action: 'New action' },
 };

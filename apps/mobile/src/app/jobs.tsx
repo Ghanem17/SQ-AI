@@ -1,67 +1,42 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
-import { formatIQD, services, tierNames } from '@sq/shared';
-import { AppText } from '@/components/AppText';
+import { formatIQD } from '@sq/shared';
 import { Button } from '@/components/Button';
-import { Icon } from '@/components/Icon';
-import { Badge, Card, ListRow, ScrollScreen, TopBar } from '@/components/ui';
-import { useI18n } from '@/i18n';
+import { EmptyState, KeyValue, Card, ListCard, ScrollScreen, TopBar } from '@/components/ui';
+import { OrderRow } from '@/features/services/OrderRow';
 import { useServices } from '@/features/services/store';
-import { useTheme } from '@/theme/theme';
+import { useI18n } from '@/i18n';
 
-const statusLabel = {
-  pending: { ar: 'بالانتظار', en: 'Waiting' },
-  running: { ar: 'قيد التنفيذ', en: 'Running' },
-  done: { ar: 'جاهز', en: 'Ready' },
-  failed: { ar: 'متوقف', en: 'Stopped' },
-} as const;
-const statusTone = { pending: 'neutral', running: 'pri', done: 'ok', failed: 'bad' } as const;
-
+// Every service order placed on this device, newest first.
 export default function JobsScreen() {
-  const { c } = useTheme();
-  const { L, pick } = useI18n();
+  const { L } = useI18n();
   const { jobs } = useServices();
+  const total = jobs.reduce((s, j) => s + j.quote.totalIqd, 0);
   return (
     <ScrollScreen
       header={<TopBar title={L('طلبات الخدمات', 'Service orders')} />}
       footer={<Button label={L('طلب جديد', 'New order')} icon="plus" onPress={() => router.push('/order')} />}>
       {jobs.length === 0 ? (
-        <Card style={styles.empty}>
-          <View style={[styles.emptyIcon, { backgroundColor: c.tile }]}>
-            <Icon name="layers" color={c.muted} size={22} />
-          </View>
-          <AppText weight="semibold" size={15} center>
-            {L('لا توجد طلبات بعد', 'No orders yet')}
-          </AppText>
-          <AppText size={13} color={c.muted} center>
-            {L(
-              'اطلب مونتاج فيديو، أو إعلانًا من صورة، أو فيديو من نص، أو نصًا، أو تعليقًا صوتيًا.',
-              'Order a video edit, an ad from a photo, a video from text, copy, or a voice-over.',
-            )}
-          </AppText>
-        </Card>
+        <EmptyState
+          icon="layers"
+          title={L('لا توجد طلبات بعد', 'No orders yet')}
+          body={L(
+            'اطلب مونتاج فيديو، أو إعلانًا من صورة، أو فيديو من نص، أو نصًا، أو تعليقًا صوتيًا.',
+            'Order a video edit, an ad from a photo, a video from text, copy, or a voice-over.',
+          )}
+        />
       ) : (
-        <Card style={styles.list}>
-          {jobs.map((j, i) => (
-            <ListRow
-              key={j.id}
-              icon={j.kind === 'copy' ? 'edit' : j.kind === 'voice' ? 'mic' : j.kind === 'adImage' ? 'camera' : 'video'}
-              title={j.title}
-              subtitle={`${pick(services[j.kind].name)} · ${j.tier ? `${pick(tierNames[j.tier])} · ` : ''}${formatIQD(j.quote.totalIqd)}`}
-              trailing={<Badge label={pick(statusLabel[j.status])} tone={statusTone[j.status]} />}
-              onPress={() => router.push({ pathname: '/job/[id]', params: { id: j.id } })}
-              last={i === jobs.length - 1}
-            />
-          ))}
-        </Card>
+        <>
+          <Card style={{ paddingVertical: 4, gap: 0 }}>
+            <KeyValue icon="receipt" strong label={L(`المجموع (${jobs.length} طلبات)`, `Total (${jobs.length} orders)`)} value={formatIQD(total)} />
+          </Card>
+          <ListCard>
+            {jobs.map((j, i) => (
+              <OrderRow key={j.id} job={j} last={i === jobs.length - 1} />
+            ))}
+          </ListCard>
+        </>
       )}
     </ScrollScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  list: { paddingVertical: 2, gap: 0 },
-  empty: { alignItems: 'center', paddingVertical: 26, gap: 8 },
-  emptyIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-});

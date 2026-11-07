@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 
-import { paletteNames, radius, type AccountType, type PaletteName } from '@sq/shared';
+import { paletteNames, type AccountType, type PaletteName } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Icon, type IconName } from '@/components/Icon';
 import { tapHaptic } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { RadioCard, Segmented, ui } from '@/components/ui';
+import { Monogram } from '@/components/brand';
+import { IconBadge, RadioCard, Segmented, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
@@ -51,7 +52,8 @@ export default function AccountTypeScreen() {
   return (
     <Screen edges={['top', 'bottom']} style={styles.body}>
       <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)} style={styles.head}>
-        <AppText weight="semibold" size={24} lineHeight={34}>
+        <Monogram size={44} />
+        <AppText variant="h1" style={styles.title}>
           {t.title}
         </AppText>
         <AppText size={14} color={c.muted}>
@@ -65,14 +67,12 @@ export default function AccountTypeScreen() {
           return (
             <RadioCard key={o.type} selected={active} onPress={() => select(o.type)} label={`${t[o.type].title}${L('، ', ', ')}${t[o.type].body}`}>
               <View style={styles.cardHead}>
-                <View style={[styles.icon, { backgroundColor: active ? c.primary : c.tile }]}>
-                  <Icon name={o.icon} color={active ? c.onPrimary : c.muted} size={20} />
-                </View>
+                <IconBadge icon={o.icon} tone={active ? 'solid' : 'pri'} size={40} />
                 <View style={ui.flex}>
-                  <AppText weight="semibold" size={16}>
+                  <AppText variant="rowTitle">
                     {t[o.type].title}
                   </AppText>
-                  <AppText size={13} color={c.muted}>
+                  <AppText variant="small" color={c.muted}>
                     {t[o.type].body}
                   </AppText>
                 </View>
@@ -93,7 +93,7 @@ export default function AccountTypeScreen() {
       </View>
 
       <View style={styles.colors}>
-        <AppText weight="medium" size={13} color={c.muted}>
+        <AppText weight="medium" size={12.5} color={c.muted}>
           {L('ألوان التطبيق', 'App colors')}
         </AppText>
         <Segmented<PaletteName>
@@ -108,7 +108,7 @@ export default function AccountTypeScreen() {
           label={t.continue}
           onPress={() => {
             chooseAccountType(selected);
-            router.replace('/(tabs)');
+            router.replace('/');
           }}
         />
       </View>
@@ -119,9 +119,9 @@ export default function AccountTypeScreen() {
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 28, gap: 20 },
   head: { gap: 4 },
+  title: { marginTop: 14 },
   cards: { gap: 10 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  icon: { width: 40, height: 40, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
   points: { gap: 6, marginTop: 12 },
   point: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   colors: { gap: 8 },

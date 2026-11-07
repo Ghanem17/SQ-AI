@@ -1,82 +1,88 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { radius } from '@sq/shared';
 import { AppText } from '@/components/AppText';
+import { ActionSheet } from '@/components/ActionSheet';
 import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
+import { TAB_BAR_HEIGHT } from '@/components/layout';
 import { useI18n } from '@/i18n';
-import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
-export const TAB_BAR_HEIGHT = 58;
+export { TAB_BAR_HEIGHT };
 
-type TabKey = 'index' | 'inbox' | 'camera' | 'ads' | 'report';
+type TabKey = 'index' | 'services' | 'report' | 'account';
 
-const shopIcons: Record<TabKey, IconName> = { index: 'home', inbox: 'chat', camera: 'camera', ads: 'ads', report: 'chart' };
-const creatorIcons: Record<TabKey, IconName> = { index: 'home', inbox: 'handshake', camera: 'camera', ads: 'bulb', report: 'trend' };
-const labelKey: Record<TabKey, 'today' | 'inbox' | 'camera' | 'ads' | 'report'> = {
-  index: 'today',
-  inbox: 'inbox',
-  camera: 'camera',
-  ads: 'ads',
-  report: 'report',
+const icons: Record<TabKey, [IconName, IconName]> = {
+  index: ['home', 'homeFill'],
+  services: ['apps', 'appsFill'],
+  report: ['chart', 'chartFill'],
+  account: ['user', 'userFill'],
 };
 
-// Docked tab bar with a hairline top border. The camera tab is a filled key,
-// since filming is the one action the whole app is built around.
+// A flat bar with a hairline on top. The active tab gets the filled icon and
+// a short accent bar; the centre action opens a small sheet of shortcuts.
 export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
-  const { c } = useTheme();
-  const { accountType } = useSession();
+  const { c, elev } = useTheme();
   const { t, rtl } = useI18n();
-  const creator = accountType === 'creator';
-  const labels = t.tabs[creator ? 'creator' : 'shop'];
-  const icons = creator ? creatorIcons : shopIcons;
+  const [sheet, setSheet] = useState(false);
+  const routes = state.routes.map((route, i) => ({ route, i }));
+  const half = Math.ceil(routes.length / 2);
+
+  const tab = ({ route, i }: (typeof routes)[number]) => {
+    const key = route.name as TabKey;
+    const active = i === state.index;
+    const label = t.tabs[key];
+    const color = active ? c.navActive : c.navText;
+    return (
+      <PressableScale
+        key={route.key}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={label}
+        onPress={() => {
+          if (!active) navigateToTab(route.key);
+        }}
+        pressedScale={0.96}
+        style={styles.item}>
+        {active && <View style={[styles.indicator, { backgroundColor: c.navIndicator }]} />}
+        <Icon name={icons[key][active ? 1 : 0]} color={color} size={22} />
+        <AppText size={11} lineHeight={14} weight={active ? 'semibold' : 'medium'} color={color} numberOfLines={1}>
+          {label}
+        </AppText>
+      </PressableScale>
+    );
+  };
 
   return (
-    <View style={[styles.wrap, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: c.nav, borderTopColor: c.line, paddingBottom: insets.bottom }]}>
+    <View style={[styles.wrap, { direction: rtl ? 'rtl' : 'ltr', backgroundColor: c.nav, borderTopColor: c.line, paddingBottom: Math.max(insets.bottom, 6) }]}>
       <View accessibilityRole="tablist" style={styles.bar}>
-        {state.routes.map((route, i) => {
-          const key = route.name as TabKey;
-          const active = i === state.index;
-          const label = labels[labelKey[key]];
-          const camera = key === 'camera';
-          const color = camera ? c.onPrimary : active ? c.navActive : c.navText;
-          return (
-            <PressableScale
-              key={route.key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={label}
-              onPress={() => {
-                if (!active) navigateToTab(route.key);
-              }}
-              style={styles.item}>
-              {camera ? (
-                <View style={[styles.key, { backgroundColor: c.primary }]}>
-                  <Icon name="camera" color={color} size={20} strokeWidth={1.9} />
-                </View>
-              ) : (
-                <>
-                  <View style={[styles.marker, { backgroundColor: active ? c.navActive : 'transparent' }]} />
-                  <Icon name={icons[key]} color={color} size={21} strokeWidth={active ? 2 : 1.7} />
-                  <AppText size={11} lineHeight={15} weight={active ? 'semibold' : 'regular'} color={color}>
-                    {label}
-                  </AppText>
-                </>
-              )}
-            </PressableScale>
-          );
-        })}
+        {routes.slice(0, half).map(tab)}
+        <View style={styles.fabSlot}>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={t.tabs.action}
+            onPress={() => setSheet(true)}
+            pressedScale={0.94}
+            style={[styles.fab, { backgroundColor: c.fab, borderColor: c.bg }, elev.fab]}>
+            <View style={styles.fabRing} />
+            <Icon name="plus" color={c.onFab} size={24} strokeWidth={2} />
+          </PressableScale>
+        </View>
+        {routes.slice(half).map(tab)}
       </View>
+      <ActionSheet visible={sheet} onClose={() => setSheet(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: StyleSheet.hairlineWidth },
-  bar: { flexDirection: 'row', height: TAB_BAR_HEIGHT, alignItems: 'stretch' },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  marker: { position: 'absolute', top: 0, width: 28, height: 2, borderRadius: 1 },
-  key: { width: 46, height: 38, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
+  wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: 1 },
+  bar: { flexDirection: 'row', height: TAB_BAR_HEIGHT, alignItems: 'flex-start', justifyContent: 'space-around', paddingTop: 10, paddingHorizontal: 8 },
+  item: { width: 64, alignItems: 'center', gap: 4 },
+  indicator: { position: 'absolute', top: -11, width: 22, height: 2, borderRadius: 1 },
+  fabSlot: { width: 64, alignItems: 'center' },
+  fab: { width: 64, height: 64, borderRadius: 32, borderWidth: 5, marginTop: -37, alignItems: 'center', justifyContent: 'center' },
+  fabRing: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 27, borderWidth: 1, borderColor: 'rgba(244,214,176,0.35)' },
 });

@@ -102,7 +102,7 @@ export default function PublishScreen() {
             onChangeText={(caption) => updateDraft({ caption })}
             multiline
             autoFocus
-            style={[styles.input, { color: c.text, borderColor: c.lineStrong, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left', writingDirection: rtl ? 'rtl' : 'ltr' }]}
+            style={[styles.input, { color: c.text, borderColor: c.line, backgroundColor: c.card, textAlign: rtl ? 'right' : 'left', writingDirection: rtl ? 'rtl' : 'ltr' }]}
             placeholderTextColor={c.placeholder}
           />
         ) : draft.caption ? (
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   days: { gap: 6, paddingVertical: 2 },
   day: { width: 70, height: 54, borderRadius: radius.control, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   hours: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  hour: { width: '31.5%', height: 40, borderRadius: radius.control, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
+  hour: { width: '31.5%', height: 40, borderRadius: radius.chip, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 },
   rec: { width: 6, height: 6, borderRadius: 3 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

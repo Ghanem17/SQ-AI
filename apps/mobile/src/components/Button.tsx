@@ -6,33 +6,41 @@ import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { useTheme } from '@/theme/theme';
 
-type Variant = 'primary' | 'secondary' | 'hero' | 'outline' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'hero' | 'outline' | 'ghost' | 'danger';
 
 type Props = {
   label: string;
   onPress: () => void;
   variant?: Variant;
+  // 36-high compact button for rows and empty states.
+  small?: boolean;
   icon?: IconName;
+  // Puts the icon after the label, e.g. a forward arrow.
+  iconEnd?: boolean;
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
   height?: number;
   accessibilityHint?: string;
-  // For surfaces with their own brand colors, such as the onboarding slides.
-  colors?: { bg: string; fg: string };
+  // For surfaces with their own brand colors, such as the hero.
+  colors?: { bg: string; fg: string; border?: string };
 };
 
-export function Button({ label, onPress, variant = 'primary', icon, disabled, loading, style, height = 50, accessibilityHint, colors: custom }: Props) {
+// One control shape: radius 12, flat, no shadow. Pressed buttons dip to 98%.
+export function Button({ label, onPress, variant = 'primary', small, icon, iconEnd, disabled, loading, style, height, accessibilityHint, colors: custom }: Props) {
   const { c } = useTheme();
   const colors: Record<Variant, { bg: string; fg: string; border?: string }> = {
     primary: { bg: c.primary, fg: c.onPrimary },
-    secondary: { bg: c.card, fg: c.text, border: c.line },
+    secondary: { bg: c.card, fg: c.text, border: c.lineStrong },
     hero: { bg: c.heroBtn, fg: c.heroBtnText },
-    outline: { bg: 'transparent', fg: c.primary, border: c.lineStrong },
-    ghost: { bg: 'transparent', fg: c.primary },
+    outline: { bg: 'transparent', fg: c.text, border: c.lineStrong },
+    ghost: { bg: 'transparent', fg: c.text },
+    danger: { bg: 'transparent', fg: c.bad, border: c.line },
   };
-  const { bg, fg, border }: { bg: string; fg: string; border?: string } = custom ?? colors[variant];
+  const { bg, fg, border } = custom ?? colors[variant];
   const inactive = disabled || loading;
+  const h = height ?? (small ? 36 : variant === 'ghost' ? 44 : variant === 'danger' ? 46 : 52);
+  const glyph = loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} color={fg} size={small ? 16 : 18} strokeWidth={1.8} /> : null;
 
   return (
     <PressableScale
@@ -42,17 +50,20 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
       disabled={inactive}
       onPress={onPress}
+      pressedScale={0.98}
       style={[
         styles.base,
-        { height, backgroundColor: bg, opacity: disabled ? 0.4 : 1 },
-        border ? { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: border } : null,
+        small && styles.small,
+        { height: h, backgroundColor: bg, opacity: disabled ? 0.4 : 1 },
+        border ? { borderWidth: 1, borderColor: border } : null,
         style,
       ]}>
       <View style={styles.row}>
-        {loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} color={fg} size={17} strokeWidth={2} /> : null}
-        <AppText weight="semibold" size={15} color={fg}>
+        {!iconEnd && glyph}
+        <AppText weight="semibold" size={small ? 13 : variant === 'danger' ? 14 : 15} lineHeight={20} color={fg} numberOfLines={1}>
           {label}
         </AppText>
+        {iconEnd && glyph}
       </View>
     </PressableScale>
   );
@@ -60,5 +71,6 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, lo
 
 const styles = StyleSheet.create({
   base: { borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  small: { borderRadius: radius.chip, paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react';
-import { Pressable, StyleSheet, TextInput, type TextInputInstance } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { OTP_LENGTH, radius, sanitizeOtp } from '@sq/shared';
@@ -16,11 +16,12 @@ type Props = {
   state: OtpState;
   shakeKey: number;
   inputRef: RefObject<TextInputInstance | null>;
+  autoFocus?: boolean;
 };
 
 // Six boxes over one real text field, so paste, autofill and the system
 // keyboard work normally. Digits read left to right, like the code itself.
-export function OtpInput({ value, onChange, state, shakeKey, inputRef }: Props) {
+export function OtpInput({ value, onChange, state, shakeKey, inputRef, autoFocus = true }: Props) {
   const { c } = useTheme();
   const reduceMotion = useReducedMotion();
   const shake = useSharedValue(0);
@@ -56,11 +57,11 @@ export function OtpInput({ value, onChange, state, shakeKey, inputRef }: Props) 
         textContentType="oneTimeCode"
         autoComplete="sms-otp"
         maxLength={OTP_LENGTH + 40}
-        autoFocus
+        autoFocus={autoFocus}
         editable={state !== 'checking' && state !== 'ok'}
         accessibilityLabel={codeLabel}
         caretHidden
-        style={[StyleSheet.absoluteFill, styles.hidden, { color: c.text }]}
+        style={[styles.overlay, styles.hidden, { color: c.text }]}
       />
     </Pressable>
   );
@@ -79,24 +80,29 @@ function Box({ char, active, state }: { char: string | undefined; active: boolea
 
   const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
 
-  const border = state === 'ok' ? c.ok : state === 'wrong' ? c.bad : active ? c.primary : char ? c.lineStrong : c.line;
+  const border = state === 'ok' ? c.ok : state === 'wrong' ? c.bad : active ? c.primary : c.line;
   const background = state === 'ok' ? c.okSoft : state === 'wrong' ? c.badSoft : c.card;
+  const strong = active || state === 'ok' || state === 'wrong';
 
   return (
-    <Animated.View style={[styles.box, { borderColor: border, backgroundColor: background }, style]}>
+    <Animated.View style={[styles.box, { borderColor: border, borderWidth: strong ? 1.5 : 1, backgroundColor: background }, style]}>
       {state === 'ok' ? (
-        <Icon name="check" color={c.ok} size={20} strokeWidth={3} />
-      ) : (
+        <Icon name="check" color={c.ok} size={20} strokeWidth={2.4} />
+      ) : char ? (
         <AppText weight="semibold" size={22} lineHeight={28} color={state === 'wrong' ? c.bad : c.text}>
-          {char ?? ''}
+          {char}
         </AppText>
-      )}
+      ) : active ? (
+        <View style={[styles.caret, { backgroundColor: c.primary }]} />
+      ) : null}
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8, justifyContent: 'center', direction: 'ltr' },
-  box: { width: 44, height: 52, borderRadius: radius.control, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', gap: 8, direction: 'ltr' },
+  box: { flex: 1, height: 54, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
+  caret: { width: 1.5, height: 22 },
   hidden: { opacity: 0.02 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
 });

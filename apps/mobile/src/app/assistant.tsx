@@ -10,7 +10,7 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, TopBar, ui } from '@/components/ui';
+import { Badge, Card, IconBadge, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { starterShots, type Shot } from '@/features/reel/shots';
@@ -138,7 +138,7 @@ export default function AssistantScreen() {
               ) : (
                 <>
                   {!!e.text && (
-                    <View style={[styles.bubble, styles.ai, { backgroundColor: c.tile }]}>
+                    <View style={[styles.bubble, styles.ai, { backgroundColor: c.card, borderColor: c.line, borderWidth: 1 }]}>
                       <AppText size={14} lineHeight={22}>
                         {e.text}
                       </AppText>
@@ -146,9 +146,12 @@ export default function AssistantScreen() {
                   )}
                   {e.ideas?.map((idea) => (
                     <Card key={idea.title} onPress={() => send(L(`لنصوّر: ${idea.title}. أعطني قائمة اللقطات.`, `Let's film: ${idea.title}. Give me the shot list.`), idea)} accessibilityLabel={idea.title}>
-                      <AppText weight="semibold" size={14.5}>
-                        {idea.title}
-                      </AppText>
+                      <View style={styles.ideaHead}>
+                        <IconBadge icon="bulb" size={34} />
+                        <AppText variant="rowTitle" style={ui.flex}>
+                          {idea.title}
+                        </AppText>
+                      </View>
                       <AppText size={13}>{idea.hook}</AppText>
                       <View style={styles.why}>
                         <Icon name="trend" color={c.ok} size={13} />
@@ -156,22 +159,25 @@ export default function AssistantScreen() {
                           {idea.why}
                         </AppText>
                       </View>
-                      <AppText size={12.5} weight="medium" color={c.primary}>
-                        {L('اختر هذه الفكرة', 'Choose this idea')}
-                      </AppText>
+                      <View style={styles.choose}>
+                        <AppText size={12.5} weight="semibold">
+                          {L('اختر هذه الفكرة', 'Choose this idea')}
+                        </AppText>
+                        <Icon name="chevronLeft" color={c.placeholder} size={14} />
+                      </View>
                     </Card>
                   ))}
                   {e.shots && e.shots.length > 0 && (
                     <Card>
                       {e.idea && (
-                        <AppText weight="semibold" size={14.5}>
+                        <AppText variant="h3">
                           {e.idea.title}
                         </AppText>
                       )}
                       {e.shots.map((s, i) => (
                         <View key={`${s.title}${i}`} style={styles.shot}>
                           <View style={[styles.num, { backgroundColor: c.tile }]}>
-                            <AppText size={12} weight="semibold" color={c.muted}>
+                            <AppText size={12.5} weight="bold" color={c.muted}>
                               {i + 1}
                             </AppText>
                           </View>
@@ -189,10 +195,9 @@ export default function AssistantScreen() {
                       <Button
                         label={L('ابدأ التصوير', 'Start filming')}
                         icon="camera"
-                        height={44}
                         onPress={() => {
                           startDraft(e.idea?.title ?? L('ريل جديد', 'New reel'), e.shots);
-                          router.dismissTo('/(tabs)/camera');
+                          router.dismissTo('/camera');
                         }}
                       />
                     </Card>
@@ -207,7 +212,7 @@ export default function AssistantScreen() {
             </Animated.View>
           ))}
           {busy && (
-            <View style={[styles.bubble, styles.ai, styles.typing, { backgroundColor: c.tile }]}>
+            <View style={[styles.bubble, styles.ai, styles.typing, { backgroundColor: c.card, borderColor: c.line, borderWidth: 1 }]}>
               <AppText size={13} color={c.muted}>
                 {L('يكتب…', 'Typing…')}
               </AppText>
@@ -215,11 +220,11 @@ export default function AssistantScreen() {
           )}
         </ScrollView>
 
-        <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.bg, paddingBottom: insets.bottom + 8 }]}>
+        <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.nav, paddingBottom: insets.bottom + 10 }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prompts} keyboardShouldPersistTaps="handled">
             {prompts.map((p) => (
-              <PressableScale key={p} accessibilityRole="button" disabled={busy} onPress={() => send(p)} style={[styles.prompt, { borderColor: c.line }]}>
-                <AppText size={12.5} color={c.text}>
+              <PressableScale key={p} accessibilityRole="button" disabled={busy} onPress={() => send(p)} style={[styles.prompt, { borderColor: c.line, backgroundColor: c.card }]}>
+                <AppText size={12.5} weight="medium" color={c.muted}>
                   {p}
                 </AppText>
               </PressableScale>
@@ -231,7 +236,7 @@ export default function AssistantScreen() {
               onChangeText={setText}
               placeholder={L('اسأل عن فكرة أو نصيحة تصوير', 'Ask for an idea or a filming tip')}
               placeholderTextColor={c.placeholder}
-              style={[styles.input, { color: c.text, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left' }]}
+              style={[styles.input, { color: c.text, backgroundColor: c.card, borderColor: c.line, textAlign: rtl ? 'right' : 'left' }]}
               onSubmitEditing={() => send(text)}
               returnKeyType="send"
             />
@@ -241,7 +246,7 @@ export default function AssistantScreen() {
               disabled={!text.trim() || busy}
               onPress={() => send(text)}
               style={[styles.send, { backgroundColor: text.trim() ? c.primary : c.tile }]}>
-              <Icon name="send" color={text.trim() ? c.onPrimary : c.placeholder} size={18} />
+              <Icon name="send" color={text.trim() ? c.onPrimary : c.placeholder} size={18} strokeWidth={1.8} />
             </PressableScale>
           </View>
         </View>
@@ -251,19 +256,21 @@ export default function AssistantScreen() {
 }
 
 const styles = StyleSheet.create({
-  thread: { padding: 16, gap: 12 },
+  thread: { padding: 20, gap: 12 },
   block: { gap: 8 },
-  bubble: { maxWidth: '86%', paddingHorizontal: 12, paddingVertical: 9, borderRadius: radius.tile },
+  bubble: { maxWidth: '86%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.tier },
+  ideaHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  choose: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end' },
   me: { alignSelf: 'flex-end', borderBottomEndRadius: 4 },
   ai: { alignSelf: 'flex-start', borderBottomStartRadius: 4 },
   typing: { paddingVertical: 6 },
   why: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   shot: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
-  num: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  composer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, gap: 8 },
-  prompts: { gap: 6, paddingHorizontal: 12 },
-  prompt: { height: 34, paddingHorizontal: 12, borderRadius: radius.control, borderWidth: 1, justifyContent: 'center' },
-  inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
-  input: { flex: 1, height: 44, borderRadius: radius.control, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
-  send: { width: 44, height: 44, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
+  num: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  composer: { borderTopWidth: 1, paddingTop: 10, gap: 8 },
+  prompts: { gap: 8, paddingHorizontal: 16 },
+  prompt: { height: 36, paddingHorizontal: 14, borderRadius: radius.chip, borderWidth: 1, justifyContent: 'center' },
+  inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  input: { flex: 1, height: 46, borderRadius: radius.control, borderWidth: 1, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
+  send: { width: 46, height: 46, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
 });

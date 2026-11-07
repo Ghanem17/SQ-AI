@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { formatIQD, formatUsd, planLines, quote, serviceTiers, serviceToolKeys, serviceTools, tierNames, type ServiceParams, type ServiceToolKey } from '@sq/shared';
+import { font, formatIQD, formatUsd, radius, planLines, quote, serviceTiers, serviceToolKeys, serviceTools, tierNames, type ServiceParams, type ServiceToolKey } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
-import { Badge, Card, Divider, Note, ScrollScreen, SectionTitle, Stepper, TopBar, ui } from '@/components/ui';
+import { Badge, Card, Divider, ListCard, Note, ScrollScreen, SectionTitle, Stepper, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useServices } from '@/features/services/store';
 import { useTheme } from '@/theme/theme';
@@ -43,7 +43,7 @@ export default function PricingScreen() {
       <Card>
         <View style={ui.between}>
           <View style={ui.flex}>
-            <AppText weight="medium" size={14}>
+            <AppText variant="rowTitle">
               {L('هامش الربح', 'Margin')}
             </AppText>
             <AppText size={12} color={c.muted}>
@@ -55,7 +55,7 @@ export default function PricingScreen() {
         <Divider />
         <View style={ui.between}>
           <View style={ui.flex}>
-            <AppText weight="medium" size={14}>
+            <AppText variant="rowTitle">
               {L('سعر الدولار', 'Dollar rate')}
             </AppText>
             <AppText size={12} color={c.muted}>
@@ -67,7 +67,7 @@ export default function PricingScreen() {
         <Divider />
         <View style={ui.between}>
           <View style={ui.flex}>
-            <AppText weight="medium" size={14}>
+            <AppText variant="rowTitle">
               {L('أدنى سعر لأي طلب', 'Minimum order price')}
             </AppText>
             <AppText size={12} color={c.muted}>
@@ -79,20 +79,20 @@ export default function PricingScreen() {
       </Card>
 
       <SectionTitle title={L('أسعار الأدوات', 'Tool prices')} action={liveStatus === 'loading' ? undefined : L('حدّث', 'Refresh')} onAction={refreshLive} />
-      <Card style={styles.list}>
+      <ListCard>
         {serviceToolKeys.map((k, i) => (
           <ToolRow key={k} tool={k} live={live[k]} manual={manual[k]} onSet={(v) => setManual(k, v)} last={i === serviceToolKeys.length - 1} />
         ))}
-      </Card>
+      </ListCard>
       {liveStatus === 'failed' && (
         <Note tone="acc">{L('تعذر جلب الأسعار الحية الآن، والأسعار المعروضة هي آخر أسعار معروفة.', 'Live prices could not load; these are the last known prices.')}</Note>
       )}
 
       <SectionTitle title={L('ما يدفعه العميل في كل مستوى', 'What the customer pays at each level')} />
-      <Card>
+      <ListCard>
         {samples.map((s, i) => (
-          <View key={s.label.en} style={[styles.sample, i < samples.length - 1 && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-            <AppText weight="medium" size={13.5}>
+          <View key={s.label.en} style={[styles.sample, i < samples.length - 1 && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
+            <AppText variant="rowTitle">
               {pick(s.label)}
             </AppText>
             <View style={styles.sampleTiers}>
@@ -115,7 +115,7 @@ export default function PricingScreen() {
             </View>
           </View>
         ))}
-      </Card>
+      </ListCard>
     </ScrollScreen>
   );
 }
@@ -130,10 +130,10 @@ function ToolRow({ tool, live, manual, onSet, last }: { tool: ServiceToolKey; li
   const valid = draft.trim() !== '' && Number.isFinite(parsed) && parsed >= 0;
 
   return (
-    <View style={[styles.tool, !last && { borderBottomColor: c.line, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+    <View style={[styles.tool, !last && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
       <View style={ui.between}>
         <View style={ui.flex}>
-          <AppText weight="medium" size={14}>
+          <AppText weight="semibold" size={14} style={styles.ltrName}>
             {t.name}
             <AppText size={12} color={c.muted}>{` · ${t.vendor}`}</AppText>
           </AppText>
@@ -159,14 +159,14 @@ function ToolRow({ tool, live, manual, onSet, last }: { tool: ServiceToolKey; li
           placeholderTextColor={c.placeholder}
           keyboardType="decimal-pad"
           accessibilityLabel={L(`سعر ${t.name}`, `${t.name} price`)}
-          style={[styles.input, { color: c.text, backgroundColor: c.tile, borderColor: c.line }]}
+          style={[styles.input, { color: c.text, backgroundColor: c.card, borderColor: c.line }]}
         />
-        <Button label={L('احفظ', 'Save')} height={38} disabled={!valid} onPress={() => onSet(parsed)} />
+        <Button label={L('احفظ', 'Save')} small disabled={!valid} onPress={() => onSet(parsed)} />
         {manual !== undefined && (
           <Button
             label={L('الحي', 'Live')}
             variant="ghost"
-            height={38}
+            small
             onPress={() => {
               setDraft('');
               onSet(null);
@@ -179,12 +179,12 @@ function ToolRow({ tool, live, manual, onSet, last }: { tool: ServiceToolKey; li
 }
 
 const styles = StyleSheet.create({
-  list: { paddingVertical: 2, gap: 0 },
-  tool: { paddingVertical: 12, gap: 8 },
+  tool: { paddingVertical: 12, paddingHorizontal: 14, gap: 8 },
+  ltrName: { writingDirection: 'ltr', alignSelf: 'flex-start' },
   price: { alignItems: 'flex-end', gap: 4 },
-  sample: { paddingVertical: 10, gap: 8 },
+  sample: { paddingVertical: 12, paddingHorizontal: 14, gap: 8 },
   sampleTiers: { flexDirection: 'row', gap: 6 },
-  sampleTier: { flex: 1, borderRadius: 10, padding: 8, gap: 1 },
+  sampleTier: { flex: 1, borderRadius: radius.chip, padding: 8, gap: 1 },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  input: { flex: 1, height: 38, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, fontFamily: 'ReadexPro_400Regular', fontSize: 13.5, textAlign: 'left', writingDirection: 'ltr' },
+  input: { flex: 1, height: 36, borderRadius: radius.chip, borderWidth: 1, paddingHorizontal: 12, fontFamily: font.regular, fontSize: 13.5, textAlign: 'left', writingDirection: 'ltr' },
 });

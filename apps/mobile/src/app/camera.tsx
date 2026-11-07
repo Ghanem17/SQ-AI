@@ -5,7 +5,7 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
-import { Appear, Badge, Card, Note, PageTitle, Progress, ScrollScreen, SectionTitle, ui } from '@/components/ui';
+import { Appear, Badge, Card, ListCard, ListRow, Note, Progress, ScrollScreen, SectionTitle, TopBar } from '@/components/ui';
 import { starterShots } from '@/features/reel/shots';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
@@ -14,7 +14,7 @@ import { useTheme } from '@/theme/theme';
 
 // The shooting plan for the current reel. Each shot opens the guided camera;
 // once every shot is in, the reel moves on to quality and price.
-export default function CameraTab() {
+export default function CameraScreen() {
   const { c } = useTheme();
   const { L, lang } = useI18n();
   const { draft, updateDraft, startDraft } = useStudio();
@@ -29,61 +29,61 @@ export default function CameraTab() {
 
   if (!draft.active) {
     return (
-      <ScrollScreen inTabs>
-        <PageTitle title={L('التصوير', 'Filming')} subtitle={L('ابدأ ريلًا جديدًا', 'Start a new reel')} />
-        <Card style={styles.start}>
-          <View style={[styles.startIcon, { backgroundColor: c.priSoft }]}>
-            <Icon name="sparkle" color={c.onPriSoft} size={20} />
-          </View>
-          <AppText weight="semibold" size={16}>
-            {L('ليست لديك فكرة؟', 'No idea yet?')}
+      <ScrollScreen header={<TopBar title={L('صوّر ريلًا', 'Shoot a reel')} />}>
+        <View style={styles.intro}>
+          <AppText variant="h1">{L('ابدأ ريلًا جديدًا', 'Start a new reel')}</AppText>
+          <AppText variant="small" color={c.muted}>
+            {L('اختر فكرة من المساعد أو ابدأ بلقطات أساسية، وسترشدك الكاميرا لقطةً بلقطة.', 'Pick an idea from the assistant or start with basic shots; the camera guides you shot by shot.')}
           </AppText>
-          <AppText size={13} color={c.muted} lineHeight={20}>
-            {creator
-              ? L('يقترح المساعد ثلاث أفكار تناسب محتواك، فتختار إحداها لتصبح قائمة لقطات جاهزة.', 'The assistant suggests three ideas for your content; pick one and it becomes a ready shot list.')
-              : L('يقترح المساعد ثلاث أفكار تناسب نشاطك، فتختار إحداها لتصبح قائمة لقطات جاهزة.', 'The assistant suggests three ideas for your business; pick one and it becomes a ready shot list.')}
-          </AppText>
-          <Button label={L('اقترح فكرة', 'Suggest an idea')} icon="sparkle" onPress={() => router.push('/assistant')} />
-        </Card>
-        <Card style={styles.start}>
-          <View style={[styles.startIcon, { backgroundColor: c.tile }]}>
-            <Icon name="camera" color={c.text} size={20} />
-          </View>
-          <AppText weight="semibold" size={16}>
-            {L('لديك فكرة جاهزة؟', 'Already have an idea?')}
-          </AppText>
-          <AppText size={13} color={c.muted} lineHeight={20}>
-            {L(
-              `ابدأ بثلاث لقطات أساسية (${starters.map((s) => s.title).join('، ')}) وسترشدك الكاميرا.`,
-              `Start with three basic shots (${starters.map((s) => s.title).join(', ')}) and the camera guides you.`,
-            )}
-          </AppText>
-          <Button
-            label={L('ابدأ التصوير', 'Start filming')}
-            icon="camera"
-            variant="secondary"
-            onPress={() => startDraft(creator ? L('فيديو جديد', 'New video') : L('ريل جديد', 'New reel'), starters)}
+        </View>
+        <ListCard>
+          <ListRow
+            icon="sparkle"
+            iconTone="solid"
+            title={L('اقترح فكرة', 'Suggest an idea')}
+            subtitle={
+              creator
+                ? L('ثلاث أفكار تناسب محتواك، تصبح إحداها قائمة لقطات جاهزة', 'Three ideas for your content; one becomes a ready shot list')
+                : L('ثلاث أفكار تناسب نشاطك، تصبح إحداها قائمة لقطات جاهزة', 'Three ideas for your business; one becomes a ready shot list')
+            }
+            subtitleLines={2}
+            onPress={() => router.push('/assistant')}
           />
-        </Card>
+          <ListRow
+            icon="camera"
+            title={L('لديك فكرة جاهزة؟', 'Already have an idea?')}
+            subtitle={L(`ابدأ بثلاث لقطات: ${starters.map((s) => s.title).join('، ')}`, `Start with three shots: ${starters.map((s) => s.title).join(', ')}`)}
+            subtitleLines={2}
+            onPress={() => startDraft(creator ? L('فيديو جديد', 'New video') : L('ريل جديد', 'New reel'), starters)}
+            last
+          />
+        </ListCard>
+        <Note icon="sun">
+          {L('صوّر قرب ضوء طبيعي وثبّت الهاتف بكلتا يديك، والإطار عمودي 9:16.', 'Film near natural light, hold the phone with both hands, and keep it vertical 9:16.')}
+        </Note>
       </ScrollScreen>
     );
   }
 
   return (
-    <ScrollScreen inTabs>
-      <PageTitle title={L('التصوير', 'Filming')} subtitle={draft.title} />
-
+    <ScrollScreen
+      header={<TopBar title={draft.title} subtitle={L('قائمة اللقطات', 'Shot list')} />}
+      footer={
+        <>
+          {complete ? (
+            <Button label={L('التالي: اختر جودة الريل', 'Next: choose reel quality')} icon="arrow" iconEnd onPress={() => router.push('/reel/quality')} />
+          ) : (
+            <Button label={L(`صوّر اللقطة ${next + 1}`, `Film shot ${next + 1}`)} icon="camera" onPress={() => router.push({ pathname: '/capture', params: { shot: String(next) } })} />
+          )}
+        </>
+      }>
       <Card>
-        <View style={ui.between}>
-          <AppText weight="medium" size={13.5}>
-            {L('تقدّم التصوير', 'Progress')}
-          </AppText>
-          <AppText size={13} color={c.muted} style={ui.tabular}>
-            {L(`${done} من ${total} لقطات`, `${done} of ${total} shots`)}
-          </AppText>
+        <View style={styles.between}>
+          <AppText variant="h3">{L('تقدّم التصوير', 'Progress')}</AppText>
+          <Badge label={L(`${done} من ${total}`, `${done} of ${total}`)} tone={complete ? 'ok' : 'warn'} />
         </View>
         <Progress value={done / total} />
-        <AppText size={12.5} color={c.muted}>
+        <AppText variant="small" color={c.muted}>
           {L(
             `المدة المتوقعة للريل ${shots.reduce((a, x) => a + x.seconds, 0)} ثانية · الإطار عمودي 9:16`,
             `Expected length ${shots.reduce((a, x) => a + x.seconds, 0)} seconds · vertical 9:16`,
@@ -91,43 +91,48 @@ export default function CameraTab() {
         </AppText>
       </Card>
 
-      <SectionTitle title={L('قائمة اللقطات', 'Shot list')} />
-      {shots.map((shot, i) => {
-        const captured = draft.captured.includes(i);
-        const isNext = i === next;
-        return (
-          <Appear key={shot.title} order={i}>
-            <Card
-              onPress={() => router.push({ pathname: '/capture', params: { shot: String(i) } })}
-              accessibilityLabel={L(`اللقطة ${i + 1}: ${shot.title}`, `Shot ${i + 1}: ${shot.title}`)}
-              style={[styles.shot, isNext && { borderColor: c.primary }]}>
-              <View style={[styles.num, { backgroundColor: captured ? c.okSoft : isNext ? c.primary : c.tile }]}>
-                {captured ? (
-                  <Icon name="check" color={c.ok} size={16} strokeWidth={2.4} />
-                ) : (
-                  <AppText weight="semibold" size={14} color={isNext ? c.onPrimary : c.muted}>
-                    {i + 1}
-                  </AppText>
-                )}
-              </View>
-              <View style={[ui.flex, styles.shotText]}>
-                <AppText weight="semibold" size={14.5}>
-                  {shot.title}
-                </AppText>
-                <AppText size={12.5} color={c.muted}>
-                  {shot.hint}
-                </AppText>
-                <View style={styles.meta}>
-                  <Badge label={shot.angle} />
-                  <Badge label={L(`${shot.seconds} ث`, `${shot.seconds}s`)} icon="clock" />
-                  {captured && <Badge label={L('تم', 'Done')} tone="ok" />}
+      <SectionTitle title={L('اللقطات', 'Shots')} />
+      <Appear>
+        <ListCard>
+          {shots.map((shot, i) => {
+            const captured = draft.captured.includes(i);
+            const isNext = i === next;
+            return (
+              <PressableScale
+                key={`${shot.title}${i}`}
+                accessibilityRole="button"
+                accessibilityLabel={L(`اللقطة ${i + 1}: ${shot.title}`, `Shot ${i + 1}: ${shot.title}`)}
+                onPress={() => router.push({ pathname: '/capture', params: { shot: String(i) } })}
+                pressedScale={1}
+                style={[styles.shot, i < shots.length - 1 && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
+                <View style={[styles.num, { backgroundColor: captured ? c.okSoft : isNext ? c.primary : c.tile }]}>
+                  {captured ? (
+                    <Icon name="check" color={c.ok} size={16} strokeWidth={2.2} />
+                  ) : (
+                    <AppText weight="bold" size={12.5} lineHeight={18} color={isNext ? c.onPrimary : c.muted}>
+                      {i + 1}
+                    </AppText>
+                  )}
                 </View>
-              </View>
-              <Icon name={captured ? 'refresh' : 'camera'} color={c.muted} size={18} />
-            </Card>
-          </Appear>
-        );
-      })}
+                <View style={styles.shotText}>
+                  <AppText variant="rowTitle" color={captured ? c.muted : c.text}>
+                    {shot.title}
+                  </AppText>
+                  <AppText variant="small" color={c.muted}>
+                    {shot.hint}
+                  </AppText>
+                  <View style={styles.meta}>
+                    <Badge label={shot.angle} small />
+                    <Badge label={L(`${shot.seconds} ث`, `${shot.seconds}s`)} icon="clock" small />
+                    {captured && <Badge label={L('تم', 'Done')} tone="ok" small />}
+                  </View>
+                </View>
+                <Icon name={captured ? 'refresh' : 'camera'} color={c.placeholder} size={18} />
+              </PressableScale>
+            );
+          })}
+        </ListCard>
+      </Appear>
 
       <Note icon="sun">
         {L(
@@ -136,42 +141,22 @@ export default function CameraTab() {
         )}
       </Note>
 
-      <View style={styles.actions}>
-        {complete ? (
-          <Button label={L('التالي: اختر جودة الريل', 'Next: choose reel quality')} icon="layers" onPress={() => router.push('/reel/quality')} />
-        ) : (
-          <Button
-            label={L(`صوّر اللقطة ${next + 1}`, `Film shot ${next + 1}`)}
-            icon="camera"
-            onPress={() => router.push({ pathname: '/capture', params: { shot: String(next) } })}
-          />
-        )}
+      <View style={styles.links}>
         {!complete && done > 0 && (
-          <PressableScale accessibilityRole="button" onPress={() => router.push('/reel/quality')} style={styles.link}>
-            <AppText size={13.5} weight="medium" color={c.primary}>
-              {L('تخطَّ الباقي وأكمل بما صوّرته', 'Skip the rest and continue with what you filmed')}
-            </AppText>
-          </PressableScale>
+          <Button variant="ghost" label={L('تخطَّ الباقي وأكمل بما صوّرته', 'Skip the rest and continue with what you filmed')} onPress={() => router.push('/reel/quality')} />
         )}
-        {done > 0 && (
-          <PressableScale accessibilityRole="button" onPress={() => updateDraft({ captured: [] })} style={styles.link}>
-            <AppText size={13} color={c.muted}>
-              {L('أعد جميع اللقطات', 'Redo all shots')}
-            </AppText>
-          </PressableScale>
-        )}
+        {done > 0 && <Button variant="ghost" label={L('أعد جميع اللقطات', 'Redo all shots')} icon="refresh" colors={{ bg: 'transparent', fg: c.muted }} onPress={() => updateDraft({ captured: [] })} />}
       </View>
     </ScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  start: { gap: 8 },
-  startIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  shot: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  num: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  shotText: { gap: 4 },
-  meta: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  actions: { gap: 4, marginTop: 6 },
-  link: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  intro: { gap: 4, paddingTop: 4 },
+  between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  shot: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  num: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  shotText: { flex: 1, gap: 2 },
+  meta: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  links: { gap: 0 },
 });

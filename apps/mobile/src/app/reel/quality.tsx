@@ -24,20 +24,20 @@ export default function QualityScreen() {
       footer={
         <>
           <View style={ui.between}>
-            <AppText size={13} color={c.muted}>
+            <AppText size={11} lineHeight={16} color={c.muted} style={ui.flex}>
               {L(
                 `${tiers[draft.tier].name.ar} · جاهز خلال ${tiers[draft.tier].deliveryHours} ساعات`,
                 `${tiers[draft.tier].name.en} · ready in ${tiers[draft.tier].deliveryHours} hours`,
               )}
             </AppText>
-            <AppText weight="semibold" size={17} style={ui.tabular}>
+            <AppText weight="bold" size={20} lineHeight={28}>
               {formatIQD(reelPrice(draft.tier))}
             </AppText>
           </View>
           <Button label={L('التالي: النشر', 'Next: posting')} onPress={() => router.push('/reel/publish')} />
         </>
       }>
-      <AppText size={13.5} color={c.muted} lineHeight={21}>
+      <AppText variant="small" color={c.muted} lineHeight={20}>
         {L(
           'اختر مستوى المونتاج. السعر هو تكلفة أدوات الذكاء الاصطناعي المستخدمة فعلًا مضافًا إليها رسوم الخدمة، ويمكنك رؤية التفاصيل لكل مستوى.',
           'Choose the editing level. The price is the cost of the AI tools actually used plus the service fee; see the details for each level.',
@@ -69,16 +69,16 @@ function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onS
       <View style={styles.head}>
         <View style={ui.flex}>
           <View style={styles.titleRow}>
-            <AppText weight="semibold" size={16}>
+            <AppText variant="rowTitle">
               {pick(tier.name)}
             </AppText>
-            {id === 'pro' && <Badge label={L('الأكثر طلبًا', 'Most popular')} tone="acc" />}
+            {id === 'pro' && <Badge small label={L('موصى به', 'Recommended')} tone="acc" />}
           </View>
-          <AppText size={12.5} color={c.muted}>
+          <AppText variant="small" color={c.muted}>
             {pick(tier.summary)}
           </AppText>
         </View>
-        <AppText weight="semibold" size={16} style={ui.tabular}>
+        <AppText weight="bold" size={15} lineHeight={22}>
           {formatIQD(reelPrice(id))}
         </AppText>
       </View>
@@ -89,7 +89,7 @@ function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onS
         <Spec icon="layers" label={L(`${tier.items.length} مراحل`, `${tier.items.length} steps`)} />
       </View>
 
-      <AppText size={12} color={c.placeholder} numberOfLines={2}>
+      <AppText weight="medium" size={11} lineHeight={16} color={c.placeholder} numberOfLines={2} style={styles.models}>
         {usedTools.join(' · ')}
       </AppText>
 
@@ -98,10 +98,11 @@ function TierCard({ id, selected, onSelect }: { id: Tier; selected: boolean; onS
         accessibilityLabel={L(`لماذا هذا السعر؟ ${tier.name.ar}`, `Why this price? ${tier.name.en}`)}
         onPress={() => router.push({ pathname: '/reel/receipt', params: { tier: id } })}
         style={styles.why}>
-        <Icon name="receipt" color={c.primary} size={16} />
-        <AppText weight="medium" size={13} color={c.primary}>
+        <Icon name="receipt" color={c.muted} size={16} />
+        <AppText weight="semibold" size={12.5}>
           {L('لماذا هذا السعر؟', 'Why this price?')}
         </AppText>
+        <Icon name="chevronLeft" color={c.placeholder} size={14} />
       </PressableScale>
     </RadioCard>
   );
@@ -123,6 +124,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   specs: { flexDirection: 'row', gap: 14, flexWrap: 'wrap', marginTop: 10 },
+  models: { marginTop: 8, writingDirection: 'ltr' },
   spec: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   why: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 40, marginTop: 2 },
 });

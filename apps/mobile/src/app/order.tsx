@@ -5,12 +5,13 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  font,
   formatIQD,
-  formatUsd,
   radius,
   serviceTiers,
   serviceTools,
   services,
+  tierModel,
   tierNames,
   tierQuality,
   type Quote,
@@ -23,10 +24,11 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, Divider, KeyValue, Note, TopBar, ui } from '@/components/ui';
+import { Badge, Card, Divider, Footer, GUTTER, IconBadge, IconButton, ModelChip, Note, RadioCard, SectionTitle, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { pickMedia, type PickedMedia } from '@/features/services/media';
+import { serviceIcons } from '@/features/services/OrderRow';
 import { useServices } from '@/features/services/store';
 import { useTheme } from '@/theme/theme';
 
@@ -47,8 +49,29 @@ const openers: Record<ServiceKind, { ar: string; en: string }> = {
   voice: { ar: 'أريد تعليقًا صوتيًا لنص', en: 'I want a voice-over for a text' },
 };
 
+// The brief the assistant understood, in the customer's words where possible.
+function brief(params: ServiceParams, L: (a: string, e: string) => string): string {
+  switch (params.kind) {
+    case 'textVideo':
+    case 'adImage':
+      return params.prompt;
+    case 'voice':
+      return params.text;
+    case 'copy':
+      return params.details ? `${params.topic}. ${params.details}` : params.topic;
+    case 'editVideo': {
+      const parts = [
+        params.trimStart !== null || params.trimEnd !== null ? L('قص الفيديو', 'Trim the video') : null,
+        params.captions ? L('كتابة الكلام على الفيديو', 'Add captions') : null,
+        params.music ? L(`موسيقى: ${params.music}`, `Music: ${params.music}`) : null,
+      ].filter(Boolean);
+      return parts.length ? parts.join(' · ') : L('مونتاج الفيديو المرفق', 'Edit the attached video');
+    }
+  }
+}
+
 // The order desk: the customer explains what they want, attaches their own
-// video or photo if the service needs one, picks a level, and sees every
+// video or photo if the service needs one, then picks a level and sees every
 // model, its cost and the total before anything runs.
 export default function OrderScreen() {
   const { c } = useTheme();
@@ -75,16 +98,20 @@ export default function OrderScreen() {
   const [attachOpen, setAttachOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
+  // The quote opens on its own page once the assistant has a plan.
+  const [view, setView] = useState<'chat' | 'quote'>('chat');
   const [tier, setTier] = useState<ServiceTier>('mid');
+  const [showLevels, setShowLevels] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const nextId = useRef(1);
   const input = useRef<TextInputInstance>(null);
 
   useEffect(() => {
+    if (view !== 'chat') return;
     const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: !reduceMotion }), 60);
     return () => clearTimeout(t);
-  }, [turns, plan, busy, reduceMotion]);
+  }, [turns, plan, busy, reduceMotion, view]);
 
   const attach = async (kind: 'video' | 'image') => {
     setAttachOpen(false);
@@ -125,7 +152,10 @@ export default function OrderScreen() {
         90000,
       );
       setTurns((t) => [...t, { id: nextId.current++, from: 'ai', text: r.reply }]);
-      if (r.ready && r.params) setPlan({ title: r.title || pick(services[r.params.kind].name), params: r.params });
+      if (r.ready && r.params) {
+        setPlan({ title: r.title || pick(services[r.params.kind].name), params: r.params });
+        setView('quote');
+      }
     } catch (err) {
       setNote(aiErrorText(err, lang));
     } finally {
@@ -160,6 +190,145 @@ export default function OrderScreen() {
     router.replace({ pathname: '/job/[id]', params: { id } });
   };
 
+  const editRequest = (openAttach = false) => {
+    setView('chat');
+    if (openAttach) setAttachOpen(true);
+    setTimeout(() => input.current?.focus(), 120);
+  };
+
+  if (view === 'quote' && plan && q && quotes) {
+    const kind = plan.params.kind;
+    return (
+      <Screen edges={['top']}>
+        <TopBar
+          title={pick(services[kind].name)}
+          onBack={() => setView('chat')}
+          right={<IconButton icon="info" label={L('ما الفرق بين المستويات؟', 'How do the levels differ?')} onPress={() => setShowLevels((s) => !s)} />}
+        />
+        <ScrollView contentContainerStyle={styles.quote} showsVerticalScrollIndicator={false}>
+          <Card style={styles.request}>
+            <IconBadge icon={serviceIcons[kind]} tone="solid" size={36} />
+            <View style={ui.flex}>
+              <AppText variant="caption" color={c.muted}>
+                {L('طلبك', 'Your request')}
+              </AppText>
+              <AppText weight="semibold" size={13.5} lineHeight={20}>
+                {plan.title}
+              </AppText>
+              <AppText size={13} lineHeight={20} color={c.muted} numberOfLines={3}>
+                {brief(plan.params, L)}
+              </AppText>
+              {orderMedia && (
+                <View style={styles.mediaRow}>
+                  <Badge
+                    tone="pri"
+                    icon={orderMedia.kind === 'video' ? 'video' : 'image'}
+                    label={orderMedia.kind === 'video' ? L(`فيديو · ${Math.round(orderMedia.seconds)} ث`, `Video · ${Math.round(orderMedia.seconds)}s`) : L('صورة مرفقة', 'Photo attached')}
+                  />
+                </View>
+              )}
+            </View>
+            <PressableScale accessibilityRole="button" accessibilityLabel={L('عدّل الطلب', 'Edit the request')} onPress={() => editRequest()} style={styles.edit}>
+              <Icon name="edit" color={c.muted} size={16} />
+            </PressableScale>
+          </Card>
+
+          <SectionTitle title={L('اختر المستوى', 'Choose a level')} action={L('ما الفرق؟', 'What’s the difference?')} onAction={() => setShowLevels((s) => !s)} />
+          {showLevels && (
+            <Note tone="info" icon="layers">
+              {L(
+                'يختلف كل مستوى في نماذج الذكاء الاصطناعي المستخدمة، فتختلف الجودة والسعر. ترى أدناه كل نموذج وتكلفته.',
+                'Each level uses different AI models, so quality and price differ. Every model and its cost is listed below.',
+              )}
+            </Note>
+          )}
+          <View accessibilityRole="radiogroup" style={styles.tiers}>
+            {serviceTiers.map((tr) => (
+              <RadioCard key={tr} selected={tr === tier} onPress={() => setTier(tr)} label={`${pick(tierNames[tr])}، ${tierModel(kind, tr)}، ${formatIQD(quotes[tr].totalIqd)}`}>
+                <View style={styles.tierHead}>
+                  <View style={styles.tierName}>
+                    <AppText variant="rowTitle">{pick(tierNames[tr])}</AppText>
+                    <ModelChip label={tierModel(kind, tr)} />
+                    {tr === 'mid' && <Badge small tone="acc" label={L('موصى به', 'Recommended')} />}
+                  </View>
+                  <AppText weight="bold" size={15} lineHeight={22}>
+                    {formatIQD(quotes[tr].totalIqd)}
+                  </AppText>
+                </View>
+                <AppText variant="small" color={c.muted} style={styles.tierQuality}>
+                  {pick(tierQuality[kind][tr])}
+                </AppText>
+              </RadioCard>
+            ))}
+          </View>
+
+          <SectionTitle title={L('لماذا هذا السعر؟', 'Why this price?')} icon="cpu" action={L(`${q.lines.length} أدوات`, `${q.lines.length} tools`)} />
+          <Card style={styles.lines}>
+            {q.lines.map((l, i) => (
+              <View key={`${l.tool}${i}`} style={styles.line}>
+                <View style={ui.flex}>
+                  <AppText weight="semibold" size={13} lineHeight={19} style={styles.ltrStart}>
+                    {serviceTools[l.tool].name}
+                  </AppText>
+                  <AppText size={11} lineHeight={16} color={c.muted}>
+                    {pick(l.task)}
+                  </AppText>
+                </View>
+                <AppText size={12.5} lineHeight={18} weight="semibold">
+                  {formatIQD(l.costIqd)}
+                </AppText>
+              </View>
+            ))}
+            <Divider dashed style={styles.dash} />
+            <View style={styles.fee}>
+              <View style={ui.flex}>
+                <AppText variant="small" color={c.muted}>
+                  {L('رسوم الخدمة', 'Service fee')}
+                </AppText>
+                <AppText size={11} lineHeight={16} color={c.placeholder}>
+                  {L('التجهيز والمراجعة والتخزين والدعم', 'Setup, review, storage and support')}
+                </AppText>
+              </View>
+              <AppText size={12.5} lineHeight={18} weight="semibold">
+                {formatIQD(q.feeIqd)}
+              </AppText>
+            </View>
+          </Card>
+
+          {missingMedia && (
+            <>
+              <Note tone="acc" icon="alert">
+                {needs === 'video'
+                  ? L('أرفق الفيديو الذي تريد مونتاجه قبل التأكيد.', 'Attach the video to edit before confirming.')
+                  : L('أرفق صورة المنتج قبل التأكيد.', 'Attach the product photo before confirming.')}
+              </Note>
+              <Button
+                variant="secondary"
+                icon={needs === 'video' ? 'video' : 'image'}
+                label={needs === 'video' ? L('أرفق الفيديو', 'Attach the video') : L('أرفق الصورة', 'Attach the photo')}
+                onPress={() => editRequest(true)}
+              />
+            </>
+          )}
+          <AppText size={11.5} lineHeight={17} color={c.placeholder} center>
+            {L('نسخة تجريبية: يُفعَّل الدفع مع الخادم، ويُنفَّذ الطلب حاليًا على حساب صاحب التطبيق.', "Test build: payment arrives with the server; orders now run on the app owner's account.")}
+          </AppText>
+        </ScrollView>
+        <Footer style={styles.totalBar}>
+          <View>
+            <AppText size={11} lineHeight={16} color={c.muted}>
+              {L(`الإجمالي · مستوى ${pick(tierNames[tier])}`, `Total · ${pick(tierNames[tier])} level`)}
+            </AppText>
+            <AppText weight="bold" size={20} lineHeight={28}>
+              {formatIQD(q.totalIqd)}
+            </AppText>
+          </View>
+          <Button label={L('تأكيد الطلب', 'Confirm order')} style={ui.flex} disabled={missingMedia} onPress={approve} />
+        </Footer>
+      </Screen>
+    );
+  }
+
   return (
     <Screen edges={['top']}>
       <TopBar
@@ -182,13 +351,17 @@ export default function OrderScreen() {
             <Animated.View key={t.id} entering={reduceMotion ? undefined : FadeIn.duration(200)} style={[styles.msg, t.from === 'me' ? styles.mine : styles.theirs]}>
               {t.media && (
                 <View style={[styles.attachment, { backgroundColor: c.priSoft }]}>
-                  <Icon name={t.media.kind === 'video' ? 'video' : 'camera'} color={c.onPriSoft} size={15} />
+                  <Icon name={t.media.kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
                   <AppText size={12} color={c.onPriSoft} numberOfLines={1} style={ui.flex}>
                     {t.media.kind === 'video' ? L(`فيديو · ${Math.round(t.media.seconds)} ث`, `Video · ${Math.round(t.media.seconds)}s`) : L('صورة', 'Photo')}
                   </AppText>
                 </View>
               )}
-              <View style={[styles.bubble, t.from === 'me' ? { backgroundColor: c.primary, borderBottomEndRadius: 4 } : { backgroundColor: c.tile, borderBottomStartRadius: 4 }]}>
+              <View
+                style={[
+                  styles.bubble,
+                  t.from === 'me' ? { backgroundColor: c.primary, borderBottomEndRadius: 4 } : { backgroundColor: c.card, borderColor: c.line, borderWidth: 1, borderBottomStartRadius: 4 },
+                ]}>
                 <AppText size={14} lineHeight={22} color={t.from === 'me' ? c.onPrimary : c.text}>
                   {t.text}
                 </AppText>
@@ -196,131 +369,23 @@ export default function OrderScreen() {
             </Animated.View>
           ))}
           {busy && (
-            <View style={[styles.bubble, styles.theirs, { backgroundColor: c.tile }]}>
+            <View style={[styles.bubble, styles.theirs, { backgroundColor: c.card, borderColor: c.line, borderWidth: 1 }]}>
               <AppText size={13} color={c.muted}>
                 {L('يدرس طلبك…', 'Reading your request…')}
               </AppText>
             </View>
           )}
-
-          {plan && q && quotes && (
-            <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)}>
-              <Card>
-                <View style={ui.between}>
-                  <View style={ui.flex}>
-                    <AppText size={12} color={c.muted}>
-                      {pick(services[plan.params.kind].name)}
-                    </AppText>
-                    <AppText weight="semibold" size={16}>
-                      {plan.title}
-                    </AppText>
-                  </View>
-                  <Badge label={L('عرض سعر', 'Quote')} tone="pri" icon="receipt" />
-                </View>
-                <Divider />
-
-                <AppText weight="medium" size={13} color={c.muted}>
-                  {L('اختر المستوى', 'Choose a level')}
+          {plan && q && (
+            <Card onPress={() => setView('quote')} accessibilityLabel={L('اعرض عرض السعر', 'Open the quote')} style={styles.quoteLink}>
+              <IconBadge icon="receipt" tone="solid" size={40} />
+              <View style={ui.flex}>
+                <AppText variant="rowTitle">{plan.title}</AppText>
+                <AppText variant="small" color={c.muted}>
+                  {L(`عرض السعر جاهز · من ${formatIQD(quotes?.low.totalIqd ?? q.totalIqd)}`, `Quote ready · from ${formatIQD(quotes?.low.totalIqd ?? q.totalIqd)}`)}
                 </AppText>
-                <View accessibilityRole="radiogroup" style={styles.tiers}>
-                  {serviceTiers.map((tr) => {
-                    const active = tr === tier;
-                    return (
-                      <PressableScale
-                        key={tr}
-                        accessibilityRole="radio"
-                        accessibilityState={{ checked: active }}
-                        accessibilityLabel={`${pick(tierNames[tr])}، ${formatIQD(quotes[tr].totalIqd)}`}
-                        onPress={() => setTier(tr)}
-                        style={[styles.tier, { backgroundColor: active ? c.priSoft : c.tile, borderColor: active ? c.primary : c.line, borderWidth: active ? 1.5 : 1 }]}>
-                        <AppText weight="semibold" size={13.5} color={active ? c.onPriSoft : c.text} center>
-                          {pick(tierNames[tr])}
-                        </AppText>
-                        <AppText size={12.5} weight="medium" color={active ? c.onPriSoft : c.muted} style={ui.tabular} center>
-                          {formatIQD(quotes[tr].totalIqd)}
-                        </AppText>
-                      </PressableScale>
-                    );
-                  })}
-                </View>
-                <View style={[styles.quality, { backgroundColor: c.tile }]}>
-                  <Icon name="sparkle" color={c.primary} size={16} />
-                  <View style={ui.flex}>
-                    <AppText weight="medium" size={13}>
-                      {pick(tierQuality[plan.params.kind][tier])}
-                    </AppText>
-                    <AppText size={11.5} color={c.muted} lineHeight={17}>
-                      {L(
-                        'يختلف كل مستوى في نماذج الذكاء الاصطناعي المستخدمة، فتختلف الجودة والسعر.',
-                        'Each level uses different AI models, so quality and price differ.',
-                      )}
-                    </AppText>
-                  </View>
-                </View>
-
-                <AppText weight="medium" size={13} color={c.muted}>
-                  {L('النماذج والأدوات المستخدمة في هذا المستوى', 'Models and tools at this level')}
-                </AppText>
-                {q.lines.map((l, i) => {
-                  const tool = serviceTools[l.tool];
-                  return (
-                    <View key={`${l.tool}${i}`} style={styles.line}>
-                      <View style={ui.flex}>
-                        <AppText weight="medium" size={14}>
-                          {tool.name}
-                          <AppText size={12} color={c.muted}>
-                            {` · ${tool.vendor}`}
-                          </AppText>
-                        </AppText>
-                        <AppText size={12} color={c.muted}>
-                          {pick(l.task)}
-                        </AppText>
-                        <AppText size={11.5} color={c.placeholder}>
-                          {L(
-                            `الكمية ${l.qty} ${tool.unit.ar} · \u2066${formatUsd(l.unitUsd)}\u2069 لكل ${tool.unit.ar}`,
-                            `${l.qty} × ${tool.unit.en} at ${formatUsd(l.unitUsd)} each`,
-                          )}
-                        </AppText>
-                      </View>
-                      <View style={styles.lineCost}>
-                        <AppText size={13.5} weight="medium" style={ui.tabular}>
-                          {formatIQD(l.costIqd)}
-                        </AppText>
-                        <AppText size={11} color={c.placeholder} style={ui.tabular}>
-                          {formatUsd(l.costUsd)}
-                        </AppText>
-                      </View>
-                    </View>
-                  );
-                })}
-                <Divider />
-                <KeyValue label={L('تكلفة الأدوات', 'Tools cost')} value={formatIQD(q.toolsIqd)} />
-                <KeyValue
-                  label={L('رسوم الخدمة', 'Service fee')}
-                  sub={L('التجهيز والمراجعة والتخزين والدعم', 'Setup, review, storage and support')}
-                  value={formatIQD(q.feeIqd)}
-                />
-                <Divider />
-                <KeyValue label={L('المجموع', 'Total')} value={formatIQD(q.totalIqd)} strong />
-                {missingMedia && (
-                  <Note tone="acc" icon="alert">
-                    {needs === 'video'
-                      ? L('أرفق الفيديو الذي تريد مونتاجه قبل الموافقة.', 'Attach the video to edit before approving.')
-                      : L('أرفق صورة المنتج قبل الموافقة.', 'Attach the product photo before approving.')}
-                  </Note>
-                )}
-                <View style={styles.approveRow}>
-                  <Button label={L('عدّل الطلب', 'Edit')} variant="secondary" height={46} style={ui.flex} onPress={() => input.current?.focus()} />
-                  <Button label={L('وافق ونفّذ', 'Approve & run')} icon="check" height={46} style={styles.approve} disabled={missingMedia} onPress={approve} />
-                </View>
-                <AppText size={11.5} color={c.placeholder} center>
-                  {L(
-                    'نسخة تجريبية: يُفعَّل الدفع مع الخادم، ويُنفَّذ الطلب حاليًا على حساب صاحب التطبيق.',
-                    'Test build: payment arrives with the server; orders now run on the app owner\'s account.',
-                  )}
-                </AppText>
-              </Card>
-            </Animated.View>
+              </View>
+              <Icon name="chevronLeft" color={c.placeholder} size={16} />
+            </Card>
           )}
           {note && (
             <Note tone="bad" icon="alert">
@@ -329,16 +394,16 @@ export default function OrderScreen() {
           )}
         </ScrollView>
 
-        <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.bg, paddingBottom: insets.bottom + 8 }]}>
+        <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.nav, paddingBottom: insets.bottom + 10 }]}>
           {attachOpen && (
             <View style={styles.attachRow}>
-              <Button label={L('فيديو من المعرض', 'Video from gallery')} icon="video" variant="secondary" height={40} style={ui.flex} onPress={() => attach('video')} />
-              <Button label={L('صورة', 'Photo')} icon="camera" variant="secondary" height={40} style={ui.flex} onPress={() => attach('image')} />
+              <Button label={L('فيديو من المعرض', 'Video from gallery')} icon="video" variant="secondary" small style={ui.flex} onPress={() => attach('video')} />
+              <Button label={L('صورة', 'Photo')} icon="image" variant="secondary" small style={ui.flex} onPress={() => attach('image')} />
             </View>
           )}
           {media && (
             <View style={[styles.pending, { backgroundColor: c.priSoft }]}>
-              <Icon name={media.kind === 'video' ? 'video' : 'camera'} color={c.onPriSoft} size={15} />
+              <Icon name={media.kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
               <AppText size={12.5} color={c.onPriSoft} style={ui.flex} numberOfLines={1}>
                 {media.kind === 'video'
                   ? L(`فيديو جاهز للإرسال · ${Math.round(media.seconds)} ث`, `Video ready to send · ${Math.round(media.seconds)}s`)
@@ -354,8 +419,8 @@ export default function OrderScreen() {
               accessibilityRole="button"
               accessibilityLabel={L('إرفاق فيديو أو صورة', 'Attach a video or photo')}
               onPress={() => setAttachOpen((o) => !o)}
-              style={[styles.iconBtn, { backgroundColor: c.tile }]}>
-              <Icon name="plus" color={c.text} size={20} />
+              style={[styles.iconBtn, { backgroundColor: c.card, borderColor: c.line, borderWidth: 1 }]}>
+              <Icon name={attachOpen ? 'close' : 'plus'} color={c.text} size={20} />
             </PressableScale>
             <TextInput
               ref={input}
@@ -364,7 +429,7 @@ export default function OrderScreen() {
               placeholder={L('اكتب طلبك', 'Describe your request')}
               placeholderTextColor={c.placeholder}
               multiline
-              style={[styles.input, { color: c.text, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left' }]}
+              style={[styles.input, { color: c.text, backgroundColor: c.card, borderColor: c.line, textAlign: rtl ? 'right' : 'left' }]}
             />
             <PressableScale
               accessibilityRole="button"
@@ -372,7 +437,7 @@ export default function OrderScreen() {
               disabled={(!text.trim() && !media) || busy}
               onPress={send}
               style={[styles.iconBtn, { backgroundColor: text.trim() || media ? c.primary : c.tile }]}>
-              <Icon name="send" color={text.trim() || media ? c.onPrimary : c.placeholder} size={18} />
+              <Icon name="send" color={text.trim() || media ? c.onPrimary : c.placeholder} size={18} strokeWidth={1.8} />
             </PressableScale>
           </View>
         </View>
@@ -382,24 +447,32 @@ export default function OrderScreen() {
 }
 
 const styles = StyleSheet.create({
-  thread: { padding: 16, gap: 12 },
+  quote: { paddingHorizontal: GUTTER, paddingTop: 4, paddingBottom: 24, gap: 12 },
+  request: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  mediaRow: { marginTop: 6 },
+  edit: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginTop: -4, marginEnd: -6 },
+  tiers: { gap: 8 },
+  tierHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  tierName: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', rowGap: 4 },
+  tierQuality: { marginTop: 3 },
+  lines: { paddingVertical: 4, paddingHorizontal: 14, gap: 0 },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 50, paddingVertical: 6 },
+  ltrStart: { writingDirection: 'ltr', alignSelf: 'flex-start' },
+  dash: { marginVertical: 2 },
+  fee: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 6 },
+  totalBar: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  thread: { padding: GUTTER, gap: 12 },
   msg: { maxWidth: '86%', gap: 4 },
   mine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   theirs: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  bubble: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: radius.tile },
-  attachment: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 140 },
-  line: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 3 },
-  lineCost: { alignItems: 'flex-end' },
-  tiers: { flexDirection: 'row', gap: 8 },
-  tier: { flex: 1, borderRadius: radius.control, paddingVertical: 10, paddingHorizontal: 6, gap: 2, minHeight: 58, justifyContent: 'center' },
-  quality: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: radius.control, padding: 10 },
-  approveRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  approve: { flex: 1.4 },
-  composer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, paddingHorizontal: 12, gap: 8 },
+  bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.tier },
+  attachment: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.chip, minWidth: 140 },
+  quoteLink: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  composer: { borderTopWidth: 1, paddingTop: 10, paddingHorizontal: 16, gap: 8 },
   attachRow: { flexDirection: 'row', gap: 8 },
-  pending: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 10, minHeight: 38 },
+  pending: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.chip, paddingHorizontal: 10, minHeight: 38 },
   remove: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  input: { flex: 1, minHeight: 44, maxHeight: 120, borderRadius: radius.control, paddingHorizontal: 14, paddingVertical: 10, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
-  iconBtn: { width: 44, height: 44, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, minHeight: 46, maxHeight: 120, borderRadius: radius.control, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 11, fontFamily: font.regular, fontSize: 14 },
+  iconBtn: { width: 46, height: 46, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,97 +1,177 @@
-import { useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
-import { formatNumber, radius } from '@sq/shared';
+import { font } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 
-// A line with a soft area under it. Time runs left to right, as in every
-// finance app, regardless of the reading direction.
-export function LineChart({ values, labels, height = 140, format = formatNumber }: { values: number[]; labels: string[]; height?: number; format?: (v: number) => string }) {
+export type Series = {
+  values: number[];
+  // The main series is solid with an area; the second is dashed on its own scale.
+  second?: boolean;
+  min?: number;
+  max?: number;
+};
+
+const PAD_X = 14;
+const PAD_B = 24;
+
+// Catmull-Rom smoothing with a low tension, as in the approved charts.
+function smooth(pts: [number, number][]): string {
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  const t = 0.18;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) * t, p1[1] + (p2[1] - p0[1]) * t];
+    const c2 = [p2[0] - (p3[0] - p1[0]) * t, p2[1] - (p3[1] - p1[1]) * t];
+    d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+// A smoothed line over a dashed grid with axis labels under each point. Time
+// follows the reading direction, so in Arabic the oldest value is on the
+// right. With no series it draws the grid and axis only, and `overlay`
+// (an empty-state message) is centred over the plot.
+export function LineChart({
+  series = [],
+  labels,
+  height = 138,
+  padTop = 30,
+  active = -1,
+  tip,
+  overlay,
+  summary,
+}: {
+  series?: Series[];
+  labels: string[];
+  height?: number;
+  padTop?: number;
+  active?: number;
+  tip?: string;
+  overlay?: ReactNode;
+  // Read by screen readers in place of the drawing.
+  summary?: string;
+}) {
   const { c } = useTheme();
+  const { rtl } = useI18n();
   const [width, setWidth] = useState(0);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const padY = 12;
-  const x = (i: number) => (values.length < 2 ? 0 : (i / (values.length - 1)) * width);
-  const y = (v: number) => padY + (1 - (v - min) / span) * (height - padY * 2);
-  const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  const area = `${line} L${width},${height} L0,${height} Z`;
-  const { L } = useI18n();
-  const last = values.length - 1;
+  const gradId = `area${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const ih = height - padTop - PAD_B;
+  const n = labels.length;
+  // Wide enough that the end labels, centred under their points, stay inside.
+  const padX = Math.max(PAD_X, Math.max(...labels.map((l) => l.length)) * 3);
+  const step = n > 1 ? (width - padX * 2) / (n - 1) : 0;
+  const X = (i: number) => (rtl ? width - padX - i * step : padX + i * step);
+  const ticks = 4;
 
   return (
-    <View accessible accessibilityLabel={L(`من ${format(values[0])} إلى ${format(values[last])}`, `From ${format(values[0])} to ${format(values[last])}`)}>
-      <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-        {width > 0 && (
-          <Svg width={width} height={height}>
-            <Defs>
-              <LinearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={c.chart} stopOpacity={0.16} />
-                <Stop offset="1" stopColor={c.chart} stopOpacity={0} />
-              </LinearGradient>
-            </Defs>
-            {[0.25, 0.5, 0.75].map((f) => (
-              <Line key={f} x1={0} x2={width} y1={height * f} y2={height * f} stroke={c.line} strokeWidth={1} />
-            ))}
-            <Path d={area} fill="url(#area)" />
-            <Path d={line} stroke={c.chart} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-            <Circle cx={x(last)} cy={y(values[last])} r={4} fill={c.card} stroke={c.chart} strokeWidth={2} />
-          </Svg>
-        )}
-      </View>
-      <View style={styles.axis}>
-        {labels.map((l) => (
-          <AppText key={l} size={11} color={c.placeholder}>
-            {l}
-          </AppText>
-        ))}
-      </View>
+    <View accessible accessibilityLabel={summary} style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {width > 0 && (
+        <Svg width={width} height={height}>
+          <Defs>
+            <LinearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={c.chartSoft} stopOpacity={0.28} />
+              <Stop offset="1" stopColor={c.chartSoft} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          {Array.from({ length: ticks }, (_, k) => {
+            const y = padTop + (ih / (ticks - 1)) * k;
+            return <Path key={k} d={`M0 ${y}H${width}`} stroke={c.grid} strokeWidth={1} strokeDasharray={k === ticks - 1 ? undefined : '3 4'} />;
+          })}
+          {labels.map((l, i) => (
+            <SvgText key={`${l}${i}`} x={X(i)} y={height - 6} textAnchor="middle" fontFamily={font.regular} fontSize={10.5} fill={c.placeholder}>
+              {l}
+            </SvgText>
+          ))}
+          {series.map((s, si) => {
+            if (s.values.length < 2) return null;
+            const mn = s.min ?? Math.min(...s.values);
+            const mx = s.max ?? Math.max(...s.values);
+            const Y = (v: number) => padTop + ih - ((v - mn) / (mx - mn || 1)) * ih * 0.86 - ih * 0.07;
+            const pts = s.values.map((v, i) => [X(i), Y(v)] as [number, number]);
+            const d = smooth(pts);
+            const color = s.second ? c.chart2 : c.chart;
+            const last = pts[pts.length - 1];
+            return (
+              <G key={si}>
+                {!s.second && <Path d={`${d} L${last[0]} ${padTop + ih} L${pts[0][0]} ${padTop + ih}Z`} fill={`url(#${gradId})`} />}
+                <Path d={d} fill="none" stroke={color} strokeWidth={s.second ? 1.6 : 2} strokeLinecap="round" strokeDasharray={s.second ? '4 4' : undefined} />
+                {!s.second && pts.map((p, i) => (i === active ? null : <Circle key={i} cx={p[0]} cy={p[1]} r={2.6} fill={c.card} stroke={color} strokeWidth={1.6} />))}
+                {!s.second && active >= 0 && active < pts.length && (
+                  <ActivePoint x={pts[active][0]} y={pts[active][1]} base={padTop + ih} width={width} tip={tip} />
+                )}
+              </G>
+            );
+          })}
+        </Svg>
+      )}
+      {overlay && <View style={[styles.overlay, { bottom: PAD_B }]}>{overlay}</View>}
     </View>
   );
 }
 
-// Ranked horizontal bars with the value at the end.
-export function BarList({ items, format = formatNumber }: { items: { label: string; value: number; note?: string }[]; format?: (v: number) => string }) {
+function ActivePoint({ x, y, base, width, tip }: { x: number; y: number; base: number; width: number; tip?: string }) {
   const { c } = useTheme();
-  const max = Math.max(...items.map((i) => i.value), 1);
+  const tw = tip ? tip.length * 6.2 + 20 : 0;
+  const tx = Math.max(0, Math.min(width - tw, x - tw / 2));
   return (
-    <View style={styles.bars}>
-      {items.map((item, i) => (
-        <View key={item.label} style={styles.barRow}>
-          <View style={styles.barHead}>
-            <AppText size={13.5} weight="medium">
-              {item.label}
-            </AppText>
-            <AppText size={13} color={c.muted} style={styles.tabular}>
-              {format(item.value)}
-              {item.note ? `  ·  ${item.note}` : ''}
-            </AppText>
-          </View>
-          <View style={[styles.barTrack, { backgroundColor: c.track }]}>
-            <View style={[styles.barFill, { width: `${(item.value / max) * 100}%`, backgroundColor: i === 0 ? c.chart : c.chartSoft }]} />
-          </View>
+    <G>
+      <Path d={`M${x} ${y + 6}V${base}`} stroke={c.lineStrong} strokeWidth={1} strokeDasharray="2 3" />
+      <Circle cx={x} cy={y} r={5.5} fill={c.accent} stroke={c.card} strokeWidth={2.5} />
+      {tip && (
+        <G>
+          <Rect x={tx} y={y - 34} width={tw} height={24} rx={6} fill={c.tooltip} />
+          <SvgText x={tx + tw / 2} y={y - 18} textAnchor="middle" fontFamily={font.semibold} fontSize={11.5} fill={c.onTooltip}>
+            {tip}
+          </SvgText>
+        </G>
+      )}
+    </G>
+  );
+}
+
+// The legend at the top end of a two-series chart.
+export function Legend({ items }: { items: { label: string; second?: boolean }[] }) {
+  const { c } = useTheme();
+  return (
+    <View style={styles.legend}>
+      {items.map((it) => (
+        <View key={it.label} style={styles.legendItem}>
+          <View style={it.second ? [styles.swatchDash, { borderColor: c.chart2 }] : [styles.swatch, { backgroundColor: c.chart }]} />
+          <AppText size={11} lineHeight={16} color={c.muted}>
+            {it.label}
+          </AppText>
         </View>
       ))}
     </View>
   );
 }
 
-// Small column chart for compact cards.
-export function Columns({ values, height = 44, highlightLast = true }: { values: number[]; height?: number; highlightLast?: boolean }) {
+// The hero's mini-bars: 10-wide bars with rising opacity; the selected
+// period is in the hero accent. Empty periods show short stubs.
+export function MiniBars({ values, selected, height = 64, empty }: { values: number[]; selected?: number; height?: number; empty?: boolean }) {
   const { c } = useTheme();
   const max = Math.max(...values, 1);
   return (
-    <View style={[styles.columns, { height }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={[styles.bars, { height }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {values.map((v, i) => (
         <View
           key={i}
           style={[
-            styles.column,
-            { height: Math.max(3, (v / max) * height), backgroundColor: highlightLast && i === values.length - 1 ? c.chart : c.chartSoft },
+            styles.bar,
+            empty
+              ? { height: 8, backgroundColor: 'rgba(255,255,255,0.12)' }
+              : {
+                  height: Math.max(4, (v / max) * (height - 8)),
+                  backgroundColor: i === selected ? c.heroAccent : c.chartSoft,
+                  opacity: i === selected ? 1 : 0.55 + i * 0.08,
+                },
           ]}
         />
       ))}
@@ -100,13 +180,11 @@ export function Columns({ values, height = 44, highlightLast = true }: { values:
 }
 
 const styles = StyleSheet.create({
-  tabular: { fontVariant: ['tabular-nums'] },
-  axis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, direction: 'ltr' },
-  bars: { gap: 14 },
-  barRow: { gap: 6 },
-  barHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  barTrack: { height: 6, borderRadius: radius.chip, overflow: 'hidden' },
-  barFill: { height: 6, borderRadius: radius.chip },
-  columns: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, direction: 'ltr' },
-  column: { flex: 1, borderRadius: 2 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
+  legend: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  swatch: { width: 10, height: 2, borderRadius: 1 },
+  swatchDash: { width: 10, height: 0, borderTopWidth: 2, borderStyle: 'dashed' },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 9 },
+  bar: { width: 10, borderRadius: 2 },
 });

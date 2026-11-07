@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { formatIQD, pipeline, platformNames, tools, toolsFor, type Platform } from '@sq/shared';
+import { formatIQD, pipeline, radius, platformNames, tools, toolsFor, type Platform } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
-import { Badge, Card, Divider, Note, Progress, ScrollScreen, SectionTitle, Segmented, Stepper, ToggleRow, TopBar, ui } from '@/components/ui';
+import { HeroSurface } from '@/components/brand';
+import { Badge, Card, Divider, ListCard, ModelChip, Note, Progress, ScrollScreen, SectionTitle, Segmented, Stepper, ToggleRow, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useStudio } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -23,13 +24,13 @@ export default function AutomationScreen() {
 
   return (
     <ScrollScreen header={<TopBar title={L('الوضع التلقائي', 'Autopilot')} subtitle={a.enabled ? L('يعمل', 'On') : L('متوقف', 'Off')} />}>
-      <Card tone="hero">
+      <HeroSurface style={styles.hero} arcs={{ endInset: 20, cy: 150 }}>
         <View style={styles.heroHead}>
-          <View style={[styles.bolt, { backgroundColor: a.enabled ? c.navActive : 'rgba(255,255,255,0.12)' }]}>
-            <Icon name="bolt" color={a.enabled ? c.onNavActive : c.heroText} size={18} strokeWidth={2} />
+          <View style={[styles.bolt, { backgroundColor: a.enabled ? c.heroOkSoft : c.heroTile, borderColor: c.heroTileLine }]}>
+            <Icon name="bolt" color={a.enabled ? c.heroOk : c.heroAccent} size={18} />
           </View>
           <View style={ui.flex}>
-            <AppText weight="semibold" size={16} color={c.heroText}>
+            <AppText variant="h3" color={c.heroText}>
               {L('كل شيء تلقائي', 'Everything on autopilot')}
             </AppText>
             <AppText size={12.5} color={c.heroMuted} lineHeight={19}>
@@ -44,18 +45,20 @@ export default function AutomationScreen() {
           accessibilityRole="switch"
           accessibilityState={{ checked: a.enabled }}
           onPress={() => setAutomation({ enabled: !a.enabled })}
-          style={[styles.master, { backgroundColor: a.enabled ? c.navActive : c.heroBtn }]}>
-          <AppText weight="semibold" size={15} color={a.enabled ? c.onNavActive : c.heroBtnText}>
+          pressedScale={0.98}
+          style={[styles.master, a.enabled ? { backgroundColor: c.heroTile, borderColor: c.heroTileLine, borderWidth: 1 } : { backgroundColor: c.heroBtn }]}>
+          {a.enabled && <View style={[styles.liveDot, { backgroundColor: c.heroOk }]} />}
+          <AppText weight="semibold" size={15} color={a.enabled ? c.heroText : c.heroBtnText}>
             {a.enabled ? L('يعمل الآن · اضغط للإيقاف', 'On now · tap to stop') : L('شغّل الوضع التلقائي', 'Turn on autopilot')}
           </AppText>
         </PressableScale>
-      </Card>
+      </HeroSurface>
 
       <SectionTitle title={L('سقف الإنفاق الشهري', 'Monthly spending cap')} />
       <Card>
         <View style={ui.between}>
           <View style={ui.flex}>
-            <AppText weight="medium" size={14}>
+            <AppText variant="rowTitle">
               {L('الحد الأقصى للشهر', 'Monthly maximum')}
             </AppText>
             <AppText size={12} color={c.muted}>
@@ -76,9 +79,9 @@ export default function AutomationScreen() {
       </Card>
 
       <SectionTitle title={L('القواعد', 'Rules')} />
-      <Card style={styles.rules}>
+      <ListCard>
         <View style={styles.approval}>
-          <AppText weight="medium" size={14.5}>
+          <AppText variant="rowTitle">
             {L('قبل النشر', 'Before posting')}
           </AppText>
           <Segmented
@@ -101,15 +104,15 @@ export default function AutomationScreen() {
           onChange={(escalate) => setAutomation({ escalate })}
           last
         />
-      </Card>
+      </ListCard>
 
       <SectionTitle title={L('من يتولى كل خطوة', 'Who handles each step')} />
-      <Card style={styles.rules}>
+      <ListCard>
         {pipeline.map((step, i) => {
           const expanded = open === step.id;
           const names = step.tools.map((t) => tools[t].name).join(L('، ', ', '));
           return (
-            <View key={step.id} style={i < pipeline.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line }}>
+            <View key={step.id} style={i < pipeline.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.line }}>
               <PressableScale
                 accessibilityRole="button"
                 accessibilityState={{ expanded }}
@@ -117,19 +120,19 @@ export default function AutomationScreen() {
                 pressedScale={1}
                 style={styles.step}>
                 <View style={[styles.num, { backgroundColor: c.tile }]}>
-                  <AppText size={12} weight="semibold" color={c.muted} style={ui.tabular}>
+                  <AppText size={12.5} weight="bold" color={c.muted}>
                     {i + 1}
                   </AppText>
                 </View>
                 <View style={ui.flex}>
-                  <AppText weight="medium" size={14.5}>
+                  <AppText variant="rowTitle">
                     {pick(step.name)}
                   </AppText>
                   <AppText size={12} color={c.muted}>
                     {pick(step.detail)}
                   </AppText>
                 </View>
-                {names ? <Badge label={names} tone="pri" /> : <Badge label={L('على الهاتف', 'On the phone')} />}
+                {names ? <ModelChip label={names} /> : <Badge label={L('على الهاتف', 'On the phone')} />}
                 <Icon name={expanded ? 'chevronUp' : 'chevronDown'} color={c.placeholder} size={16} />
               </PressableScale>
               {expanded && (
@@ -152,7 +155,7 @@ export default function AutomationScreen() {
             </View>
           );
         })}
-      </Card>
+      </ListCard>
 
       <Note icon="shield">
         {L(
@@ -165,12 +168,13 @@ export default function AutomationScreen() {
 }
 
 const styles = StyleSheet.create({
+  hero: { borderRadius: radius.card, padding: 16, gap: 14 },
   heroHead: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  bolt: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  master: { height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  rules: { paddingVertical: 4, gap: 0 },
-  approval: { gap: 8, paddingVertical: 10 },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  num: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  platforms: { borderRadius: 8, padding: 10, gap: 6, marginBottom: 12 },
+  bolt: { width: 40, height: 40, borderRadius: radius.control, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  master: { height: 48, borderRadius: radius.control, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
+  approval: { gap: 8, paddingVertical: 12, paddingHorizontal: 14 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
+  num: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  platforms: { borderRadius: radius.control, padding: 12, gap: 6, marginBottom: 12, marginHorizontal: 14 },
 });

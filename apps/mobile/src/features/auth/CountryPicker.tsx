@@ -52,7 +52,7 @@ export function CountryPicker({ visible, selected, onSelect, onClose }: Props) {
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(11,34,38,0.45)' },
-  sheet: { borderTopStartRadius: radius.tile, borderTopEndRadius: radius.tile, paddingTop: 10, maxHeight: '70%' },
+  sheet: { borderTopStartRadius: radius.sheet, borderTopEndRadius: radius.sheet, paddingTop: 10, maxHeight: '70%' },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, marginBottom: 12 },
   title: { paddingHorizontal: 20, marginBottom: 8 },
   list: { paddingHorizontal: 16, gap: 8, paddingBottom: 8 },

@@ -6,7 +6,7 @@ import { formatIQD, planDiscount, planPrice, planSizes, platformNames, radius, r
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { PressableScale } from '@/components/PressableScale';
-import { Card, Chip, Divider, KeyValue, Note, ScrollScreen, SectionTitle, Segmented, Stepper, TopBar, ui } from '@/components/ui';
+import { Card, Chip, KeyValue, Note, ScrollScreen, SectionTitle, Segmented, Stepper, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useStudio, type Goal, type Plan } from '@/state/studio';
 import { useTheme } from '@/theme/theme';
@@ -59,7 +59,7 @@ export default function PlanScreen() {
             <AppText size={13} color={c.muted}>
               {L('شهريًا مع الإعلانات', 'Monthly, with ads')}
             </AppText>
-            <AppText weight="semibold" size={18} style={ui.tabular}>
+            <AppText weight="bold" size={20} lineHeight={28}>
               {formatIQD(price.total + p.adBudget)}
             </AppText>
           </View>
@@ -99,7 +99,7 @@ export default function PlanScreen() {
               accessibilityLabel={L(`${n} ريلز`, `${n} reels`)}
               onPress={() => set({ reels: n })}
               style={[styles.size, { borderColor: active ? c.primary : c.line, borderWidth: active ? 1.5 : 1, backgroundColor: c.card }]}>
-              <AppText weight="semibold" size={20} style={ui.tabular}>
+              <AppText weight="bold" size={20} lineHeight={26}>
                 {n}
               </AppText>
               <AppText size={11.5} color={c.muted}>
@@ -130,7 +130,7 @@ export default function PlanScreen() {
       <Card>
         <View style={ui.between}>
           <View style={ui.flex}>
-            <AppText weight="medium" size={14}>
+            <AppText variant="rowTitle">
               {L('تُوزَّع على الريلز الأنجح', 'Spread over the best-performing reels')}
             </AppText>
             <AppText size={12} color={c.muted}>
@@ -174,13 +174,12 @@ export default function PlanScreen() {
       </Card>
 
       <SectionTitle title={L('السعر', 'Price')} />
-      <Card>
+      <Card style={styles.kv}>
         <KeyValue label={L(`${p.reels} ريلز ${tiers[p.tier].name.ar}`, `${p.reels} ${tiers[p.tier].name.en} reels`)} value={formatIQD(price.full)} />
-        {price.discount > 0 && <KeyValue label={L(`خصم الخطة ${planDiscount(p.reels) * 100}%`, `Plan discount ${planDiscount(p.reels) * 100}%`)} value={`− ${formatIQD(price.discount)}`} />}
-        <KeyValue label={L('سعر الريل في الخطة', 'Price per reel in the plan')} value={formatIQD(price.perReel)} />
-        <Divider />
-        <KeyValue label={L('الريلز', 'Reels')} value={formatIQD(price.total)} strong />
-        <KeyValue label={L('الإعلانات', 'Ads')} value={formatIQD(p.adBudget)} />
+        {price.discount > 0 && <KeyValue divider label={L(`خصم الخطة ${planDiscount(p.reels) * 100}%`, `Plan discount ${planDiscount(p.reels) * 100}%`)} value={`− ${formatIQD(price.discount)}`} />}
+        <KeyValue divider label={L('سعر الريل في الخطة', 'Price per reel in the plan')} value={formatIQD(price.perReel)} />
+        <KeyValue divider label={L('الإعلانات', 'Ads')} value={formatIQD(p.adBudget)} />
+        <KeyValue divider label={L('الريلز', 'Reels')} value={formatIQD(price.total)} strong />
       </Card>
 
       <Note icon="calendar">
@@ -195,9 +194,10 @@ export default function PlanScreen() {
 
 const styles = StyleSheet.create({
   sizes: { flexDirection: 'row', gap: 8 },
-  size: { flex: 1, borderRadius: radius.tile, paddingVertical: 12, alignItems: 'center', gap: 1 },
+  kv: { paddingVertical: 6, gap: 0 },
+  size: { flex: 1, borderRadius: radius.tier, paddingVertical: 12, alignItems: 'center', gap: 1 },
   week: { flexDirection: 'row' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
-  dayBox: { width: 30, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  dayBox: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });

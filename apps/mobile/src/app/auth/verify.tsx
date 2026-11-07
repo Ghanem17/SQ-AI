@@ -1,155 +1,52 @@
-import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View, type TextInputInstance } from 'react-native';
-import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { isCompleteOtp } from '@sq/shared';
 import { AppText } from '@/components/AppText';
-import { Icon } from '@/components/Icon';
-import { PressableScale } from '@/components/PressableScale';
+import { Monogram } from '@/components/brand';
 import { Screen } from '@/components/Screen';
-import { DEMO_CODE, sendCode, verifyCode } from '@/features/auth/authService';
-import { OtpInput, type OtpState } from '@/features/auth/OtpInput';
+import { TopBar } from '@/components/ui';
+import { OtpBlock } from '@/features/auth/OtpBlock';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useTheme } from '@/theme/theme';
 
-const RESEND_SECONDS = 30;
-
-function notify(type: Haptics.NotificationFeedbackType) {
-  if (Platform.OS !== 'web') Haptics.notificationAsync(type).catch(() => undefined);
-}
-
+// The code step on its own page, for links that still open it. Sign-in now
+// shows the same block inline.
 export default function VerifyScreen() {
   const { c } = useTheme();
-  const { t: all } = useI18n();
-  const t = all.verify;
-  const reduceMotion = useReducedMotion();
+  const { t } = useI18n();
   const { phone, display, mode, name, accountType: pickedType } = useLocalSearchParams<{ phone: string; display: string; mode: string; name?: string; accountType?: string }>();
   const { signIn, accountType, chooseAccountType } = useSession();
-  const inputRef = useRef<TextInputInstance>(null);
 
-  const [code, setCode] = useState('');
-  const [state, setState] = useState<OtpState>('idle');
-  const [shakeKey, setShakeKey] = useState(0);
-  const [seconds, setSeconds] = useState(RESEND_SECONDS);
-
-  useEffect(() => {
-    if (seconds <= 0) return;
-    const timer = setTimeout(() => setSeconds((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [seconds]);
-
-  const onChange = async (next: string) => {
-    if (state === 'wrong') setState('idle');
-    setCode(next);
-    if (!isCompleteOtp(next)) return;
-
-    setState('checking');
-    const result = await verifyCode(phone, next);
-    if (result === 'ok') {
-      setState('ok');
-      notify(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => {
-        signIn(phone, mode === 'signUp' && name ? name : null);
-        // New accounts chose their type on the sign-up form.
-        if (mode === 'signUp' && (pickedType === 'shop' || pickedType === 'creator')) {
-          chooseAccountType(pickedType);
-          router.replace('/(tabs)');
-        } else {
-          router.replace(accountType ? '/(tabs)' : '/auth/account-type');
-        }
-      }, reduceMotion ? 0 : 650);
+  const verified = () => {
+    signIn(phone, mode === 'signUp' && name ? name : null);
+    // New accounts chose their type on the sign-up form.
+    if (mode === 'signUp' && (pickedType === 'shop' || pickedType === 'creator')) {
+      chooseAccountType(pickedType);
+      router.replace('/');
     } else {
-      setState('wrong');
-      setShakeKey((k) => k + 1);
-      notify(Haptics.NotificationFeedbackType.Error);
-      setTimeout(() => {
-        setCode('');
-        inputRef.current?.focus();
-      }, 450);
+      router.replace(accountType ? '/' : '/auth/account-type');
     }
   };
 
-  const resend = async () => {
-    setSeconds(RESEND_SECONDS);
-    setCode('');
-    setState('idle');
-    await sendCode(phone);
-  };
-
   return (
-    <Screen edges={['top', 'bottom']} style={styles.body}>
-      <View style={styles.topRow}>
-        <PressableScale accessibilityRole="button" accessibilityLabel={all.common.back} onPress={() => router.back()} style={[styles.back, { borderColor: c.line }]}>
-          <Icon name="back" color={c.text} size={20} strokeWidth={2} />
-        </PressableScale>
-      </View>
-
-      <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(260)} style={styles.head}>
-        <AppText weight="semibold" size={24} lineHeight={34}>
-          {t.title}
-        </AppText>
-        <AppText size={15} lineHeight={25} color={c.muted}>
-          {t.sentTo(display ?? phone)}
-        </AppText>
-      </Animated.View>
-
-      <OtpInput inputRef={inputRef} value={code} onChange={onChange} state={state} shakeKey={shakeKey} />
-
-      <View style={styles.status}>
-        {state === 'wrong' && (
-          <Animated.View entering={FadeIn}>
-            <AppText size={14} color={c.bad} center accessibilityLiveRegion="assertive">
-              {t.wrong}
-            </AppText>
-          </Animated.View>
-        )}
-        {state === 'ok' && (
-          <Animated.View entering={FadeIn}>
-            <AppText weight="semibold" size={15} color={c.ok} center accessibilityLiveRegion="polite">
-              {t.verified}
-            </AppText>
-          </Animated.View>
-        )}
-      </View>
-
-      <View style={[styles.demo, { backgroundColor: c.accSoft }]}>
-        <AppText size={13} color={c.acc} center>
-          {t.devHint(DEMO_CODE)}
-        </AppText>
-      </View>
-
-      <View style={styles.links}>
-        {seconds > 0 ? (
-          <AppText size={14} color={c.muted}>
-            {t.resendIn(seconds)}
+    <Screen edges={['top', 'bottom']}>
+      <TopBar title={t.verify.codeLabel} />
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Monogram size={44} />
+        <View style={styles.head}>
+          <AppText variant="h1">{t.verify.title}</AppText>
+          <AppText variant="body" color={c.muted}>
+            {t.verify.sentTo(display ?? phone)}
           </AppText>
-        ) : (
-          <PressableScale accessibilityRole="button" onPress={resend} style={styles.link}>
-            <AppText weight="semibold" size={14} color={c.primary}>
-              {t.resend}
-            </AppText>
-          </PressableScale>
-        )}
-        <PressableScale accessibilityRole="button" onPress={() => router.back()} style={styles.link}>
-          <AppText weight="semibold" size={14} color={c.primary}>
-            {t.changeNumber}
-          </AppText>
-        </PressableScale>
-      </View>
+        </View>
+        <OtpBlock phone={phone} display={display ?? phone} onVerified={verified} onChangeNumber={() => router.back()} />
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 20, paddingTop: 12, gap: 20 },
-  topRow: { flexDirection: 'row' },
-  back: { width: 42, height: 42, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  head: { gap: 6 },
-  status: { minHeight: 24 },
-  demo: { alignSelf: 'center', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  links: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  link: { minHeight: 44, justifyContent: 'center' },
+  body: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, gap: 18 },
+  head: { gap: 4 },
 });

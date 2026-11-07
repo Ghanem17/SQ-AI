@@ -7,7 +7,7 @@ import { AppText } from '@/components/AppText';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, Divider, KeyValue, Note, TopBar, ui } from '@/components/ui';
+import { Badge, Card, KeyValue, Note, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { useTheme } from '@/theme/theme';
@@ -97,7 +97,7 @@ export default function TestChatScreen() {
               <View
                 style={[
                   styles.bubble,
-                  t.from === 'customer' ? { backgroundColor: c.tile, borderBottomStartRadius: 4 } : { backgroundColor: c.priSoft, borderBottomEndRadius: 4 },
+                  t.from === 'customer' ? { backgroundColor: c.card, borderColor: c.line, borderWidth: 1, borderBottomStartRadius: 4 } : { backgroundColor: c.priSoft, borderBottomEndRadius: 4 },
                 ]}>
                 <AppText size={14} lineHeight={22} color={t.from === 'customer' ? c.text : c.onPriSoft}>
                   {t.text}
@@ -107,15 +107,14 @@ export default function TestChatScreen() {
               {t.order && (
                 <Card style={styles.order}>
                   <View style={ui.between}>
-                    <AppText weight="semibold" size={14}>
+                    <AppText variant="h3">
                       {L('طلب سجّله المساعد', 'Order logged by the assistant')}
                     </AppText>
                     <Badge label={L('جديد', 'New')} tone="ok" />
                   </View>
                   <KeyValue label={L('الأصناف', 'Items')} value={t.order.items} />
-                  {!!t.order.area && <KeyValue label={L('المنطقة', 'Area')} value={t.order.area} />}
-                  <Divider />
-                  <KeyValue label={L('المجموع', 'Total')} value={formatIQD(t.order.total)} strong />
+                  {!!t.order.area && <KeyValue divider label={L('المنطقة', 'Area')} value={t.order.area} />}
+                  <KeyValue divider label={L('المجموع', 'Total')} value={formatIQD(t.order.total)} strong />
                 </Card>
               )}
             </View>
@@ -130,12 +129,14 @@ export default function TestChatScreen() {
           {error && <Note tone="bad" icon="alert">{error}</Note>}
         </ScrollView>
 
-        <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.bg, paddingBottom: insets.bottom + 8 }]}>
+        <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.nav, paddingBottom: insets.bottom + 10 }]}>
           {turns.length === 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prompts} keyboardShouldPersistTaps="handled">
               {starters[lang].map((p) => (
-                <PressableScale key={p} accessibilityRole="button" onPress={() => send(p)} style={[styles.prompt, { borderColor: c.line }]}>
-                  <AppText size={12.5}>{p}</AppText>
+                <PressableScale key={p} accessibilityRole="button" onPress={() => send(p)} style={[styles.prompt, { borderColor: c.line, backgroundColor: c.card }]}>
+                  <AppText size={12.5} weight="medium" color={c.muted}>
+                    {p}
+                  </AppText>
                 </PressableScale>
               ))}
             </ScrollView>
@@ -146,7 +147,7 @@ export default function TestChatScreen() {
               onChangeText={setText}
               placeholder={L('اكتب رسالة العميل', 'Type the customer message')}
               placeholderTextColor={c.placeholder}
-              style={[styles.input, { color: c.text, backgroundColor: c.tile, textAlign: rtl ? 'right' : 'left' }]}
+              style={[styles.input, { color: c.text, backgroundColor: c.card, borderColor: c.line, textAlign: rtl ? 'right' : 'left' }]}
               onSubmitEditing={() => send(text)}
               returnKeyType="send"
             />
@@ -156,7 +157,7 @@ export default function TestChatScreen() {
               disabled={!text.trim() || busy}
               onPress={() => send(text)}
               style={[styles.send, { backgroundColor: text.trim() ? c.primary : c.tile }]}>
-              <Icon name="send" color={text.trim() ? c.onPrimary : c.placeholder} size={18} />
+              <Icon name="send" color={text.trim() ? c.onPrimary : c.placeholder} size={18} strokeWidth={1.8} />
             </PressableScale>
           </View>
         </View>
@@ -166,17 +167,17 @@ export default function TestChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  thread: { padding: 16, gap: 12 },
+  thread: { padding: 20, gap: 12 },
   msgWrap: { maxWidth: '86%', gap: 4 },
   theirs: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   mine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   by: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  bubble: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: radius.tile },
-  order: { alignSelf: 'stretch', minWidth: 260 },
-  composer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, gap: 8 },
-  prompts: { gap: 6, paddingHorizontal: 12 },
-  prompt: { height: 34, paddingHorizontal: 12, borderRadius: radius.control, borderWidth: 1, justifyContent: 'center' },
-  inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
-  input: { flex: 1, height: 44, borderRadius: radius.control, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
-  send: { width: 44, height: 44, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
+  bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.tier },
+  order: { alignSelf: 'stretch', minWidth: 260, gap: 0, paddingVertical: 12 },
+  composer: { borderTopWidth: 1, paddingTop: 10, gap: 8 },
+  prompts: { gap: 8, paddingHorizontal: 16 },
+  prompt: { height: 36, paddingHorizontal: 14, borderRadius: radius.chip, borderWidth: 1, justifyContent: 'center' },
+  inputRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  input: { flex: 1, height: 46, borderRadius: radius.control, borderWidth: 1, paddingHorizontal: 14, fontFamily: 'ReadexPro_400Regular', fontSize: 14 },
+  send: { width: 46, height: 46, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center' },
 });

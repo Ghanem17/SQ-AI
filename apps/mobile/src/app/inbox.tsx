@@ -1,56 +1,32 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
 import { platformNames, type Platform } from '@sq/shared';
-import { AppText } from '@/components/AppText';
-import { Icon, type IconName } from '@/components/Icon';
-import { Badge, Card, ListRow, Note, PageTitle, PlatformTag, ScrollScreen, SectionTitle, ui } from '@/components/ui';
+import { Badge, EmptyState, GroupLabel, ListCard, ListRow, Note, PlatformTag, ScrollScreen, TopBar } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
-import { useTheme } from '@/theme/theme';
 
 const channels: Platform[] = ['whatsapp', 'instagram', 'facebook', 'messenger'];
 
-export default function InboxTab() {
+// Customer messages from every channel. Creators get collaboration offers.
+export default function InboxScreen() {
   const { accountType } = useSession();
   return accountType === 'creator' ? <Collabs /> : <Inbox />;
 }
 
-function Empty({ icon, title, body }: { icon: IconName; title: string; body: string }) {
-  const { c } = useTheme();
-  return (
-    <Card style={styles.empty}>
-      <View style={[styles.emptyIcon, { backgroundColor: c.tile }]}>
-        <Icon name={icon} color={c.muted} size={22} />
-      </View>
-      <AppText weight="semibold" size={15} center>
-        {title}
-      </AppText>
-      <AppText size={13} color={c.muted} center lineHeight={20}>
-        {body}
-      </AppText>
-    </Card>
-  );
-}
-
-function TryCard() {
-  const { c } = useTheme();
+function TryRow() {
   const { L } = useI18n();
   return (
-    <Card onPress={() => router.push('/test-chat')} accessibilityLabel={L('جرّب الرد على عميل', 'Try answering a customer')} style={styles.try}>
-      <View style={[styles.tryIcon, { backgroundColor: c.priSoft }]}>
-        <Icon name="sparkle" color={c.onPriSoft} size={17} />
-      </View>
-      <View style={ui.flex}>
-        <AppText weight="medium" size={14.5}>
-          {L('جرّب الرد على عميل', 'Try answering a customer')}
-        </AppText>
-        <AppText size={12.5} color={c.muted}>
-          {L('اكتب كأنك عميل وشاهد كيف يرد المساعد من معلومات نشاطك', 'Write as a customer and see how the assistant answers from your business details')}
-        </AppText>
-      </View>
-      <Icon name="chevronLeft" color={c.placeholder} size={18} />
-    </Card>
+    <ListCard>
+      <ListRow
+        icon="sparkle"
+        iconTone="solid"
+        title={L('جرّب الرد على عميل', 'Try answering a customer')}
+        subtitle={L('اكتب كأنك عميل وشاهد كيف يرد المساعد من معلومات نشاطك', 'Write as a customer and see how the assistant answers from your business details')}
+        subtitleLines={2}
+        onPress={() => router.push('/test-chat')}
+        last
+      />
+    </ListCard>
   );
 }
 
@@ -58,9 +34,8 @@ function Inbox() {
   const { businessInfo } = useSession();
   const { L, pick } = useI18n();
   return (
-    <ScrollScreen inTabs>
-      <PageTitle title={L('الرسائل', 'Messages')} subtitle={L('واتساب وإنستغرام وفيسبوك وماسنجر في مكان واحد', 'WhatsApp, Instagram, Facebook and Messenger in one place')} />
-      <Empty
+    <ScrollScreen header={<TopBar title={L('الرسائل', 'Messages')} subtitle={L('واتساب وإنستغرام وفيسبوك وماسنجر', 'WhatsApp, Instagram, Facebook and Messenger')} />}>
+      <EmptyState
         icon="chat"
         title={L('لا توجد رسائل بعد', 'No messages yet')}
         body={L(
@@ -68,28 +43,28 @@ function Inbox() {
           'Once your accounts are linked, customer messages arrive here. The assistant answers, logs orders and hands you anything that needs you.',
         )}
       />
-      <TryCard />
+      <TryRow />
       {!businessInfo.trim() && (
-        <Note icon="info">
+        <Note tone="info">
           {L(
-            'قبل التجربة، اكتب أصنافك وأسعارك في «معلومات النشاط» من الإعدادات، ليرد المساعد بمعلومات صحيحة.',
-            'Before trying, add your items and prices under "About your business" in Settings so the assistant answers correctly.',
+            'قبل التجربة، اكتب أصنافك وأسعارك في «معلومات النشاط» من حسابي، ليرد المساعد بمعلومات صحيحة.',
+            'Before trying, add your items and prices under "About your business" in Account so the assistant answers correctly.',
           )}
         </Note>
       )}
-      <SectionTitle title={L('القنوات', 'Channels')} />
-      <Card style={styles.list}>
+      <GroupLabel title={L('القنوات', 'Channels')} />
+      <ListCard>
         {channels.map((p, i) => (
           <ListRow
             key={p}
-            leading={<PlatformTag platform={p} size={34} />}
+            leading={<PlatformTag platform={p} size={40} />}
             title={pick(platformNames[p])}
             subtitle={L('يُربط عند تشغيل الخادم', 'Links once the server runs')}
             trailing={<Badge label={L('غير مربوط', 'Not linked')} />}
             last={i === channels.length - 1}
           />
         ))}
-      </Card>
+      </ListCard>
     </ScrollScreen>
   );
 }
@@ -97,9 +72,8 @@ function Inbox() {
 function Collabs() {
   const { L } = useI18n();
   return (
-    <ScrollScreen inTabs>
-      <PageTitle title={L('التعاونات', 'Collaborations')} subtitle={L('عروض من متاجر ومطاعم تريد العمل معك', 'Offers from shops and restaurants that want to work with you')} />
-      <Empty
+    <ScrollScreen header={<TopBar title={L('التعاونات', 'Collaborations')} subtitle={L('عروض من متاجر ومطاعم', 'Offers from shops and restaurants')} />}>
+      <EmptyState
         icon="handshake"
         title={L('لا توجد عروض بعد', 'No offers yet')}
         body={L(
@@ -109,18 +83,10 @@ function Collabs() {
       />
       <Note>
         {L(
-          'اكتب مجالك وجمهورك في «عن محتواك» من الإعدادات، لتظهر للمتاجر المناسبة.',
-          'Describe your niche and audience under "About your content" in Settings so the right shops find you.',
+          'اكتب مجالك وجمهورك في «عن محتواك» من حسابي، لتظهر للمتاجر المناسبة.',
+          'Describe your niche and audience under "About your content" in Account so the right shops find you.',
         )}
       </Note>
     </ScrollScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  empty: { alignItems: 'center', paddingVertical: 26, gap: 8 },
-  emptyIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  try: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  tryIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingVertical: 2, gap: 0 },
-});
