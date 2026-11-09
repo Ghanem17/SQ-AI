@@ -50,11 +50,13 @@ const openers: Record<ServiceKind, { ar: string; en: string }> = {
 };
 
 // The brief the assistant understood, in the customer's words where possible.
-function brief(params: ServiceParams, L: (a: string, e: string) => string): string {
+// Video and image prompts are written in English for the models, so the
+// customer sees their own request instead.
+function brief(params: ServiceParams, L: (a: string, e: string) => string, customerText: string): string {
   switch (params.kind) {
     case 'textVideo':
     case 'adImage':
-      return params.prompt;
+      return customerText || params.prompt;
     case 'voice':
       return params.text;
     case 'copy':
@@ -223,7 +225,14 @@ export default function OrderScreen() {
                 {plan.title}
               </AppText>
               <AppText size={13} lineHeight={20} color={c.muted} numberOfLines={3}>
-                {brief(plan.params, L)}
+                {brief(
+                  plan.params,
+                  L,
+                  turns
+                    .filter((t) => t.from === 'me')
+                    .map((t) => t.text)
+                    .join(' · '),
+                )}
               </AppText>
               {orderMedia && (
                 <View style={styles.mediaRow}>
