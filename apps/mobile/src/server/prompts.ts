@@ -2,6 +2,8 @@
 // answers in strict JSON the app can draw. The app's language decides the
 // language of everything the owner reads: Modern Standard Arabic or English.
 
+import type { ServiceKind } from '@sq/shared';
+
 export type Business = { name: string; kind: 'shop' | 'creator'; info: string; lang: 'ar' | 'en' };
 
 // The owner's own description is the only source of facts about the business.
@@ -64,7 +66,7 @@ Answer with JSON only:
 // The order assistant: understands a one-off request and returns the
 // parameters for one service. Prices are not its business; the app derives
 // tools, levels and costs from the parameters.
-export function plannerSystem(b: Business, media: { kind: 'video' | 'image'; seconds: number; count?: number } | null): string {
+export function plannerSystem(b: Business, media: { kind: 'video' | 'image'; seconds: number; count?: number } | null, service: ServiceKind | null = null): string {
   const attached = media
     ? media.kind === 'video'
       ? `The customer attached a video of ${Math.round(media.seconds)} seconds.`
@@ -83,7 +85,11 @@ The only services available:
 - textVideo: a vertical video generated from a description, 3 to 15 seconds, with optional music.
 - copy: a post, ad copy, or a month's content plan.
 - voice: text turned into a voice-over (male voice brian or female voice sarah).
-Your job: understand the request and ask one short question only if something essential is missing. Never mention prices; the app calculates them and lets the customer choose a low, medium or high level.
+${
+  service
+    ? `The customer picked the service "${service}" in the app, usually through a short form whose fields arrive as "label: value" lines. Use kind "${service}" unless the customer clearly asks for something else. When the form gives what the service needs, answer with ready=true at once and fill any missing detail with a sensible default that suits the business (for example the music style); do not ask about optional details.\n`
+    : ''
+}Your job: understand the request and ask one short question only if something essential is missing. Never mention prices; the app calculates them and lets the customer choose a low, medium or high level.
 If the service needs a file (a video for editVideo, an image for adImage, one to four images for imageVideo) and none is attached, ask for it.
 Always answer with exactly one JSON object:
 {"reply": "your short reply to the customer",

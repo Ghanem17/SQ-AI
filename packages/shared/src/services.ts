@@ -165,16 +165,16 @@ export const tierQuality: Record<ServiceKind, Record<ServiceTier, Bilingual>> = 
   imageVideo: {
     low: { ar: '5 ثوانٍ تحرّك صورك بشكل طبيعي', en: '5 seconds that bring your photos to life' },
     mid: { ar: 'حتى 10 ثوانٍ بدقة 1080p', en: 'Up to 10 seconds at 1080p' },
-    high: { ar: 'حتى 15 ثانية بجودة احترافية مع صوت أصلي', en: 'Up to 15 seconds, professional, with native sound' },
+    high: { ar: 'حتى 15 ثانية بجودة احترافية مع صوت أصلي', en: 'Up to 15 s, professional, with native sound' },
   },
   textVideo: {
-    low: { ar: '5 ثوانٍ بدقة 720p، مناسب للتجربة والمنشورات السريعة', en: '5 seconds at 720p, good for tests and quick posts' },
-    mid: { ar: 'حتى 15 ثانية بجودة احترافية وحركة أكثر سلاسة', en: 'Up to 15 seconds, professional quality, smoother motion' },
-    high: { ar: 'حتى 8 ثوانٍ بجودة سينمائية 1080p مع صوت أصلي', en: 'Up to 8 seconds, cinematic 1080p with native sound' },
+    low: { ar: '5 ثوانٍ بدقة 720p للتجربة والمنشورات السريعة', en: '5 seconds at 720p, for tests and quick posts' },
+    mid: { ar: 'حتى 15 ثانية بجودة احترافية وحركة أكثر سلاسة', en: 'Up to 15 s, professional, smoother motion' },
+    high: { ar: 'حتى 8 ثوانٍ بجودة سينمائية 1080p مع صوت أصلي', en: 'Up to 8 s, cinematic 1080p with native sound' },
   },
   adImage: {
     low: { ar: 'تصميم واحد سريع بجودة جيدة', en: 'One quick design, good quality' },
-    mid: { ar: 'تصميم احترافي بتفاصيل ونص أدق', en: 'A professional design with sharper detail and text' },
+    mid: { ar: 'تصميم احترافي بتفاصيل ونص أدق', en: 'Professional design, sharper detail and text' },
     high: { ar: 'نسختان احترافيتان بدقة 2K لتختار الأفضل', en: 'Two professional 2K versions to choose from' },
   },
   voice: {
@@ -190,7 +190,7 @@ export const tierQuality: Record<ServiceKind, Record<ServiceTier, Bilingual>> = 
   editVideo: {
     low: { ar: 'تنفيذ طلباتك مع موسيقى أساسية', en: 'Your edits with basic music' },
     mid: { ar: 'موسيقى بجودة استوديو على طول الفيديو', en: 'Studio-quality music to the video length' },
-    high: { ar: 'موسيقى استوديو مع رفع الدقة وتحسين الوضوح', en: 'Studio music plus higher resolution and sharper detail' },
+    high: { ar: 'موسيقى استوديو مع رفع الدقة وتحسين الوضوح', en: 'Studio music plus a sharper, upscaled video' },
   },
 };
 

@@ -1,4 +1,4 @@
-import { cleanParams } from '@sq/shared';
+import { cleanParams, serviceOrder } from '@sq/shared';
 import { denied, hasAccess } from '@/server/access';
 import { chat, errorResponse, parseJson } from '@/server/ai';
 import { readBusiness, readMessages } from '@/server/input';
@@ -11,7 +11,7 @@ type Reply = { reply?: string; ready?: boolean; title?: string; params?: unknown
 export async function POST(request: Request): Promise<Response> {
   if (!hasAccess(request)) return denied();
   try {
-    const body = (await request.json()) as { business?: unknown; messages?: unknown; media?: unknown };
+    const body = (await request.json()) as { business?: unknown; messages?: unknown; media?: unknown; service?: unknown };
     const messages = readMessages(body.messages, 20);
     if (messages.length === 0) return Response.json({ error: 'No message' }, { status: 400 });
     const m = body.media as { kind?: unknown; seconds?: unknown; count?: unknown } | null | undefined;
@@ -19,7 +19,9 @@ export async function POST(request: Request): Promise<Response> {
       m && (m.kind === 'video' || m.kind === 'image')
         ? { kind: m.kind as 'video' | 'image', seconds: Number(m.seconds) || 0, count: Math.max(1, Math.min(10, Number(m.count) || 1)) }
         : null;
-    const raw = await chat([{ role: 'system', content: plannerSystem(readBusiness(body.business), media) }, ...messages], { maxTokens: 1200, temperature: 0.4 });
+    // The service the customer picked in the app, if any.
+    const service = serviceOrder.find((k) => k === body.service) ?? null;
+    const raw = await chat([{ role: 'system', content: plannerSystem(readBusiness(body.business), media, service) }, ...messages], { maxTokens: 1200, temperature: 0.4 });
     const reply = parseJson<Reply>(raw);
     const params = reply.ready ? cleanParams(reply.params) : null;
     return Response.json({

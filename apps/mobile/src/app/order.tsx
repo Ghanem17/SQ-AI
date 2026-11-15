@@ -9,8 +9,8 @@ import {
   font,
   formatIQD,
   radius,
+  serviceOrder,
   serviceTiers,
-  serviceTools,
   services,
   tierModel,
   tierNames,
@@ -25,7 +25,10 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, Divider, Footer, GUTTER, IconBadge, IconButton, ModelChip, Note, RadioCard, SectionTitle, TopBar, ui } from '@/components/ui';
+import { Badge, Card, Footer, GUTTER, IconBadge, IconButton, ModelChip, Note, RadioCard, SectionTitle, TopBar, ui } from '@/components/ui';
+import { ExampleStrip } from '@/features/services/examples';
+import { WhyPrice } from '@/features/services/WhyPrice';
+import { QuickForm, initialQuick, quickMessage, quickReady, type QuickState } from '@/features/services/QuickForm';
 import { useI18n } from '@/i18n';
 import { AiUnavailable, aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
 import { pickMedia, pickPhotos, type PickedMedia } from '@/features/services/media';
@@ -75,15 +78,19 @@ function brief(params: ServiceParams, L: (a: string, e: string) => string, custo
   }
 }
 
-// The order desk: the customer explains what they want, attaches their own
-// video or photo if the service needs one, then picks a level and sees every
-// model, its cost and the total before anything runs.
+// The order desk: the customer fills a quick form for the chosen service (or
+// explains in a chat), attaches their own video or photos if the service
+// needs them, then picks a level and sees the cost before anything runs.
 export default function OrderScreen() {
   const { c } = useTheme();
-  const { L, pick, lang, rtl, n } = useI18n();
+  const i18n = useI18n();
+  const { L, pick, lang, rtl, n } = i18n;
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
-  const { service } = useLocalSearchParams<{ service?: ServiceKind }>();
+  const params = useLocalSearchParams<{ service?: string }>();
+  // A service chosen on the services tab opens its quick form; otherwise the
+  // customer starts by chatting with the assistant.
+  const service = serviceOrder.find((k) => k === params.service) ?? null;
   const business = useBusiness();
   const status = useAiStatus();
   const { priceFor, addJob } = useServices();
@@ -98,14 +105,18 @@ export default function OrderScreen() {
       ),
     },
   ]);
-  const [text, setText] = useState(service && openers[service] ? pick(openers[service]) : '');
+  const [text, setText] = useState(service ? pick(openers[service]) : '');
+  const [quick, setQuick] = useState<QuickState>(initialQuick);
   // Attachments waiting to be sent: one video, or up to four photos.
   const [media, setMedia] = useState<PickedMedia[]>([]);
   const [attachOpen, setAttachOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
-  // The quote opens on its own page once the assistant has a plan.
-  const [view, setView] = useState<'chat' | 'quote'>('chat');
+  // The quote opens on its own page once the assistant has a plan; `origin`
+  // is the page it returns to.
+  const [view, setView] = useState<'form' | 'chat' | 'quote'>(service ? 'form' : 'chat');
+  const [origin, setOrigin] = useState<'form' | 'chat'>(service ? 'form' : 'chat');
+  const [showWhy, setShowWhy] = useState(false);
   const [tier, setTier] = useState<ServiceTier>('mid');
   const [showLevels, setShowLevels] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -155,22 +166,10 @@ export default function OrderScreen() {
     setNote(null);
   };
 
-  const send = async () => {
-    const body =
-      text.trim() ||
-      (media.length
-        ? media[0].kind === 'video'
-          ? L('أرفقت الفيديو', 'I attached the video')
-          : media.length > 1
-            ? L('أرفقت الصور', 'I attached the photos')
-            : L('أرفقت الصورة', 'I attached the photo')
-        : '');
-    if (!body || busy) return;
-    const mine: Turn = { id: nextId.current++, from: 'me', text: body, media: media.length ? media : undefined };
-    const history = [...turns, mine];
+  // Sends the conversation to the assistant. A plan opens the quote; a
+  // question from the assistant shows in the chat.
+  const ask = async (history: Turn[], from: 'form' | 'chat') => {
     setTurns(history);
-    setText('');
-    setMedia([]);
     setPlan(null);
     setBusy(true);
     setNote(null);
@@ -182,6 +181,7 @@ export default function OrderScreen() {
         '/api/plan',
         {
           business,
+          service,
           media: lastMedia ? { kind: lastMedia.kind, seconds: lastMedia.seconds, count: lastMedia.kind === 'image' ? photoCount : 1 } : null,
           messages: history.slice(1).map((t) => ({ role: t.from === 'me' ? 'user' : 'assistant', content: t.text })),
         },
@@ -191,7 +191,12 @@ export default function OrderScreen() {
       setFailed(false);
       if (r.ready && r.params) {
         setPlan({ title: r.title || pick(services[r.params.kind].name), params: r.params });
+        setOrigin(from);
+        setShowWhy(false);
         setView('quote');
+      } else if (from === 'form') {
+        // The assistant needs one more detail: answer it in the chat.
+        setView('chat');
       }
     } catch (err) {
       setFailed(!(err instanceof AiUnavailable && err.reason === 'access'));
@@ -199,6 +204,67 @@ export default function OrderScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const send = () => {
+    const body =
+      text.trim() ||
+      (media.length
+        ? media[0].kind === 'video'
+          ? L('أرفقت الفيديو', 'I attached the video')
+          : media.length > 1
+            ? L('أرفقت الصور', 'I attached the photos')
+            : L('أرفقت الصورة', 'I attached the photo')
+        : '');
+    if (!body || busy) return;
+    const mine: Turn = { id: nextId.current++, from: 'me', text: body, media: media.length ? media : undefined };
+    setText('');
+    setMedia([]);
+    ask([...turns, mine], 'chat');
+  };
+
+  // The quick form is the whole request, so it starts a fresh conversation
+  // with one composed message.
+  const submitQuick = () => {
+    if (!service || busy || !quickReady(service, quick)) return;
+    const mine: Turn = { id: nextId.current++, from: 'me', text: quickMessage(service, quick, i18n), media: quick.media.length ? quick.media : undefined };
+    // If the assistant asks something, the chat opens ready for the answer.
+    setText('');
+    setMedia([]);
+    ask([turns[0], mine], 'form');
+  };
+
+  const addQuick = async () => {
+    if (!service) return;
+    const permissionNote = L('نحتاج إلى إذن الوصول إلى الصور لتختار الملف.', 'We need access to your photos to pick the file.');
+    if (service === 'editVideo') {
+      const picked = await pickMedia('video');
+      if (!picked) return;
+      if ('error' in picked) {
+        setNote(
+          picked.error === 'permission'
+            ? permissionNote
+            : L('الفيديو أطول من 3 دقائق. قصّه أو اختر فيديو أقصر.', 'The video is longer than 3 minutes. Trim it or choose a shorter one.'),
+        );
+        return;
+      }
+      setQuick((q) => ({ ...q, media: [picked] }));
+      setNote(null);
+      return;
+    }
+    // An ad uses one photo, so a new pick replaces it.
+    const max = service === 'imageVideo' ? MAX_REFERENCE_IMAGES : 1;
+    const kept = service === 'imageVideo' ? quick.media.filter((m) => m.kind === 'image') : [];
+    const room = max - kept.length;
+    if (room <= 0) return;
+    const photos = await pickPhotos(room);
+    if (!photos) return;
+    if ('error' in photos) {
+      setNote(permissionNote);
+      return;
+    }
+    setQuick((q) => ({ ...q, media: [...kept, ...photos].slice(0, max) }));
+    setNote(null);
   };
 
   // What the order uses: the latest video, or the latest photos (up to four
@@ -239,6 +305,10 @@ export default function OrderScreen() {
     m.estimated ? L(`فيديو · نحو ${Math.round(m.seconds)} ث (تقديري)`, `Video · ~${Math.round(m.seconds)}s (estimate)`) : L(`فيديو · ${Math.round(m.seconds)} ث`, `Video · ${Math.round(m.seconds)}s`);
 
   const editRequest = (openAttach = false) => {
+    if (origin === 'form') {
+      setView('form');
+      return;
+    }
     setView('chat');
     if (openAttach) setAttachOpen(true);
     setTimeout(() => input.current?.focus(), 120);
@@ -250,10 +320,11 @@ export default function OrderScreen() {
       <Screen edges={['top']}>
         <TopBar
           title={pick(services[kind].name)}
-          onBack={() => setView('chat')}
+          onBack={() => setView(origin)}
           right={<IconButton icon="info" label={L('ما الفرق بين المستويات؟', 'How do the levels differ?')} onPress={() => setShowLevels((s) => !s)} />}
         />
         <ScrollView contentContainerStyle={styles.quote} showsVerticalScrollIndicator={false}>
+          <ExampleStrip kind={kind} />
           <Card style={styles.request}>
             <IconBadge icon={serviceIcons[kind]} tone="solid" size={36} />
             <View style={ui.flex}>
@@ -267,10 +338,13 @@ export default function OrderScreen() {
                 {brief(
                   plan.params,
                   L,
-                  turns
-                    .filter((t) => t.from === 'me')
-                    .map((t) => t.text)
-                    .join(' · '),
+                  // From the form, the customer's own words are its description.
+                  origin === 'form'
+                    ? quick.desc.trim() || pick(services[kind].pitch)
+                    : turns
+                        .filter((t) => t.from === 'me')
+                        .map((t) => t.text)
+                        .join(' · '),
                 )}
               </AppText>
               {orderMedia && (
@@ -294,7 +368,7 @@ export default function OrderScreen() {
             </PressableScale>
           </Card>
 
-          <SectionTitle title={L('اختر المستوى', 'Choose a level')} action={L('ما الفرق؟', 'What’s the difference?')} onAction={() => setShowLevels((s) => !s)} />
+          <SectionTitle title={L('اختر المستوى', 'Choose a level')} />
           {showLevels && (
             <Note tone="info" icon="layers">
               {L(
@@ -310,51 +384,19 @@ export default function OrderScreen() {
                   <View style={styles.tierName}>
                     <AppText variant="rowTitle">{pick(tierNames[tr])}</AppText>
                     <ModelChip label={tierModel(kind, tr)} />
-                    {tr === 'mid' && <Badge small tone="acc" label={L('موصى به', 'Recommended')} />}
                   </View>
                   <AppText weight="bold" size={15} lineHeight={22}>
                     {formatIQD(quotes[tr].totalIqd)}
                   </AppText>
                 </View>
-                <AppText variant="small" color={c.muted} style={styles.tierQuality}>
+                <AppText variant="small" color={c.muted} numberOfLines={1} style={styles.tierQuality}>
                   {pick(tierQuality[kind][tr])}
                 </AppText>
               </RadioCard>
             ))}
           </View>
 
-          <SectionTitle title={L('لماذا هذا السعر؟', 'Why this price?')} icon="cpu" action={n(q.lines.length, 'tool')} />
-          <Card style={styles.lines}>
-            {q.lines.map((l, i) => (
-              <View key={`${l.tool}${i}`} style={styles.line}>
-                <View style={ui.flex}>
-                  <AppText weight="semibold" size={13} lineHeight={19} style={styles.ltrStart}>
-                    {serviceTools[l.tool].name}
-                  </AppText>
-                  <AppText size={11} lineHeight={16} color={c.muted}>
-                    {pick(l.task)}
-                  </AppText>
-                </View>
-                <AppText size={12.5} lineHeight={18} weight="semibold">
-                  {formatIQD(l.costIqd)}
-                </AppText>
-              </View>
-            ))}
-            <Divider dashed style={styles.dash} />
-            <View style={styles.fee}>
-              <View style={ui.flex}>
-                <AppText variant="small" color={c.muted}>
-                  {L('رسوم الخدمة', 'Service fee')}
-                </AppText>
-                <AppText size={11} lineHeight={16} color={c.placeholder}>
-                  {L('التجهيز والمراجعة والتخزين والدعم', 'Setup, review, storage and support')}
-                </AppText>
-              </View>
-              <AppText size={12.5} lineHeight={18} weight="semibold">
-                {formatIQD(q.feeIqd)}
-              </AppText>
-            </View>
-          </Card>
+          <WhyPrice quote={q} open={showWhy} onToggle={() => setShowWhy((v) => !v)} />
 
           {orderMedia?.estimated && needs === 'video' && (
             <Note tone="info" icon="clock">
@@ -381,7 +423,7 @@ export default function OrderScreen() {
               />
             </>
           )}
-          <AppText size={11.5} lineHeight={17} color={c.placeholder} center>
+          <AppText size={11} lineHeight={16} color={c.placeholder} center style={styles.testNote}>
             {L('نسخة تجريبية: يُفعَّل الدفع مع الخادم، ويُنفَّذ الطلب حاليًا على حساب صاحب التطبيق.', "Test build: payment arrives with the server; orders now run on the app owner's account.")}
           </AppText>
         </ScrollView>
@@ -400,12 +442,64 @@ export default function OrderScreen() {
     );
   }
 
+  if (view === 'form' && service) {
+    const ready = quickReady(service, quick);
+    const missing =
+      service === 'editVideo'
+        ? L('أضف الفيديو لتعرض السعر.', 'Add the video to see the price.')
+        : services[service].needs === 'image'
+          ? L('أضف صورة واحدة على الأقل لتعرض السعر.', 'Add at least one photo to see the price.')
+          : L('اكتب طلبك لتعرض السعر.', 'Write your request to see the price.');
+    return (
+      <Screen edges={['top']}>
+        <TopBar title={pick(services[service].name)} subtitle={L('دون اشتراك، تدفع ثمن الطلب فقط', 'No subscription, pay per order')} mode="close" />
+        <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ExampleStrip kind={service} />
+            <QuickForm kind={service} state={quick} onChange={(patch) => setQuick((q) => ({ ...q, ...patch }))} onAdd={addQuick} />
+            {note && (
+              <Note tone="bad" icon="alert">
+                {note}
+              </Note>
+            )}
+          </ScrollView>
+          <Footer style={styles.formFooter}>
+            {!ready && (
+              <AppText size={12} lineHeight={17} color={c.muted} center>
+                {missing}
+              </AppText>
+            )}
+            <Button
+              label={busy ? L('نجهّز السعر…', 'Preparing the price…') : L('اعرض السعر', 'See price')}
+              icon={busy ? undefined : 'receipt'}
+              loading={busy}
+              disabled={!ready}
+              onPress={submitQuick}
+            />
+            <Button
+              variant="ghost"
+              icon="chat"
+              height={40}
+              label={L('تحدث مع المساعد بدلًا من ذلك', 'Chat with the assistant instead')}
+              onPress={() => {
+                setText(quick.desc.trim() || pick(openers[service]));
+                setMedia(quick.media);
+                setView('chat');
+              }}
+            />
+          </Footer>
+        </KeyboardAvoidingView>
+      </Screen>
+    );
+  }
+
   return (
     <Screen edges={['top']}>
       <TopBar
         title={L('اطلب خدمة', 'Order a service')}
         subtitle={L('دون اشتراك، تدفع ثمن الطلب فقط', 'No subscription, pay per order')}
-        mode="close"
+        mode={service ? 'back' : 'close'}
+        onBack={service ? () => setView('form') : undefined}
         right={
           failed ? (
             <Badge label={L('تعذّر الاتصال', 'Connection problem')} tone="bad" />
@@ -530,13 +624,11 @@ const styles = StyleSheet.create({
   tierHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tierName: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', rowGap: 4 },
   tierQuality: { marginTop: 3 },
-  lines: { paddingVertical: 4, paddingHorizontal: 14, gap: 0 },
-  line: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 50, paddingVertical: 6 },
-  ltrStart: { writingDirection: 'ltr', alignSelf: 'flex-start' },
-  dash: { marginVertical: 2 },
-  fee: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 6 },
+  testNote: { marginTop: 4 },
   totalBar: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   thread: { padding: GUTTER, gap: 12 },
+  formScroll: { paddingHorizontal: GUTTER, paddingTop: 4, paddingBottom: 24, gap: 16 },
+  formFooter: { gap: 6 },
   msg: { maxWidth: '86%', gap: 4 },
   mine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   theirs: { alignSelf: 'flex-start', alignItems: 'flex-start' },
