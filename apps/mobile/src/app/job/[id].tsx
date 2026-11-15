@@ -62,7 +62,7 @@ export default function JobScreen() {
     if (!job) return;
     started.current = true;
     updateJob(job.id, { status: 'running', error: undefined, step: '', progress: 0 });
-    runOrder(job.params, job.media, business, job.tier, lang, (step, progress) => updateJob(job.id, { step, progress }))
+    runOrder(job.params, job.media, business, job.tier, lang, (step, progress) => updateJob(job.id, { step, progress }), job.images ?? [])
       .then((result) => updateJob(job.id, { status: 'done', result, progress: 1, step: '' }))
       .catch((err) => updateJob(job.id, { status: 'failed', error: failCode(err) }));
   };
@@ -83,7 +83,7 @@ export default function JobScreen() {
     );
   }
 
-  const runSteps = stepsFor(job.params, Boolean(job.media), job.tier);
+  const runSteps = stepsFor(job.params, Boolean(job.media) || Boolean(job.images?.length), job.tier);
   const current = runSteps.indexOf(job.step as StepKey);
   const done = job.status === 'done';
   const failed = job.status === 'failed';

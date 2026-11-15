@@ -5,6 +5,7 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  MAX_REFERENCE_IMAGES,
   font,
   formatIQD,
   radius,
@@ -27,12 +28,12 @@ import { Screen } from '@/components/Screen';
 import { Badge, Card, Divider, Footer, GUTTER, IconBadge, IconButton, ModelChip, Note, RadioCard, SectionTitle, TopBar, ui } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { AiUnavailable, aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
-import { pickMedia, type PickedMedia } from '@/features/services/media';
+import { pickMedia, pickPhotos, type PickedMedia } from '@/features/services/media';
 import { serviceIcons } from '@/features/services/OrderRow';
 import { useServices } from '@/features/services/store';
 import { useTheme } from '@/theme/theme';
 
-type Turn = { id: number; from: 'me' | 'ai'; text: string; media?: PickedMedia };
+type Turn = { id: number; from: 'me' | 'ai'; text: string; media?: PickedMedia[] };
 type Plan = { title: string; params: ServiceParams };
 
 // Order ids and times come from the clock when the customer approves.
@@ -45,6 +46,7 @@ const openers: Record<ServiceKind, { ar: string; en: string }> = {
   editVideo: { ar: 'أريد مونتاج فيديو لدي', en: 'I want a video of mine edited' },
   adImage: { ar: 'أريد إعلانًا من صورة منتجي', en: 'I want an ad from my product photo' },
   textVideo: { ar: 'أريد فيديو من وصف دون تصوير', en: 'I want a video from a description, no filming' },
+  imageVideo: { ar: 'أريد فيديو من صور منتجي', en: 'I want a video made from my product photos' },
   copy: { ar: 'أريد نص منشور أو إعلان', en: 'I want copy for a post or an ad' },
   voice: { ar: 'أريد تعليقًا صوتيًا لنص', en: 'I want a voice-over for a text' },
 };
@@ -55,6 +57,7 @@ const openers: Record<ServiceKind, { ar: string; en: string }> = {
 function brief(params: ServiceParams, L: (a: string, e: string) => string, customerText: string): string {
   switch (params.kind) {
     case 'textVideo':
+    case 'imageVideo':
     case 'adImage':
       return customerText || params.prompt;
     case 'voice':
@@ -90,13 +93,14 @@ export default function OrderScreen() {
       id: 0,
       from: 'ai',
       text: L(
-        'أهلًا بك. أخبرني بما تريد: مونتاج فيديو لديك، أو إعلان من صورة، أو فيديو من وصف، أو نص، أو تعليق صوتي. وإذا كان لديك فيديو أو صورة، فأرفقها من زر الإرفاق.',
-        'Hello. Tell me what you need: editing a video of yours, an ad from a photo, a video from a description, copy, or a voice-over. If you have a video or photo, attach it with the + button.',
+        'أهلًا بك. أخبرني بما تريد: مونتاج فيديو لديك، أو فيديو من صورك، أو إعلان من صورة، أو فيديو من وصف، أو نص، أو تعليق صوتي. يمكنك إرفاق فيديو أو حتى أربع صور من زر الإرفاق.',
+        'Hello. Tell me what you need: editing a video of yours, a video from your photos, an ad from a photo, a video from a description, copy, or a voice-over. Attach a video or up to four photos with the + button.',
       ),
     },
   ]);
   const [text, setText] = useState(service && openers[service] ? pick(openers[service]) : '');
-  const [media, setMedia] = useState<PickedMedia | null>(null);
+  // Attachments waiting to be sent: one video, or up to four photos.
+  const [media, setMedia] = useState<PickedMedia[]>([]);
   const [attachOpen, setAttachOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -119,38 +123,66 @@ export default function OrderScreen() {
 
   const attach = async (kind: 'video' | 'image') => {
     setAttachOpen(false);
-    const picked = await pickMedia(kind);
+    const permissionNote = L('نحتاج إلى إذن الوصول إلى الصور لتختار الملف.', 'We need access to your photos to pick the file.');
+    if (kind === 'image') {
+      const kept = media.filter((m) => m.kind === 'image');
+      const room = MAX_REFERENCE_IMAGES - kept.length;
+      if (room <= 0) {
+        setNote(L(`يمكنك إرفاق ${n(MAX_REFERENCE_IMAGES, 'photo')} كحد أقصى.`, `You can attach up to ${n(MAX_REFERENCE_IMAGES, 'photo')}.`));
+        return;
+      }
+      const photos = await pickPhotos(room);
+      if (!photos) return;
+      if ('error' in photos) {
+        setNote(permissionNote);
+        return;
+      }
+      setMedia([...kept, ...photos].slice(0, MAX_REFERENCE_IMAGES));
+      setNote(null);
+      return;
+    }
+    const picked = await pickMedia('video');
     if (!picked) return;
     if ('error' in picked) {
       setNote(
         picked.error === 'permission'
-          ? L('نحتاج إلى إذن الوصول إلى الصور لتختار الملف.', 'We need access to your photos to pick the file.')
+          ? permissionNote
           : L('الفيديو أطول من 3 دقائق. قصّه أو اختر فيديو أقصر.', 'The video is longer than 3 minutes. Trim it or choose a shorter one.'),
       );
       return;
     }
-    setMedia(picked);
+    setMedia([picked]);
     setNote(null);
   };
 
   const send = async () => {
-    const body = text.trim() || (media ? (media.kind === 'video' ? L('أرفقت الفيديو', 'I attached the video') : L('أرفقت الصورة', 'I attached the photo')) : '');
+    const body =
+      text.trim() ||
+      (media.length
+        ? media[0].kind === 'video'
+          ? L('أرفقت الفيديو', 'I attached the video')
+          : media.length > 1
+            ? L('أرفقت الصور', 'I attached the photos')
+            : L('أرفقت الصورة', 'I attached the photo')
+        : '');
     if (!body || busy) return;
-    const mine: Turn = { id: nextId.current++, from: 'me', text: body, media: media ?? undefined };
+    const mine: Turn = { id: nextId.current++, from: 'me', text: body, media: media.length ? media : undefined };
     const history = [...turns, mine];
     setTurns(history);
     setText('');
-    setMedia(null);
+    setMedia([]);
     setPlan(null);
     setBusy(true);
     setNote(null);
-    const lastMedia = [...history].reverse().find((t) => t.media)?.media ?? null;
+    const sent = history.flatMap((t) => t.media ?? []);
+    const lastMedia = sent[sent.length - 1] ?? null;
+    const photoCount = Math.min(MAX_REFERENCE_IMAGES, sent.filter((m) => m.kind === 'image').length);
     try {
       const r = await postJson<{ reply: string; ready: boolean; title: string; params: ServiceParams | null }>(
         '/api/plan',
         {
           business,
-          media: lastMedia ? { kind: lastMedia.kind, seconds: lastMedia.seconds } : null,
+          media: lastMedia ? { kind: lastMedia.kind, seconds: lastMedia.seconds, count: lastMedia.kind === 'image' ? photoCount : 1 } : null,
           messages: history.slice(1).map((t) => ({ role: t.from === 'me' ? 'user' : 'assistant', content: t.text })),
         },
         90000,
@@ -169,9 +201,15 @@ export default function OrderScreen() {
     }
   };
 
-  const orderMedia = [...turns].reverse().find((t) => t.media)?.media ?? null;
+  // What the order uses: the latest video, or the latest photos (up to four
+  // for a video from photos, one for an ad).
+  const attached = turns.flatMap((t) => t.media ?? []);
+  const photos = attached.filter((m) => m.kind === 'image').slice(-MAX_REFERENCE_IMAGES);
+  const lastVideo = [...attached].reverse().find((m) => m.kind === 'video') ?? null;
   const needs = plan ? services[plan.params.kind].needs : null;
-  const missingMedia = Boolean(needs && (!orderMedia || orderMedia.kind !== needs));
+  const fromPhotos = plan?.params.kind === 'imageVideo';
+  const orderMedia = needs === 'video' ? lastVideo : needs === 'image' ? (fromPhotos ? (photos[0] ?? null) : (photos[photos.length - 1] ?? null)) : null;
+  const missingMedia = Boolean(needs && !orderMedia);
   const quotes: Record<ServiceTier, Quote> | null = plan
     ? { low: priceFor(plan.params, orderMedia?.seconds ?? 0, 'low'), mid: priceFor(plan.params, orderMedia?.seconds ?? 0, 'mid'), high: priceFor(plan.params, orderMedia?.seconds ?? 0, 'high') }
     : null;
@@ -187,6 +225,7 @@ export default function OrderScreen() {
       params: plan.params,
       tier,
       media: needs && orderMedia ? orderMedia : null,
+      images: fromPhotos ? photos : undefined,
       quote: q,
       status: 'pending',
       step: '',
@@ -239,7 +278,13 @@ export default function OrderScreen() {
                   <Badge
                     tone="pri"
                     icon={orderMedia.kind === 'video' ? 'video' : 'image'}
-                    label={orderMedia.kind === 'video' ? videoLabel(orderMedia) : L('صورة مرفقة', 'Photo attached')}
+                    label={
+                      orderMedia.kind === 'video'
+                        ? videoLabel(orderMedia)
+                        : fromPhotos
+                          ? L(photos.length === 2 ? 'صورتان مرفقتان' : `${n(photos.length, 'photo')} مرفقة`, `${n(photos.length, 'photo')} attached`)
+                          : L('صورة مرفقة', 'Photo attached')
+                    }
                   />
                 </View>
               )}
@@ -324,12 +369,14 @@ export default function OrderScreen() {
               <Note tone="acc" icon="alert">
                 {needs === 'video'
                   ? L('أرفق الفيديو الذي تريد مونتاجه قبل التأكيد.', 'Attach the video to edit before confirming.')
-                  : L('أرفق صورة المنتج قبل التأكيد.', 'Attach the product photo before confirming.')}
+                  : fromPhotos
+                    ? L(`أرفق صورة واحدة على الأقل (حتى ${MAX_REFERENCE_IMAGES}) قبل التأكيد.`, `Attach at least one photo (up to ${MAX_REFERENCE_IMAGES}) before confirming.`)
+                    : L('أرفق صورة المنتج قبل التأكيد.', 'Attach the product photo before confirming.')}
               </Note>
               <Button
                 variant="secondary"
                 icon={needs === 'video' ? 'video' : 'image'}
-                label={needs === 'video' ? L('أرفق الفيديو', 'Attach the video') : L('أرفق الصورة', 'Attach the photo')}
+                label={needs === 'video' ? L('أرفق الفيديو', 'Attach the video') : fromPhotos ? L('أرفق الصور', 'Attach the photos') : L('أرفق الصورة', 'Attach the photo')}
                 onPress={() => editRequest(true)}
               />
             </>
@@ -375,11 +422,11 @@ export default function OrderScreen() {
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
           {turns.map((t) => (
             <Animated.View key={t.id} entering={reduceMotion ? undefined : FadeIn.duration(200)} style={[styles.msg, t.from === 'me' ? styles.mine : styles.theirs]}>
-              {t.media && (
+              {t.media && t.media.length > 0 && (
                 <View style={[styles.attachment, { backgroundColor: c.priSoft }]}>
-                  <Icon name={t.media.kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
+                  <Icon name={t.media[0].kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
                   <AppText size={12} color={c.onPriSoft} numberOfLines={1} style={ui.flex}>
-                    {t.media.kind === 'video' ? videoLabel(t.media) : L('صورة', 'Photo')}
+                    {t.media[0].kind === 'video' ? videoLabel(t.media[0]) : t.media.length > 1 ? n(t.media.length, 'photo') : L('صورة', 'Photo')}
                   </AppText>
                 </View>
               )}
@@ -424,18 +471,20 @@ export default function OrderScreen() {
           {attachOpen && (
             <View style={styles.attachRow}>
               <Button label={L('فيديو من المعرض', 'Video from gallery')} icon="video" variant="secondary" small style={ui.flex} onPress={() => attach('video')} />
-              <Button label={L('صورة', 'Photo')} icon="image" variant="secondary" small style={ui.flex} onPress={() => attach('image')} />
+              <Button label={L('صور (حتى 4)', 'Photos (up to 4)')} icon="image" variant="secondary" small style={ui.flex} onPress={() => attach('image')} />
             </View>
           )}
-          {media && (
+          {media.length > 0 && (
             <View style={[styles.pending, { backgroundColor: c.priSoft }]}>
-              <Icon name={media.kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
+              <Icon name={media[0].kind === 'video' ? 'video' : 'image'} color={c.onPriSoft} size={15} />
               <AppText size={12.5} color={c.onPriSoft} style={ui.flex} numberOfLines={1}>
-                {media.kind === 'video'
-                  ? L(`فيديو جاهز للإرسال · ${Math.round(media.seconds)} ث${media.estimated ? ' تقديريًا' : ''}`, `Video ready to send · ${media.estimated ? '~' : ''}${Math.round(media.seconds)}s`)
-                  : L('صورة جاهزة للإرسال', 'Photo ready to send')}
+                {media[0].kind === 'video'
+                  ? L(`فيديو جاهز للإرسال · ${Math.round(media[0].seconds)} ث${media[0].estimated ? ' تقديريًا' : ''}`, `Video ready to send · ${media[0].estimated ? '~' : ''}${Math.round(media[0].seconds)}s`)
+                  : media.length > 1
+                    ? L(media.length === 2 ? 'صورتان جاهزتان للإرسال' : `${n(media.length, 'photo')} جاهزة للإرسال`, `${n(media.length, 'photo')} ready to send`)
+                    : L('صورة جاهزة للإرسال', 'Photo ready to send')}
               </AppText>
-              <PressableScale accessibilityRole="button" accessibilityLabel={L('إزالة المرفق', 'Remove attachment')} onPress={() => setMedia(null)} style={styles.remove}>
+              <PressableScale accessibilityRole="button" accessibilityLabel={L('إزالة المرفقات', 'Remove attachments')} onPress={() => setMedia([])} style={styles.remove}>
                 <Icon name="close" color={c.onPriSoft} size={15} />
               </PressableScale>
             </View>
@@ -460,10 +509,10 @@ export default function OrderScreen() {
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={L('أرسل', 'Send')}
-              disabled={(!text.trim() && !media) || busy}
+              disabled={(!text.trim() && media.length === 0) || busy}
               onPress={send}
-              style={[styles.iconBtn, { backgroundColor: text.trim() || media ? c.primary : c.tile }]}>
-              <Icon name="send" color={text.trim() || media ? c.onPrimary : c.placeholder} size={18} strokeWidth={1.8} />
+              style={[styles.iconBtn, { backgroundColor: text.trim() || media.length ? c.primary : c.tile }]}>
+              <Icon name="send" color={text.trim() || media.length ? c.onPrimary : c.placeholder} size={18} strokeWidth={1.8} />
             </PressableScale>
           </View>
         </View>

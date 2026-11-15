@@ -8,7 +8,7 @@ import { count } from './plural.ts';
 export type Lang = 'ar' | 'en';
 export type Bilingual = { ar: string; en: string };
 
-export type ServiceKind = 'copy' | 'voice' | 'adImage' | 'editVideo' | 'textVideo';
+export type ServiceKind = 'copy' | 'voice' | 'adImage' | 'editVideo' | 'textVideo' | 'imageVideo';
 export type ServiceTier = 'low' | 'mid' | 'high';
 export const serviceTiers: ServiceTier[] = ['low', 'mid', 'high'];
 
@@ -21,6 +21,9 @@ export type ServiceToolKey =
   | 'wanVideo'
   | 'klingVideo'
   | 'veoVideo'
+  | 'refVideoLite'
+  | 'refVideo'
+  | 'refVideoPro'
   | 'voiceTurbo'
   | 'voice'
   | 'voiceV3'
@@ -79,6 +82,18 @@ export const serviceTools: Record<ServiceToolKey, ServiceTool> = {
   image: t('image', 'Nano Banana Pro', 'Google', 'fal-ai/nano-banana-pro/edit', 0.15, U.image, { ar: 'تصميم احترافي من صورتك', en: 'Professional design from your photo' }),
   wanVideo: t('wanVideo', 'Wan 2.2', 'Alibaba', 'fal-ai/wan/v2.2-a14b/text-to-video', 0.08, U.second, { ar: 'توليد فيديو اقتصادي بدقة 720p', en: 'Economical 720p video generation' }),
   klingVideo: t('klingVideo', 'Kling 3 Pro', 'Kuaishou', 'fal-ai/kling-video/v3/pro/text-to-video', 0.14, U.second, { ar: 'توليد فيديو احترافي حتى 15 ثانية', en: 'Professional video up to 15 seconds' }),
+  refVideoLite: t('refVideoLite', 'Kling O1', 'Kuaishou', 'fal-ai/kling-video/o1/standard/reference-to-video', 0.084, U.second, {
+    ar: 'فيديو من صورك بحركة طبيعية',
+    en: 'Video from your photos with natural motion',
+  }),
+  refVideo: t('refVideo', 'Wan 2.7', 'Alibaba', 'fal-ai/wan/v2.7/reference-to-video', 0.1, U.second, {
+    ar: 'فيديو من صورك بدقة 1080p',
+    en: '1080p video from your photos',
+  }),
+  refVideoPro: t('refVideoPro', 'Kling O3 Pro', 'Kuaishou', 'fal-ai/kling-video/o3/pro/reference-to-video', 0.14, U.second, {
+    ar: 'فيديو احترافي من صورك مع صوت أصلي',
+    en: 'Professional video from your photos with native sound',
+  }),
   veoVideo: t('veoVideo', 'Veo 3.1', 'Google', 'fal-ai/veo3.1', 0.4, U.second, { ar: 'فيديو سينمائي بصوت أصلي بدقة 1080p', en: 'Cinematic 1080p video with native sound' }),
   voiceTurbo: t('voiceTurbo', 'ElevenLabs Turbo 2.5', 'ElevenLabs', 'fal-ai/elevenlabs/tts/turbo-v2.5', 0.05, U.chars, { ar: 'صوت واضح وسريع', en: 'Clear, fast voice' }),
   voice: t('voice', 'ElevenLabs v4', 'ElevenLabs', 'fal-ai/elevenlabs/tts/eleven-v4', 0.08, U.chars, { ar: 'صوت طبيعي بنبرة متوازنة', en: 'Natural, balanced voice' }),
@@ -108,6 +123,12 @@ export const services: Record<ServiceKind, ServiceInfo> = {
     pitch: { ar: 'تتحول صورة منتجك إلى تصميم إعلان', en: 'Your product photo becomes an ad' },
     needs: 'image',
   },
+  imageVideo: {
+    kind: 'imageVideo',
+    name: { ar: 'فيديو من صور', en: 'Video from photos' },
+    pitch: { ar: 'ارفع حتى 4 صور لمنتجك ونحوّلها إلى فيديو', en: 'Upload up to 4 photos and we turn them into a video' },
+    needs: 'image',
+  },
   textVideo: {
     kind: 'textVideo',
     name: { ar: 'فيديو من نص', en: 'Video from text' },
@@ -128,7 +149,10 @@ export const services: Record<ServiceKind, ServiceInfo> = {
   },
 };
 
-export const serviceOrder: ServiceKind[] = ['editVideo', 'adImage', 'textVideo', 'copy', 'voice'];
+export const serviceOrder: ServiceKind[] = ['editVideo', 'imageVideo', 'adImage', 'textVideo', 'copy', 'voice'];
+
+// How many photos a video-from-photos order can use.
+export const MAX_REFERENCE_IMAGES = 4;
 
 export const tierNames: Record<ServiceTier, Bilingual> = {
   low: { ar: 'منخفض', en: 'Low' },
@@ -138,6 +162,11 @@ export const tierNames: Record<ServiceTier, Bilingual> = {
 
 // What changes between levels for each service, in the customer's words.
 export const tierQuality: Record<ServiceKind, Record<ServiceTier, Bilingual>> = {
+  imageVideo: {
+    low: { ar: '5 ثوانٍ تحرّك صورك بشكل طبيعي', en: '5 seconds that bring your photos to life' },
+    mid: { ar: 'حتى 10 ثوانٍ بدقة 1080p', en: 'Up to 10 seconds at 1080p' },
+    high: { ar: 'حتى 15 ثانية بجودة احترافية مع صوت أصلي', en: 'Up to 15 seconds, professional, with native sound' },
+  },
   textVideo: {
     low: { ar: '5 ثوانٍ بدقة 720p، مناسب للتجربة والمنشورات السريعة', en: '5 seconds at 720p, good for tests and quick posts' },
     mid: { ar: 'حتى 15 ثانية بجودة احترافية وحركة أكثر سلاسة', en: 'Up to 15 seconds, professional quality, smoother motion' },
@@ -230,7 +259,8 @@ export type ServiceParams =
   | { kind: 'voice'; text: string; voice: 'brian' | 'sarah' }
   | { kind: 'adImage'; prompt: string; aspect: '1:1' | '4:5' | '9:16' }
   | { kind: 'editVideo'; trimStart: number | null; trimEnd: number | null; captions: boolean; music: string | null }
-  | { kind: 'textVideo'; prompt: string; duration: number; music: string | null };
+  | { kind: 'textVideo'; prompt: string; duration: number; music: string | null }
+  | { kind: 'imageVideo'; prompt: string; duration: number; music: string | null };
 
 export const VIDEO_SECONDS = { min: 3, max: 15 } as const;
 
@@ -267,10 +297,11 @@ export function cleanParams(raw: unknown): ServiceParams | null {
         music: str(p.music, 400) || null,
       };
     }
-    case 'textVideo': {
+    case 'textVideo':
+    case 'imageVideo': {
       const prompt = str(p.prompt, 1500);
       const duration = Math.round(clamp(num(p.duration) ?? 5, VIDEO_SECONDS.min, VIDEO_SECONDS.max));
-      return prompt ? { kind: 'textVideo', prompt, duration, music: str(p.music, 400) || null } : null;
+      return prompt ? { kind: p.kind === 'imageVideo' ? 'imageVideo' : 'textVideo', prompt, duration, music: str(p.music, 400) || null } : null;
     }
     default:
       return null;
@@ -285,11 +316,20 @@ export function videoSeconds(requested: number, tier: ServiceTier): number {
   return Math.round(clamp(requested, VIDEO_SECONDS.min, VIDEO_SECONDS.max));
 }
 
+// Video from photos: Kling O1 makes 5 seconds, Wan 2.7 up to 10, Kling O3
+// Pro up to 15.
+export function photoVideoSeconds(requested: number, tier: ServiceTier): number {
+  if (tier === 'low') return 5;
+  if (tier === 'mid') return Math.round(clamp(requested, 2, 10));
+  return Math.round(clamp(requested, VIDEO_SECONDS.min, VIDEO_SECONDS.max));
+}
+
 // The tools each level uses, by role.
 export const tierTools = {
   writer: { low: 'claudeHaiku', mid: 'claude', high: 'claudeOpus' },
   image: { low: 'imageLite', mid: 'image', high: 'image' },
   video: { low: 'wanVideo', mid: 'klingVideo', high: 'veoVideo' },
+  photoVideo: { low: 'refVideoLite', mid: 'refVideo', high: 'refVideoPro' },
   voice: { low: 'voiceTurbo', mid: 'voice', high: 'voiceV3' },
   music: { low: 'music', mid: 'musicPro', high: 'musicPro' },
 } as const satisfies Record<string, Record<ServiceTier, ServiceToolKey>>;
@@ -332,6 +372,21 @@ export function planLines(params: ServiceParams, mediaSeconds = 0, tier: Service
       if (tier === 'high') lines.push({ tool: 'upscale', qty: length, task: task('رفع الدقة وتحسين الوضوح', 'Upscaling the video') });
       break;
     }
+    case 'imageVideo': {
+      const seconds = photoVideoSeconds(params.duration, tier);
+      lines.push({
+        tool: tierTools.photoVideo[tier],
+        qty: seconds,
+        task: task(`تحويل صورك إلى ${count(seconds, 'second', 'ar')} من الفيديو`, `Turning your photos into ${count(seconds, 'second', 'en')} of video`),
+      });
+      // The high level makes its own soundtrack; the others get a Lyria
+      // track, which keeps each level cheaper than the one above.
+      if (params.music && tier !== 'high') {
+        lines.push({ tool: 'music', qty: 1, task: task('تأليف موسيقى للفيديو', 'Composing music') });
+        lines.push({ tool: 'mergeAudio', qty: seconds, task: task('دمج الموسيقى مع الفيديو', 'Merging the music') });
+      }
+      break;
+    }
     case 'textVideo': {
       const seconds = videoSeconds(params.duration, tier);
       lines.push({ tool: tierTools.video[tier], qty: seconds, task: task(`توليد ${count(seconds, 'second', 'ar')} من المشاهد`, `Generating ${count(seconds, 'second', 'en')} of scenes`) });
@@ -351,6 +406,7 @@ export const serviceModels: Record<ServiceKind, string> = {
   editVideo: 'Lyria 2 · ElevenLabs Music · Topaz',
   adImage: 'Nano Banana · Nano Banana Pro',
   textVideo: 'Wan 2.2 · Kling 3 Pro · Veo 3.1',
+  imageVideo: 'Kling O1 · Wan 2.7 · Kling O3 Pro',
   copy: 'Claude Haiku · Sonnet · Opus',
   voice: 'ElevenLabs Turbo · v4 · v3',
 };
@@ -360,6 +416,8 @@ export function tierModel(kind: ServiceKind, tier: ServiceTier): string {
   switch (kind) {
     case 'textVideo':
       return serviceTools[tierTools.video[tier]].name;
+    case 'imageVideo':
+      return serviceTools[tierTools.photoVideo[tier]].name;
     case 'adImage':
       return serviceTools[tierTools.image[tier]].name;
     case 'voice':

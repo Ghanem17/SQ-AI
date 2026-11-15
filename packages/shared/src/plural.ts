@@ -13,6 +13,7 @@ export const nouns = {
   hour: { ar: { one: 'ساعة واحدة', two: 'ساعتان', few: 'ساعات', many: 'ساعة' }, en: ['hour', 'hours'] },
   second: { ar: { one: 'ثانية واحدة', two: 'ثانيتان', few: 'ثوانٍ', many: 'ثانية' }, en: ['second', 'seconds'] },
   video: { ar: { one: 'فيديو واحد', two: 'فيديوهان', few: 'فيديوهات', many: 'فيديو' }, en: ['video', 'videos'] },
+  photo: { ar: { one: 'صورة واحدة', two: 'صورتان', few: 'صور', many: 'صورة' }, en: ['photo', 'photos'] },
 } as const satisfies Record<string, { ar: ArabicForms; en: readonly [string, string] }>;
 
 export type Noun = keyof typeof nouns;

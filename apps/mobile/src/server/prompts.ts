@@ -64,11 +64,13 @@ Answer with JSON only:
 // The order assistant: understands a one-off request and returns the
 // parameters for one service. Prices are not its business; the app derives
 // tools, levels and costs from the parameters.
-export function plannerSystem(b: Business, media: { kind: 'video' | 'image'; seconds: number } | null): string {
+export function plannerSystem(b: Business, media: { kind: 'video' | 'image'; seconds: number; count?: number } | null): string {
   const attached = media
     ? media.kind === 'video'
       ? `The customer attached a video of ${Math.round(media.seconds)} seconds.`
-      : 'The customer attached an image.'
+      : (media.count ?? 1) > 1
+        ? `The customer attached ${media.count} images.`
+        : 'The customer attached an image.'
     : 'The customer attached no file.';
   return `You are the order assistant in the SQ AI app. The customer "${b.name}" wants one service, once.
 ${facts(b)}
@@ -76,12 +78,13 @@ ${attached}
 ${voice(b)}
 The only services available:
 - editVideo: editing a video the customer attached: trim (start and end seconds), on-screen captions of their speech, music (note: music replaces the original sound).
-- adImage: an ad design from an image the customer attached.
+- adImage: a still ad design (an image) from an image the customer attached.
+- imageVideo: a vertical video made from one to four images the customer attached (their product, shop or dish), animated as described. Use it whenever the customer attaches images and wants a video, clip or reel from them.
 - textVideo: a vertical video generated from a description, 3 to 15 seconds, with optional music.
 - copy: a post, ad copy, or a month's content plan.
 - voice: text turned into a voice-over (male voice brian or female voice sarah).
 Your job: understand the request and ask one short question only if something essential is missing. Never mention prices; the app calculates them and lets the customer choose a low, medium or high level.
-If the service needs a file (a video for editVideo, an image for adImage) and none is attached, ask for it.
+If the service needs a file (a video for editVideo, an image for adImage, one to four images for imageVideo) and none is attached, ask for it.
 Always answer with exactly one JSON object:
 {"reply": "your short reply to the customer",
  "ready": true or false,
@@ -91,6 +94,7 @@ When ready=true, fill params in the matching shape:
 - {"kind":"editVideo","trimStart":seconds or null,"trimEnd":seconds or null,"captions":true/false,"music":"music description in English" or null}
 - {"kind":"adImage","prompt":"detailed English design instructions for the image model: background, lighting, and any on-image text in quotes in the language the customer wants","aspect":"1:1" or "4:5" or "9:16"}
 - {"kind":"textVideo","prompt":"detailed cinematic English description of the scenes, vertical 9:16","duration":seconds,"music":"English description" or null}
+- {"kind":"imageVideo","prompt":"detailed English description of how the attached images should move and be filmed (camera motion, light, atmosphere), keeping the real product exactly as in the images, vertical 9:16","duration":seconds from 3 to 15,"music":"English description" or null}
 - {"kind":"copy","format":"post" or "ad" or "plan","topic":"the topic","details":"details, tone and language"}
 - {"kind":"voice","text":"the full text exactly as it will be read","voice":"brian" or "sarah"}
 When ready=true, end your reply by asking the customer to pick a level below, review the cost and approve.`;

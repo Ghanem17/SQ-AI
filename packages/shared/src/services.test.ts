@@ -84,6 +84,7 @@ test('the minimum price rises with the level', () => {
 test('higher levels cost more for the same request', () => {
   for (const raw of [
     { kind: 'textVideo', prompt: 'x', duration: 10, music: 'x' },
+    { kind: 'imageVideo', prompt: 'x', duration: 10, music: 'x' },
     { kind: 'adImage', prompt: 'x', aspect: '1:1' },
     { kind: 'voice', text: 'مرحبا', voice: 'brian' },
     { kind: 'copy', format: 'post', topic: 'x', details: '' },
@@ -136,4 +137,14 @@ test('a medium 10-second text video with music matches the approved quote', () =
   );
   assert.equal(q.feeIqd, 1982);
   assert.equal(q.totalIqd, 5000);
+});
+
+test('video from photos uses its own models and lengths per level', () => {
+  const p = cleanParams({ kind: 'imageVideo', prompt: 'burger on a plate', duration: 12, music: 'calm' });
+  assert.ok(p && p.kind === 'imageVideo');
+  const tools = (tier: 'low' | 'mid' | 'high') => planLines(p, 0, tier).map((l) => [l.tool, l.qty]);
+  assert.deepEqual(tools('low'), [['claude', 1], ['refVideoLite', 5], ['music', 1], ['mergeAudio', 5]]);
+  assert.deepEqual(tools('mid'), [['claude', 1], ['refVideo', 10], ['music', 1], ['mergeAudio', 10]]);
+  // The high level makes its own sound, so no music lines.
+  assert.deepEqual(tools('high'), [['claude', 1], ['refVideoPro', 12]]);
 });

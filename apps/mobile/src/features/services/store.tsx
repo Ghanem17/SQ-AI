@@ -17,6 +17,8 @@ export type ServiceJob = {
   params: ServiceParams;
   tier: ServiceTier;
   media: { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string } | null;
+  // All photos of a video-from-photos order, in order; `media` is the first.
+  images?: { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string }[];
   quote: Quote;
   status: 'pending' | 'running' | 'done' | 'failed';
   // A runner step key while it runs.

@@ -14,8 +14,11 @@ export async function POST(request: Request): Promise<Response> {
     const body = (await request.json()) as { business?: unknown; messages?: unknown; media?: unknown };
     const messages = readMessages(body.messages, 20);
     if (messages.length === 0) return Response.json({ error: 'No message' }, { status: 400 });
-    const m = body.media as { kind?: unknown; seconds?: unknown } | null | undefined;
-    const media = m && (m.kind === 'video' || m.kind === 'image') ? { kind: m.kind as 'video' | 'image', seconds: Number(m.seconds) || 0 } : null;
+    const m = body.media as { kind?: unknown; seconds?: unknown; count?: unknown } | null | undefined;
+    const media =
+      m && (m.kind === 'video' || m.kind === 'image')
+        ? { kind: m.kind as 'video' | 'image', seconds: Number(m.seconds) || 0, count: Math.max(1, Math.min(10, Number(m.count) || 1)) }
+        : null;
     const raw = await chat([{ role: 'system', content: plannerSystem(readBusiness(body.business), media) }, ...messages], { maxTokens: 1200, temperature: 0.4 });
     const reply = parseJson<Reply>(raw);
     const params = reply.ready ? cleanParams(reply.params) : null;

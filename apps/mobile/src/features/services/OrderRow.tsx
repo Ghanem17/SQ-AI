@@ -10,7 +10,7 @@ import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import type { ServiceJob } from './store';
 
-export const serviceIcons: Record<ServiceKind, IconName> = { editVideo: 'video', adImage: 'image', textVideo: 'film', copy: 'edit', voice: 'mic' };
+export const serviceIcons: Record<ServiceKind, IconName> = { editVideo: 'video', adImage: 'image', textVideo: 'film', imageVideo: 'layers', copy: 'edit', voice: 'mic' };
 
 export const jobStatus: Record<ServiceJob['status'], { label: { ar: string; en: string }; tone: Tone }> = {
   pending: { label: { ar: 'بالانتظار', en: 'Waiting' }, tone: 'neutral' },

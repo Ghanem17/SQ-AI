@@ -65,6 +65,26 @@ export async function pickMedia(kind: 'video' | 'image'): Promise<PickedMedia | 
   return { uri: a.uri, kind, mimeType, seconds, fileName, estimated };
 }
 
+// Picks up to `max` photos at once, in the order chosen.
+export async function pickPhotos(max: number): Promise<PickedMedia[] | { error: 'permission' } | null> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) return { error: 'permission' };
+  const res = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    quality: 0.9,
+    allowsMultipleSelection: max > 1,
+    selectionLimit: Math.max(1, max),
+    orderedSelection: true,
+  });
+  if (res.canceled || !res.assets?.length) return null;
+  return res.assets.slice(0, Math.max(1, max)).map((a, i) => {
+    const mimeType = a.mimeType ?? 'image/jpeg';
+    const fileName = a.fileName ?? `image-${Date.now()}-${i}.${mimeType.split('/')[1] ?? 'jpg'}`;
+    return { uri: a.uri, kind: 'image' as const, mimeType, seconds: 0, fileName };
+  });
+}
+
 // Returns the public fal URL of the uploaded file.
 export async function uploadMedia(media: PickedMedia): Promise<string> {
   const { uploadUrl, fileUrl } = await postJson<{ uploadUrl: string; fileUrl: string }>('/api/upload', {

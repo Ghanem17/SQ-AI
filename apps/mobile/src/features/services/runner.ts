@@ -2,7 +2,7 @@
 // each one's output feeding the next. The level the customer chose decides
 // which model runs each step. Progress is reported as it goes.
 
-import { tierTools, videoSeconds, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
+import { photoVideoSeconds, tierTools, videoSeconds, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
 import { AiUnavailable, postJson, unavailableText } from '@/lib/ai';
 import type { Business } from './types';
 import { uploadMedia, type PickedMedia } from './media';
@@ -65,6 +65,11 @@ export function stepsFor(params: ServiceParams, hasMedia: boolean, tier: Service
     case 'adImage':
       steps.push('design');
       break;
+    case 'imageVideo':
+      steps.push('scenes');
+      // The high level makes its own soundtrack.
+      if (params.music && tier !== 'high') steps.push('music', 'merge');
+      break;
     case 'textVideo':
       steps.push('scenes');
       // Veo makes its own soundtrack.
@@ -78,6 +83,16 @@ export function stepsFor(params: ServiceParams, hasMedia: boolean, tier: Service
       break;
   }
   return steps;
+}
+
+// The input each video-from-photos model expects. Kling refers to the
+// photos as @Image1, @Image2… in the prompt; Wan takes them as references.
+function photoVideoInput(tier: ServiceTier, prompt: string, urls: string[], seconds: number): Record<string, unknown> {
+  const refs = urls.map((_, i) => `@Image${i + 1}`).join(', ');
+  const klingPrompt = `${prompt}\nUse ${refs} as the reference ${urls.length > 1 ? 'images' : 'image'} for the product and scene.`;
+  if (tier === 'mid') return { prompt, reference_image_urls: urls, duration: seconds, aspect_ratio: '9:16', resolution: '1080p' };
+  if (tier === 'high') return { prompt: klingPrompt, image_urls: urls, duration: String(seconds), aspect_ratio: '9:16', generate_audio: true };
+  return { prompt: klingPrompt, image_urls: urls, duration: String(seconds), aspect_ratio: '9:16' };
 }
 
 // Music at the level's quality, sized to the video where the model allows.
@@ -103,8 +118,10 @@ export async function runOrder(
   tier: ServiceTier,
   lang: 'ar' | 'en',
   report: Report,
+  // Every photo of a video-from-photos order; `media` is the first.
+  images: PickedMedia[] = [],
 ): Promise<JobResult> {
-  const steps = stepsFor(params, Boolean(media), tier);
+  const steps = stepsFor(params, Boolean(media) || images.length > 0, tier);
   let done = 0;
   const step = (key: StepKey) => report(key, done / steps.length);
   const next = () => {
@@ -112,7 +129,14 @@ export async function runOrder(
   };
 
   let sourceUrl = '';
-  if (media) {
+  let imageUrls: string[] = [];
+  if (images.length > 0) {
+    step('upload');
+    imageUrls = [];
+    for (const image of images) imageUrls.push(await uploadMedia(image));
+    sourceUrl = imageUrls[0];
+    next();
+  } else if (media) {
     step('upload');
     sourceUrl = await uploadMedia(media);
     next();
@@ -138,6 +162,25 @@ export async function runOrder(
       const urls = ((r.images as unknown[] | undefined) ?? []).map(fileUrl);
       if (!urls.length) throw new Error('No file in result');
       return { type: 'image', url: urls[0], urls };
+    }
+    case 'imageVideo': {
+      const urls = imageUrls.length ? imageUrls : sourceUrl ? [sourceUrl] : [];
+      if (!urls.length) throw new Error('upload: no photos');
+      const seconds = photoVideoSeconds(params.duration, tier);
+      const withMusic = Boolean(params.music) && tier !== 'high';
+      step('scenes');
+      const r = await runTool(tierTools.photoVideo[tier], photoVideoInput(tier, params.prompt, urls, seconds));
+      let video = fileUrl(r.video);
+      next();
+      if (withMusic && params.music) {
+        step('music');
+        const m = await runTool('music', { prompt: params.music });
+        next();
+        step('merge');
+        const merged = await runTool('mergeAudio', { video_url: video, audio_url: fileUrl(m.audio) });
+        video = fileUrl(merged.video);
+      }
+      return { type: 'video', url: video };
     }
     case 'textVideo': {
       const seconds = videoSeconds(params.duration, tier);
