@@ -1,6 +1,6 @@
 import { router, useIsFocused, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatIQD, lastDays, radius, tiers } from '@sq/shared';
@@ -11,7 +11,9 @@ import { LineChart } from '@/components/charts';
 import { Icon, type IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Appear, Badge, Card, Chevron, IconBadge, IconButton, ListCard, ListRow, Progress, ScrollScreen, SectionTitle, GUTTER } from '@/components/ui';
+import { ExampleRow } from '@/features/services/examples';
 import { OrderRow } from '@/features/services/OrderRow';
+import { ResultTile } from '@/features/services/ResultTile';
 import { useServices } from '@/features/services/store';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
@@ -53,7 +55,10 @@ export default function HomeScreen() {
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const current = steps.findIndex((s) => !s.done);
-  const latest = jobs.slice(0, 3);
+  // Finished orders lead as a gallery; the others stay listed with their
+  // status until they finish.
+  const results = jobs.filter((j) => j.status === 'done' && j.result).slice(0, 10);
+  const latest = jobs.filter((j) => j.status !== 'done').slice(0, 3);
 
   const quick: { icon: IconName; label: string; href: Href }[] = [
     { icon: 'camera', label: L('صوّر ريلًا', 'Shoot reel'), href: '/camera' },
@@ -80,6 +85,17 @@ export default function HomeScreen() {
           </View>
         </Appear>
 
+        {results.length > 0 && (
+          <Appear order={2} style={styles.group}>
+            <SectionTitle title={L('نتائجك', 'Your results')} action={L('عرض الكل', 'See all')} onAction={() => router.push('/jobs')} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.stripRow}>
+              {results.map((j) => (
+                <ResultTile key={j.id} job={j} width={140} mediaHeight={160} />
+              ))}
+            </ScrollView>
+          </Appear>
+        )}
+
         {draft.active && (
           <Appear order={2}>
             <ListCard>
@@ -99,7 +115,7 @@ export default function HomeScreen() {
         )}
 
         {doneCount < steps.length && (
-          <Appear order={2}>
+          <Appear order={3}>
             <Card style={styles.steps}>
               <View style={styles.stepsHead}>
                 <AppText variant="h3">{L('خطوات البدء', 'Getting started')}</AppText>
@@ -149,7 +165,14 @@ export default function HomeScreen() {
           </Appear>
         )}
 
-        <Appear order={3}>
+        {results.length === 0 && (
+          <Appear order={4} style={styles.group}>
+            <SectionTitle title={L('جرّب أول خدمة', 'Try your first service')} action={L('كل الخدمات', 'All services')} onAction={() => router.navigate('/services')} />
+            <ExampleRow />
+          </Appear>
+        )}
+
+        <Appear order={5}>
           <Card style={styles.chartCard}>
             <View style={styles.between}>
               <View style={styles.flex}>
@@ -308,4 +331,7 @@ const styles = StyleSheet.create({
   emptyPill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
   end: { alignItems: 'flex-end', gap: 4 },
   badgeEnd: { alignSelf: 'flex-end' },
+  group: { gap: 12 },
+  strip: { marginHorizontal: -GUTTER, flexGrow: 0 },
+  stripRow: { gap: 10, paddingHorizontal: GUTTER, paddingBottom: 4 },
 });

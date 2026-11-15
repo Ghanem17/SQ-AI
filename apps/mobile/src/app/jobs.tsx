@@ -1,29 +1,34 @@
 import { router } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { formatIQD, formatNumber } from '@sq/shared';
 import { Button } from '@/components/Button';
-import { EmptyState, KeyValue, Card, ListCard, ScrollScreen, TopBar } from '@/components/ui';
-import { OrderRow } from '@/features/services/OrderRow';
+import { Card, EmptyState, GUTTER, KeyValue, ScrollScreen, TopBar } from '@/components/ui';
+import { ResultTile } from '@/features/services/ResultTile';
 import { useServices } from '@/features/services/store';
 import { useI18n } from '@/i18n';
 
-// Every service order placed on this device, newest first.
+const GAP = 12;
+
+// Every service order placed on this device, newest first, as a grid of
+// results. Orders still running or stopped carry their status on the tile.
 export default function JobsScreen() {
   const { L } = useI18n();
   const { jobs } = useServices();
+  const { width } = useWindowDimensions();
+  const tile = Math.floor((Math.min(width, 520) - GUTTER * 2 - GAP) / 2);
   const total = jobs.reduce((s, j) => s + j.quote.totalIqd, 0);
   return (
     <ScrollScreen
-      header={<TopBar title={L('طلبات الخدمات', 'Service orders')} />}
-      footer={<Button label={L('طلب جديد', 'New order')} icon="plus" onPress={() => router.push('/order')} />}>
+      header={<TopBar title={L('نتائجك وطلباتك', 'Your results and orders')} />}
+      footer={<Button label={L('طلب جديد', 'New order')} icon="plus" onPress={() => router.navigate('/services')} />}>
       {jobs.length === 0 ? (
         <EmptyState
           icon="layers"
           title={L('لا توجد طلبات بعد', 'No orders yet')}
           body={L(
-            'اطلب مونتاج فيديو، أو إعلانًا من صورة، أو فيديو من نص، أو نصًا، أو تعليقًا صوتيًا.',
-            'Order a video edit, an ad from a photo, a video from text, copy, or a voice-over.',
+            'اطلب مونتاج فيديو، أو فيديو من صورك، أو إعلانًا من صورة، أو فيديو من نص، أو نصًا، أو تعليقًا صوتيًا. تظهر نتائجك هنا.',
+            'Order a video edit, a video from your photos, an ad from a photo, a video from text, copy, or a voice-over. Your results show here.',
           )}
         />
       ) : (
@@ -37,11 +42,11 @@ export default function JobsScreen() {
               value={formatIQD(total)}
             />
           </Card>
-          <ListCard>
-            {jobs.map((j, i) => (
-              <OrderRow key={j.id} job={j} last={i === jobs.length - 1} />
+          <View style={styles.grid}>
+            {jobs.map((j) => (
+              <ResultTile key={j.id} job={j} width={tile} />
             ))}
-          </ListCard>
+          </View>
         </>
       )}
     </ScrollScreen>
@@ -50,4 +55,5 @@ export default function JobsScreen() {
 
 const styles = StyleSheet.create({
   total: { paddingVertical: 6, gap: 0 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
 });
