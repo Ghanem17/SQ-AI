@@ -1,17 +1,20 @@
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Platform, Share, StyleSheet, View } from 'react-native';
+import Animated, { Easing, FadeInUp, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { formatDate, formatIQD, formatTime, serviceTools, services, tierNames, tierQuality, videoSeconds, type ServiceToolKey } from '@sq/shared';
+import { formatDate, formatIQD, formatTime, serviceTools, services, tierNames, videoSeconds, type ServiceToolKey } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { SuccessSeal } from '@/components/brand';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
-import { Badge, Card, Divider, IconBadge, IconButton, KeyValue, Note, Progress, ScrollScreen, SectionTitle, StepTrack, TopBar, type StepState } from '@/components/ui';
+import { Badge, Card, IconBadge, IconButton, KeyValue, Note, Progress, ScrollScreen, SectionTitle, StepTrack, TopBar, type StepState } from '@/components/ui';
 import { useI18n, type I18n } from '@/i18n';
 import { useBusiness } from '@/lib/ai';
 import { serviceIcons } from '@/features/services/OrderRow';
 import { ResultView } from '@/features/services/Result';
+import { WhyPrice } from '@/features/services/WhyPrice';
 import { failCode, failMessage, runOrder, stepNames, stepsFor, type StepKey } from '@/features/services/runner';
 import { useServices, type ServiceJob } from '@/features/services/store';
 import { useTheme } from '@/theme/theme';
@@ -46,6 +49,50 @@ function receiptText(job: ServiceJob, i18n: I18n): string {
   ].join('\n');
 }
 
+const SEAL = 68;
+
+// The seal of a finished order. When the order finishes while the screen is
+// open it settles in with a short scale and two quiet pulses of its ring, and
+// the phone confirms with a success tap. Reduced motion shows it still.
+function DoneSeal({ celebrate }: { celebrate: boolean }) {
+  const { c } = useTheme();
+  const reduceMotion = useReducedMotion();
+  const play = celebrate && !reduceMotion;
+  const scale = useSharedValue(play ? 0.55 : 1);
+  const fade = useSharedValue(play ? 0 : 1);
+  const ring = useSharedValue(0);
+
+  useEffect(() => {
+    if (!celebrate) return;
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    if (!play) return;
+    fade.set(withTiming(1, { duration: 240 }));
+    scale.set(withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic) }));
+    ring.set(withDelay(380, withRepeat(withTiming(1, { duration: 1200, easing: Easing.out(Easing.quad) }), 2, false)));
+  }, [celebrate, play, fade, scale, ring]);
+
+  const sealStyle = useAnimatedStyle(() => ({ opacity: fade.get(), transform: [{ scale: scale.get() }] }));
+  const ringStyle = useAnimatedStyle(() => {
+    const t = ring.get();
+    return { opacity: t > 0 && t < 1 ? (1 - t) * 0.55 : 0, transform: [{ scale: 1 + t * 0.55 }] };
+  });
+
+  return (
+    <View style={styles.sealBox}>
+      <Animated.View style={[styles.ring, { borderColor: c.accent }, ringStyle]} />
+      <Animated.View style={sealStyle}>
+        <SuccessSeal size={SEAL} />
+      </Animated.View>
+    </View>
+  );
+}
+
+// Fades the result up into place after the seal settles.
+function Reveal({ animate, delay, children }: { animate: boolean; delay: number; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  return <Animated.View entering={animate && !reduceMotion ? FadeInUp.delay(delay).duration(420) : undefined}>{children}</Animated.View>;
+}
+
 // One order's receipt: it runs as soon as it opens, shows each step as it
 // happens, then the result. A failed or interrupted order can be retried.
 export default function JobScreen() {
@@ -57,6 +104,9 @@ export default function JobScreen() {
   const business = useBusiness();
   const job = jobs.find((j) => j.id === id);
   const started = useRef(false);
+  // Celebrate only an order seen running here, not one opened already done.
+  const [sawRunning, setSawRunning] = useState(false);
+  if (job && job.status !== 'done' && !sawRunning) setSawRunning(true);
 
   const start = () => {
     if (!job) return;
@@ -99,97 +149,112 @@ export default function JobScreen() {
   ];
   const share = () => Share.share({ message: receiptText(job, i18n) }).catch(() => undefined);
 
+  const celebrate = done && sawRunning;
+  const ticket = (
+    <Card style={styles.ticket}>
+      <View style={styles.ticketHead}>
+        <View>
+          <AppText size={11} lineHeight={16} color={c.muted}>
+            {L('رقم الطلب', 'Order number')}
+          </AppText>
+          <AppText weight="bold" size={14} lineHeight={20} style={styles.orderId}>
+            {job.id}
+          </AppText>
+        </View>
+        <View style={styles.dateCol}>
+          <AppText size={11} lineHeight={16} color={c.muted}>
+            {L('التاريخ', 'Date')}
+          </AppText>
+          <AppText weight="semibold" size={13} lineHeight={19}>
+            {`${formatDate(job.createdAt, lang)} · ⁦${formatTime(job.createdAt)}⁩`}
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.perforation}>
+        <View style={[styles.perfLine, { borderColor: c.line }]} />
+        <View style={[styles.notch, styles.notchLeft]}>
+          <View style={[styles.notchCircle, styles.notchCircleLeft, { backgroundColor: c.bg, borderColor: c.line }]} />
+        </View>
+        <View style={[styles.notch, styles.notchRight]}>
+          <View style={[styles.notchCircle, { backgroundColor: c.bg, borderColor: c.line }]} />
+        </View>
+      </View>
+      <View style={styles.ticketBody}>
+        <KeyValue icon={serviceIcons[job.kind]} label={L('الخدمة', 'Service')} value={pick(services[job.kind].name)} />
+        <KeyValue icon="layers" divider label={L('المستوى', 'Level')} value={levelLabel(job, i18n)} />
+        <KeyValue icon="cpu" divider label={L('النماذج', 'Models')} value={modelNames(job)} ltrValue />
+        <KeyValue icon="receipt" divider strong label={L('الإجمالي', 'Total')} value={formatIQD(job.quote.totalIqd)} />
+      </View>
+    </Card>
+  );
+
   return (
     <ScrollScreen
-      header={<TopBar mode="close" title={L('إيصال الطلب', 'Order receipt')} onBack={leave} right={<IconButton icon="share" label={L('شارك الإيصال', 'Share the receipt')} onPress={share} />} />}>
+      header={<TopBar mode="close" title={done ? L('نتيجة طلبك', 'Your result') : L('إيصال الطلب', 'Order receipt')} onBack={leave} right={<IconButton icon="receipt" label={L('شارك الإيصال', 'Share the receipt')} onPress={share} />} />}>
       <View style={styles.seal}>
-        {failed ? <IconBadge icon="alert" tone="bad" size={56} /> : <SuccessSeal />}
-        <AppText variant="h2" center style={styles.sealTitle}>
-          {done ? L('طلبك جاهز', 'Your order is ready') : failed ? L('لم يكتمل الطلب', 'The order did not finish') : L('تم تأكيد طلبك', 'Your order is confirmed')}
-        </AppText>
-        <AppText variant="small" color={c.muted} center>
-          {done
-            ? L('النتيجة أدناه، احفظها على جهازك.', 'The result is below; save it to your device.')
-            : failed
-              ? L('يمكنك إعادة المحاولة دون طلب جديد.', 'You can try again without a new order.')
-              : L('بدأ التنفيذ، وسنعرض النتيجة هنا عند اكتماله.', 'The run has started; the result shows here when it is done.')}
-        </AppText>
+        {failed ? <IconBadge icon="alert" tone="bad" size={56} /> : done ? <DoneSeal celebrate={celebrate} /> : <SuccessSeal />}
+        <Reveal animate={celebrate} delay={260}>
+          <AppText variant="h2" center style={styles.sealTitle}>
+            {done ? L('طلبك جاهز', 'Your order is ready') : failed ? L('لم يكتمل الطلب', 'The order did not finish') : L('تم تأكيد طلبك', 'Your order is confirmed')}
+          </AppText>
+          <AppText variant="small" color={c.muted} center>
+            {done
+              ? L('انشره الآن أو احفظه على جهازك.', 'Post it now or save it to your device.')
+              : failed
+                ? L('يمكنك إعادة المحاولة دون طلب جديد.', 'You can try again without a new order.')
+                : L('بدأ التنفيذ، وسنعرض النتيجة هنا عند اكتماله.', 'The run has started; the result shows here when it is done.')}
+          </AppText>
+        </Reveal>
       </View>
 
-      <Card style={styles.ticket}>
-        <View style={styles.ticketHead}>
-          <View>
-            <AppText size={11} lineHeight={16} color={c.muted}>
-              {L('رقم الطلب', 'Order number')}
-            </AppText>
-            <AppText weight="bold" size={14} lineHeight={20} style={styles.orderId}>
-              {job.id}
-            </AppText>
-          </View>
-          <View style={styles.dateCol}>
-            <AppText size={11} lineHeight={16} color={c.muted}>
-              {L('التاريخ', 'Date')}
-            </AppText>
-            <AppText weight="semibold" size={13} lineHeight={19}>
-              {`${formatDate(job.createdAt, lang)} · ⁦${formatTime(job.createdAt)}⁩`}
-            </AppText>
-          </View>
-        </View>
-        <View style={styles.perforation}>
-          <View style={[styles.perfLine, { borderColor: c.line }]} />
-          <View style={[styles.notch, styles.notchLeft]}>
-            <View style={[styles.notchCircle, styles.notchCircleLeft, { backgroundColor: c.bg, borderColor: c.line }]} />
-          </View>
-          <View style={[styles.notch, styles.notchRight]}>
-            <View style={[styles.notchCircle, { backgroundColor: c.bg, borderColor: c.line }]} />
-          </View>
-        </View>
-        <View style={styles.ticketBody}>
-          <KeyValue icon={serviceIcons[job.kind]} label={L('الخدمة', 'Service')} value={pick(services[job.kind].name)} />
-          <KeyValue icon="layers" divider label={L('المستوى', 'Level')} value={levelLabel(job, i18n)} />
-          <KeyValue icon="cpu" divider label={L('النماذج', 'Models')} value={modelNames(job)} ltrValue />
-          <KeyValue icon="receipt" divider strong label={L('الإجمالي', 'Total')} value={formatIQD(job.quote.totalIqd)} />
-        </View>
-      </Card>
+      {done && job.result && (
+        <Reveal animate={celebrate} delay={480}>
+          <ResultView job={job} result={job.result} />
+        </Reveal>
+      )}
 
-      <Card style={styles.status}>
-        <View style={styles.between}>
-          <AppText variant="h3">{L('حالة التنفيذ', 'Progress')}</AppText>
-          {done ? (
-            <Badge tone="ok" icon="check" label={L('تم', 'Done')} />
-          ) : failed ? (
-            <Badge tone="bad" label={L('متوقف', 'Stopped')} />
-          ) : (
-            <Badge tone="warn" icon="clock" label={`⁦${pct}%⁩`} />
-          )}
-        </View>
-        <Progress value={done ? 1 : job.progress} />
-        {track.length <= 5 ? (
-          <StepTrack steps={track} />
-        ) : (
-          <View style={styles.list}>
-            {track.map((s, i) => (
-              <View key={`${s.label}${i}`} style={styles.listStep}>
-                <View
-                  style={[
-                    styles.dot,
-                    s.state === 'done'
-                      ? { backgroundColor: c.ok }
-                      : s.state === 'now'
-                        ? { borderWidth: 2, borderColor: c.accent, backgroundColor: c.card }
-                        : { borderWidth: 1.5, borderColor: c.lineStrong },
-                  ]}>
-                  {s.state === 'done' && <Icon name="check" color={c.card} size={12} strokeWidth={2.6} />}
-                  {s.state === 'now' && <View style={[styles.nowDot, { backgroundColor: c.accent }]} />}
-                </View>
-                <AppText size={13} lineHeight={19} weight={s.state === 'now' ? 'semibold' : 'regular'} color={s.state === 'todo' ? c.placeholder : c.text}>
-                  {s.label}
-                </AppText>
+      {done ? (
+        <>
+          <SectionTitle title={L('تفاصيل الطلب', 'Order details')} />
+          {ticket}
+        </>
+      ) : (
+        <>
+          {ticket}
+          <Card style={styles.status}>
+            <View style={styles.between}>
+              <AppText variant="h3">{L('حالة التنفيذ', 'Progress')}</AppText>
+              {failed ? <Badge tone="bad" label={L('متوقف', 'Stopped')} /> : <Badge tone="warn" icon="clock" label={`⁦${pct}%⁩`} />}
+            </View>
+            <Progress value={job.progress} />
+            {track.length <= 5 ? (
+              <StepTrack steps={track} />
+            ) : (
+              <View style={styles.list}>
+                {track.map((s, i) => (
+                  <View key={`${s.label}${i}`} style={styles.listStep}>
+                    <View
+                      style={[
+                        styles.dot,
+                        s.state === 'done'
+                          ? { backgroundColor: c.ok }
+                          : s.state === 'now'
+                            ? { borderWidth: 2, borderColor: c.accent, backgroundColor: c.card }
+                            : { borderWidth: 1.5, borderColor: c.lineStrong },
+                      ]}>
+                      {s.state === 'done' && <Icon name="check" color={c.card} size={12} strokeWidth={2.6} />}
+                      {s.state === 'now' && <View style={[styles.nowDot, { backgroundColor: c.accent }]} />}
+                    </View>
+                    <AppText size={13} lineHeight={19} weight={s.state === 'now' ? 'semibold' : 'regular'} color={s.state === 'todo' ? c.placeholder : c.text}>
+                      {s.label}
+                    </AppText>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
-      </Card>
+            )}
+          </Card>
+        </>
+      )}
 
       {job.status === 'running' || job.status === 'pending' ? (
         <Note>{L('أبقِ التطبيق مفتوحًا حتى ينتهي التنفيذ؛ قد يستغرق الفيديو بضع دقائق.', 'Keep the app open until the run finishes; video can take a few minutes.')}</Note>
@@ -204,53 +269,16 @@ export default function JobScreen() {
         </>
       )}
 
-      {done && job.result && (
-        <>
-          <SectionTitle title={L('النتيجة', 'Result')} />
-          <ResultView result={job.result} />
-        </>
-      )}
+      <WhyPrice quote={job.quote} />
 
       <View style={styles.actions}>
         <Button label={L('الإيصال', 'Receipt')} icon="download" variant="secondary" style={styles.receiptBtn} onPress={share} />
         {done || failed ? (
-          <Button label={L('طلب جديد', 'New order')} style={styles.flex} onPress={() => router.replace('/order')} />
+          <Button label={L('طلب جديد', 'New order')} style={styles.flex} onPress={() => router.dismissTo('/services')} />
         ) : (
           <Button label={L('إلى الرئيسية', 'Back to home')} style={styles.flex} onPress={leave} />
         )}
       </View>
-
-      <SectionTitle title={L('لماذا هذا السعر؟', 'Why this price?')} />
-      <Card style={styles.why}>
-        <AppText variant="small" color={c.muted}>
-          {pick(tierQuality[job.kind][job.tier])}
-        </AppText>
-        <Divider style={styles.gap} />
-        {job.quote.lines.map((l, i) => (
-          <View key={`${l.tool}${i}`} style={styles.line}>
-            <View style={styles.flex}>
-              <AppText weight="semibold" size={13} lineHeight={19} style={styles.ltrStart}>
-                {serviceTools[l.tool].name}
-              </AppText>
-              <AppText size={11} lineHeight={16} color={c.muted}>
-                {pick(l.task)}
-              </AppText>
-            </View>
-            <AppText size={12.5} lineHeight={18} weight="semibold">
-              {formatIQD(l.costIqd)}
-            </AppText>
-          </View>
-        ))}
-        <Divider dashed style={styles.gap} />
-        <View style={styles.line}>
-          <AppText variant="small" color={c.muted} style={styles.flex}>
-            {L('رسوم الخدمة', 'Service fee')}
-          </AppText>
-          <AppText size={12.5} lineHeight={18} weight="semibold">
-            {formatIQD(job.quote.feeIqd)}
-          </AppText>
-        </View>
-      </Card>
     </ScrollScreen>
   );
 }
@@ -259,6 +287,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   seal: { alignItems: 'center', gap: 2, paddingTop: 4 },
+  sealBox: { width: SEAL, height: SEAL, alignItems: 'center', justifyContent: 'center' },
+  ring: { position: 'absolute', width: SEAL, height: SEAL, borderRadius: SEAL / 2, borderWidth: 1.5 },
   sealTitle: { marginTop: 10 },
   ticket: { padding: 0, gap: 0, marginTop: 4 },
   ticketHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
@@ -279,8 +309,4 @@ const styles = StyleSheet.create({
   nowDot: { width: 6, height: 6, borderRadius: 3 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 2 },
   receiptBtn: { width: 130 },
-  why: { paddingVertical: 12, paddingHorizontal: 14, gap: 0 },
-  gap: { marginVertical: 6 },
-  line: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingVertical: 4 },
-  ltrStart: { writingDirection: 'ltr', alignSelf: 'flex-start' },
 });

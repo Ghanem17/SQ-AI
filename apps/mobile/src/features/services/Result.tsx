@@ -1,6 +1,6 @@
-// Shows a finished order: the text with copy and share, or the image, audio
-// or video with a share button that hands the file to Instagram, WhatsApp
-// or the gallery.
+// Shows a finished order large: the image, video, voice-over or text, with
+// one primary action that hands it to Instagram, WhatsApp and the rest
+// («انشر أو شارك») and a secondary one that keeps a copy («احفظ»).
 
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Clipboard from 'expo-clipboard';
@@ -14,43 +14,55 @@ import { Linking, Platform, Share, StyleSheet, View } from 'react-native';
 import { radius } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
-import { Card, ui } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { PressableScale } from '@/components/PressableScale';
+import { Card, Segmented } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
-import type { JobResult } from './store';
+import { Waveform } from './ResultTile';
+import type { JobResult, ServiceJob } from './store';
 
-const ext: Record<'audio' | 'image' | 'video', string> = { audio: 'mp3', image: 'png', video: 'mp4' };
-const mime: Record<'audio' | 'image' | 'video', string> = { audio: 'audio/mpeg', image: 'image/png', video: 'video/mp4' };
+type FileType = 'audio' | 'image' | 'video';
+const ext: Record<FileType, string> = { audio: 'mp3', image: 'png', video: 'mp4' };
+const mime: Record<FileType, string> = { audio: 'audio/mpeg', image: 'image/png', video: 'video/mp4' };
 
-async function shareFile(type: 'audio' | 'image' | 'video', url: string) {
+// Downloads the file next to the app's own files so the system share sheet
+// can hand it on.
+async function localCopy(type: FileType, url: string, dir: string | null): Promise<string> {
+  const local = `${dir}sq-${Date.now()}.${ext[type]}`;
+  const { uri } = await FileSystem.downloadAsync(url, local);
+  return uri;
+}
+
+async function shareFile(type: FileType, url: string) {
   if (Platform.OS === 'web') {
     await Linking.openURL(url);
     return;
   }
-  const local = `${FileSystem.cacheDirectory}sq-${Date.now()}.${ext[type]}`;
-  const { uri } = await FileSystem.downloadAsync(url, local);
+  const uri = await localCopy(type, url, FileSystem.cacheDirectory);
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: mime[type] });
   else await Linking.openURL(url);
 }
 
-function ShareButton({ type, url, label }: { type: 'audio' | 'image' | 'video'; url: string; label?: string }) {
-  const [busy, setBusy] = useState(false);
-  const { L } = useI18n();
-  return (
-    <Button
-      label={busy ? L('جارٍ التحضير…', 'Preparing…') : (label ?? L('احفظ أو شارك', 'Save or share'))}
-      icon="send"
-      loading={busy}
-      onPress={async () => {
-        setBusy(true);
-        try {
-          await shareFile(type, url);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    />
-  );
+// Keeps a copy: a download in the browser; on a phone the file is kept in
+// the app's documents and the system sheet offers "Save to Photos/Files".
+async function saveFile(type: FileType, url: string, title: string) {
+  if (Platform.OS === 'web') {
+    try {
+      const blob = await (await fetch(url)).blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = `sq-${Date.now()}.${ext[type]}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(href), 4000);
+    } catch {
+      await Linking.openURL(url);
+    }
+    return;
+  }
+  const uri = await localCopy(type, url, FileSystem.documentDirectory);
+  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: mime[type], dialogTitle: title, UTI: type === 'image' ? 'public.png' : undefined });
 }
 
 function VideoResult({ url }: { url: string }) {
@@ -58,85 +70,151 @@ function VideoResult({ url }: { url: string }) {
     p.loop = true;
   });
   return (
-    <View style={styles.videoWrap}>
+    <View style={styles.videoStage}>
       <VideoView player={player} style={styles.video} nativeControls contentFit="contain" />
     </View>
   );
 }
 
-function AudioResult({ url }: { url: string }) {
+function AudioResult({ url, seed }: { url: string; seed: string }) {
+  const { c } = useTheme();
+  const { L } = useI18n();
   const player = useAudioPlayer({ uri: url });
   const status = useAudioPlayerStatus(player);
-  const { L } = useI18n();
+  const bars = 32;
+  const played = status.duration > 0 ? Math.round((status.currentTime / status.duration) * bars) : 0;
+  const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const toggle = async () => {
+    if (status.playing) {
+      player.pause();
+      return;
+    }
+    await setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
+    if (status.didJustFinish || (status.duration > 0 && status.currentTime >= status.duration)) player.seekTo(0);
+    player.play();
+  };
   return (
-    <Button
-      label={status.playing ? L('إيقاف', 'Pause') : L('استمع إلى الصوت', 'Play the audio')}
-      icon={status.playing ? 'minus' : 'play'}
-      variant="secondary"
-      onPress={async () => {
-        if (status.playing) {
-          player.pause();
-          return;
-        }
-        await setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
-        if (status.didJustFinish || (status.duration > 0 && status.currentTime >= status.duration)) player.seekTo(0);
-        player.play();
-      }}
-    />
+    <View style={[styles.audio, { backgroundColor: c.hero }]}>
+      <Waveform seed={seed} count={bars} height={64} color={c.heroAccent} dim="rgba(255,255,255,0.22)" played={played} />
+      <View style={styles.audioRow}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={status.playing ? L('إيقاف مؤقت', 'Pause') : L('استمع إلى الصوت', 'Play the audio')}
+          onPress={toggle}
+          style={[styles.playBtn, { backgroundColor: c.heroAccent }]}>
+          {status.playing ? (
+            <View style={styles.pause}>
+              <View style={[styles.pauseBar, { backgroundColor: c.hero }]} />
+              <View style={[styles.pauseBar, { backgroundColor: c.hero }]} />
+            </View>
+          ) : (
+            <View style={styles.playNudge}>
+              <Icon name="play" color={c.hero} size={22} />
+            </View>
+          )}
+        </PressableScale>
+        <AppText weight="medium" size={13} lineHeight={18} color={c.heroMuted} style={styles.ltr}>
+          {status.duration > 0 ? `${clock(status.currentTime)} / ${clock(status.duration)}` : '—'}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
-export function ResultView({ result }: { result: JobResult }) {
+// The image's shape on screen follows the ad's size when it has one.
+function imageRatio(job: ServiceJob): number {
+  if (job.params.kind !== 'adImage') return 1;
+  return job.params.aspect === '4:5' ? 4 / 5 : job.params.aspect === '9:16' ? 9 / 16 : 1;
+}
+
+export function ResultView({ job, result }: { job: ServiceJob; result: JobResult }) {
   const { c } = useTheme();
   const { L } = useI18n();
+  const [busy, setBusy] = useState<'share' | 'save' | null>(null);
   const [copied, setCopied] = useState(false);
+  const [version, setVersion] = useState(0);
+
+  const run = async (which: 'share' | 'save', task: () => Promise<unknown>) => {
+    setBusy(which);
+    try {
+      await task();
+    } catch {
+      // The person can try again; the sheet itself reports its own errors.
+    } finally {
+      setBusy(null);
+    }
+  };
 
   if (result.type === 'text') {
     return (
-      <Card>
-        <AppText size={14.5} lineHeight={25} selectable>
-          {result.text}
-        </AppText>
-        <View style={styles.row}>
-          <Button
-            label={copied ? L('تم النسخ', 'Copied') : L('انسخ النص', 'Copy text')}
-            icon={copied ? 'check' : 'layers'}
-            variant="secondary"
-            style={ui.flex}
-            onPress={async () => {
-              await Clipboard.setStringAsync(result.text);
-              setCopied(true);
-            }}
-          />
-          <Button label={L('شارك', 'Share')} icon="send" style={ui.flex} onPress={() => Share.share({ message: result.text })} />
-        </View>
-      </Card>
+      <View style={styles.wrap}>
+        <Card style={styles.textCard}>
+          <AppText size={15} lineHeight={26} selectable>
+            {result.text}
+          </AppText>
+        </Card>
+        <Button label={L('انشر أو شارك', 'Share')} icon="share" onPress={() => run('share', () => Share.share({ message: result.text }))} />
+        <Button
+          variant="secondary"
+          label={copied ? L('تم النسخ', 'Copied') : L('انسخ النص', 'Copy text')}
+          icon={copied ? 'check' : 'doc'}
+          onPress={async () => {
+            await Clipboard.setStringAsync(result.text);
+            setCopied(true);
+          }}
+        />
+      </View>
     );
   }
 
+  const urls = result.type === 'image' ? (result.urls?.length ? result.urls : [result.url]) : [result.url];
+  const url = urls[Math.min(version, urls.length - 1)];
+  const saveTitle = L('احفظ', 'Save');
   return (
-    <Card>
-      {result.type === 'image' &&
-        (result.urls ?? [result.url]).map((u, i, all) => (
-          <View key={u} style={styles.version}>
-            <Image source={{ uri: u }} style={[styles.image, { backgroundColor: c.tile }]} contentFit="contain" />
-            {all.length > 1 && <ShareButton type="image" url={u} label={L(`احفظ النسخة ${i + 1}`, `Save version ${i + 1}`)} />}
+    <View style={styles.wrap}>
+      {result.type === 'image' && (
+        <>
+          <View style={[styles.imageFrame, { backgroundColor: c.tile, borderColor: c.line }]}>
+            <Image source={{ uri: url }} style={[styles.image, { aspectRatio: imageRatio(job) }]} contentFit="contain" transition={200} accessibilityLabel={L('الإعلان الجاهز', 'The finished ad')} />
           </View>
-        ))}
-      {result.type === 'video' && <VideoResult url={result.url} />}
-      {result.type === 'audio' && <AudioResult url={result.url} />}
-      {!(result.type === 'image' && (result.urls?.length ?? 0) > 1) && <ShareButton type={result.type} url={result.url} />}
-      <AppText size={11.5} color={c.placeholder} center>
-        {L('يُحفظ الملف لدى fal مدة محدودة، فاحفظه على جهازك.', 'fal keeps the file for a limited time, so save it to your device.')}
+          {urls.length > 1 && (
+            <Segmented
+              value={String(version)}
+              onChange={(v) => setVersion(Number(v))}
+              options={urls.map((_, i) => ({ value: String(i), label: L(`النسخة ${i + 1}`, `Version ${i + 1}`) }))}
+            />
+          )}
+        </>
+      )}
+      {result.type === 'video' && <VideoResult url={url} />}
+      {result.type === 'audio' && <AudioResult url={url} seed={job.id} />}
+      <Button label={busy === 'share' ? L('جارٍ التحضير…', 'Preparing…') : L('انشر أو شارك', 'Share')} icon="share" loading={busy === 'share'} onPress={() => run('share', () => shareFile(result.type, url))} />
+      <Button
+        variant="secondary"
+        label={busy === 'save' ? L('جارٍ الحفظ…', 'Saving…') : saveTitle}
+        icon="download"
+        loading={busy === 'save'}
+        onPress={() => run('save', () => saveFile(result.type, url, saveTitle))}
+      />
+      <AppText size={11} lineHeight={16} color={c.placeholder} center>
+        {L('يبقى الملف على خادم المعالجة مدة محدودة، فاحفظه على جهازك.', 'The file stays on the processing server for a limited time, so save it to your device.')}
       </AppText>
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8 },
-  version: { gap: 8 },
-  image: { width: '100%', aspectRatio: 1, borderRadius: radius.control },
-  videoWrap: { alignItems: 'center' },
-  video: { width: '72%', aspectRatio: 9 / 16, borderRadius: radius.control, backgroundColor: '#000' },
+  wrap: { gap: 10 },
+  ltr: { writingDirection: 'ltr' },
+  textCard: { paddingVertical: 16 },
+  imageFrame: { borderRadius: radius.card, borderWidth: 1, overflow: 'hidden', alignItems: 'center' },
+  image: { width: '100%', maxHeight: 520 },
+  videoStage: { borderRadius: radius.card, overflow: 'hidden', backgroundColor: '#05080F', alignItems: 'center' },
+  video: { height: 460, aspectRatio: 9 / 16, backgroundColor: '#000' },
+  audio: { borderRadius: radius.card, padding: 18, gap: 16, alignItems: 'center' },
+  audioRow: { flexDirection: 'row', alignItems: 'center', gap: 14, alignSelf: 'stretch' },
+  playBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  playNudge: { paddingLeft: 3 },
+  pause: { flexDirection: 'row', gap: 5 },
+  pauseBar: { width: 5, height: 18, borderRadius: 2 },
 });
