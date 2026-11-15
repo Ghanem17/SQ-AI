@@ -87,16 +87,35 @@ export async function uploadLink(fileName: string, contentType: string) {
 }
 
 // fal's current list price per unit for each service tool, in dollars.
+// fal answers 404 for a whole batch when any one endpoint has no listed
+// price, so a failing batch is split until the unpriced ones are skipped;
+// those tools keep their built-in estimate.
 export async function livePrices(): Promise<Partial<Record<ServiceToolKey, number>>> {
   const tools = Object.values(serviceTools).filter((t) => t.livePrice);
-  const query = tools.map((t) => `endpoint_id=${encodeURIComponent(t.endpoint)}`).join('&');
-  const res = await fetch(`${PLATFORM}/v1/models/pricing?${query}`, { headers: headers() });
-  if (!res.ok) throw await fail(res);
-  const data = (await res.json()) as { prices?: { endpoint_id: string; unit_price: number }[] };
+  const endpoints = [...new Set(tools.map((t) => t.endpoint))];
+  const found = new Map<string, number>();
+
+  async function fetchBatch(batch: string[]): Promise<void> {
+    if (!batch.length) return;
+    const query = batch.map((e) => `endpoint_id=${encodeURIComponent(e)}`).join('&');
+    const res = await fetch(`${PLATFORM}/v1/models/pricing?${query}`, { headers: headers() });
+    if (res.status === 404) {
+      if (batch.length === 1) return;
+      const mid = Math.ceil(batch.length / 2);
+      await fetchBatch(batch.slice(0, mid));
+      await fetchBatch(batch.slice(mid));
+      return;
+    }
+    if (!res.ok) throw await fail(res);
+    const data = (await res.json()) as { prices?: { endpoint_id: string; unit_price: number }[] };
+    for (const p of data.prices ?? []) if (typeof p.unit_price === 'number') found.set(p.endpoint_id, p.unit_price);
+  }
+
+  await fetchBatch(endpoints);
   const out: Partial<Record<ServiceToolKey, number>> = {};
-  for (const p of data.prices ?? []) {
-    const tool = tools.find((t) => t.endpoint === p.endpoint_id);
-    if (tool && typeof p.unit_price === 'number') out[tool.key] = p.unit_price;
+  for (const t of tools) {
+    const price = found.get(t.endpoint);
+    if (price !== undefined) out[t.key] = price;
   }
   return out;
 }
