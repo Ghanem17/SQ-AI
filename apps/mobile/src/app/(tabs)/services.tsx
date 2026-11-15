@@ -2,30 +2,28 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { formatIQD, serviceModels, serviceOrder, services, startingPrice, type ServiceKind } from '@sq/shared';
-import { AppText } from '@/components/AppText';
-import { PressableScale } from '@/components/PressableScale';
-import { Chip, Field, IconBadge, IconButton, ListCard, Note, PageTitle, ScrollScreen, SectionTitle } from '@/components/ui';
-import { OrderRow, serviceIcons } from '@/features/services/OrderRow';
+import { serviceModels, serviceOrder, services, type ServiceKind } from '@sq/shared';
+import { Chip, Field, IconButton, ListCard, Note, PageTitle, ScrollScreen, SectionTitle } from '@/components/ui';
+import { ServiceCard } from '@/features/services/examples';
+import { OrderRow } from '@/features/services/OrderRow';
 import { useServices } from '@/features/services/store';
 import { useI18n } from '@/i18n';
-import { useTheme } from '@/theme/theme';
 
 type Filter = 'all' | 'video' | 'design' | 'writing' | 'voice';
 
 const groups: Record<Exclude<Filter, 'all'>, ServiceKind[]> = {
-  video: ['editVideo', 'textVideo'],
+  video: ['editVideo', 'imageVideo', 'textVideo'],
   design: ['adImage'],
   writing: ['copy'],
   voice: ['voice'],
 };
 
-// The five one-off services. Each has three levels; tapping one opens the
-// order desk for it.
+// The one-off services as visual cards: an illustrative example of what each
+// delivers, its price from, and its three levels. Tapping one opens the quick
+// order form for it.
 export default function ServicesTab() {
-  const { c } = useTheme();
-  const { L, pick, rtl } = useI18n();
-  const { jobs, settings } = useServices();
+  const { L } = useI18n();
+  const { jobs } = useServices();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [showFilters, setShowFilters] = useState(true);
@@ -44,7 +42,6 @@ export default function ServicesTab() {
     { value: 'writing', label: L('كتابة', 'Writing') },
     { value: 'voice', label: L('صوت', 'Voice') },
   ];
-  const from = formatIQD(startingPrice(settings));
 
   return (
     <ScrollScreen inTabs>
@@ -79,46 +76,14 @@ export default function ServicesTab() {
           ))}
         </ScrollView>
       )}
-      <Note tone="info" icon="layers">
-        {L('لكل خدمة ثلاثة مستويات: ', 'Every service has three levels: ')}
-        <AppText weight="bold" size={12.5} lineHeight={19} color={c.onPriSoft}>
-          {L('منخفض · متوسط · عالٍ', 'Low · Medium · High')}
-        </AppText>
-        {L('، وترى النماذج والسعر قبل التأكيد.', ', and you see the models and price before you confirm.')}
-      </Note>
-
       {shown.length === 0 ? (
         <Note>{L('لا توجد خدمة بهذا الاسم. جرّب كلمة أخرى.', 'No service matches. Try another word.')}</Note>
       ) : (
-        <ListCard>
-          {shown.map((k, i) => (
-            <PressableScale
-              key={k}
-              accessibilityRole="button"
-              accessibilityLabel={`${pick(services[k].name)}، ${L(`من ${from}`, `from ${from}`)}`}
-              onPress={() => router.push({ pathname: '/order', params: { service: k } })}
-              pressedScale={1}
-              style={[styles.row, i < shown.length - 1 && { borderBottomColor: c.line, borderBottomWidth: 1 }]}>
-              <IconBadge icon={serviceIcons[k]} size={44} />
-              <View style={styles.flex}>
-                <View style={styles.titleRow}>
-                  <AppText variant="rowTitle" style={styles.flex} numberOfLines={1}>
-                    {pick(services[k].name)}
-                  </AppText>
-                  <AppText weight="semibold" size={12.5} lineHeight={18}>
-                    {L(`من ${from}`, `from ${from}`)}
-                  </AppText>
-                </View>
-                <AppText variant="small" color={c.muted} numberOfLines={1}>
-                  {pick(services[k].pitch)}
-                </AppText>
-                <AppText weight="medium" size={11} lineHeight={16} color={c.placeholder} numberOfLines={1} style={[styles.models, { textAlign: rtl ? 'right' : 'left' }]}>
-                  {serviceModels[k]}
-                </AppText>
-              </View>
-            </PressableScale>
+        <View style={styles.cards}>
+          {shown.map((k) => (
+            <ServiceCard key={k} kind={k} onPress={() => router.push({ pathname: '/order', params: { service: k } })} />
           ))}
-        </ListCard>
+        </View>
       )}
 
       {jobs.length > 0 && (
@@ -141,7 +106,5 @@ const styles = StyleSheet.create({
   search: { height: 46 },
   chipScroll: { marginHorizontal: -20, flexGrow: 0 },
   chips: { gap: 8, paddingHorizontal: 20 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 13, paddingHorizontal: 14 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  models: { marginTop: 4, writingDirection: 'ltr' },
+  cards: { gap: 12 },
 });
