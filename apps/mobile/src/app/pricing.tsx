@@ -15,7 +15,7 @@ const samples: { label: { ar: string; en: string }; params: ServiceParams; secon
   { label: { ar: 'إعلان من صورة', en: 'Ad from a photo' }, params: { kind: 'adImage', prompt: 'x', aspect: '1:1' } },
   {
     label: { ar: 'مونتاج فيديو مدته 45 ثانية مع نص مكتوب وموسيقى', en: '45-second video edit with captions and music' },
-    params: { kind: 'editVideo', trimStart: null, trimEnd: null, captions: true, music: 'x' },
+    params: { kind: 'editVideo', trimStart: null, trimEnd: null, captions: true, captionLanguage: null, music: 'x', musicMode: 'under' },
     seconds: 45,
   },
   { label: { ar: 'تعليق صوتي من 600 حرف', en: '600-character voice-over' }, params: { kind: 'voice', text: 'ا'.repeat(600), voice: 'brian' } },

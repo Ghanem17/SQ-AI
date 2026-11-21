@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { MAX_REFERENCE_IMAGES, radius, services, type ServiceKind } from '@sq/shared';
+import { MAX_REFERENCE_IMAGES, formatNumber, radius, services, type ServiceKind } from '@sq/shared';
 import { AppText } from '@/components/AppText';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
@@ -27,6 +27,12 @@ export type QuickState = {
 };
 
 export const initialQuick: QuickState = { media: [], desc: '', duration: 10, music: true, captions: true, voice: 'brian', format: 'post', aspect: '1:1' };
+
+// A video edit adds music only when the customer turns it on; generated
+// videos start with it.
+export function initialQuickFor(kind: ServiceKind | null): QuickState {
+  return { ...initialQuick, music: kind !== 'editVideo' };
+}
 
 const isVideoKind = (k: ServiceKind) => k === 'imageVideo' || k === 'textVideo';
 
@@ -81,7 +87,9 @@ export function quickMessage(kind: ServiceKind, s: QuickState, { L, pick, n }: I
     case 'editVideo':
       lines.push(desc ? L(`المطلوب: ${desc}`, `Request: ${desc}`) : L('المطلوب: مونتاج الفيديو المرفق', 'Request: edit the attached video'));
       lines.push(L(`نص مكتوب لكلامي على الفيديو: ${yes(s.captions)}`, `Captions of my speech: ${yes(s.captions)}`));
-      lines.push(L(`موسيقى: ${yes(s.music)}`, `Music: ${yes(s.music)}`));
+      lines.push(
+        s.music ? L('موسيقى: نعم، بهدوء تحت صوتي الأصلي', 'Music: yes, quietly under my own voice') : L('موسيقى: لا، أبقِ الصوت الأصلي كما هو', 'Music: no, keep the original sound as it is'),
+      );
       break;
     case 'imageVideo':
     case 'textVideo':
@@ -157,7 +165,7 @@ function Attachments({ kind, media, onAdd, onRemove }: { kind: ServiceKind; medi
   const singleSize = width ? { width, height: Math.round(width * 0.75) } : styles.single;
   if (kind === 'editVideo') {
     const v = media.find((m) => m.kind === 'video');
-    if (!v) return <AddTile tall icon="video" label={L('اختر الفيديو من المعرض', 'Choose the video from your gallery')} sub={L('حتى 3 دقائق', 'Up to 3 minutes')} onPress={onAdd} />;
+    if (!v) return <AddTile tall icon="video" label={L('اختر الفيديو', 'Choose the video')} sub={L('من المعرض أو من الملفات بالدقة الأصلية · حتى 3 دقائق', 'From the gallery or from files at original quality · up to 3 minutes')} onPress={onAdd} />;
     return (
       <PressableScale accessibilityRole="button" accessibilityLabel={L('غيّر الفيديو', 'Change the video')} onPress={onAdd} pressedScale={0.99} style={[styles.videoTile, { backgroundColor: c.hero }]}>
         <View style={[styles.addIcon, { backgroundColor: c.heroTile }]}>
@@ -168,7 +176,13 @@ function Attachments({ kind, media, onAdd, onRemove }: { kind: ServiceKind; medi
             {L('الفيديو جاهز', 'Video ready')}
           </AppText>
           <AppText size={12.5} lineHeight={18} color={c.heroMuted} numberOfLines={1}>
-            {v.estimated ? L(`نحو ${Math.round(v.seconds)} ث (تقديري) · اضغط للتغيير`, `~${Math.round(v.seconds)}s (estimate) · tap to change`) : L(`${n(Math.round(v.seconds), 'second')} · اضغط للتغيير`, `${Math.round(v.seconds)}s · tap to change`)}
+            {[
+              v.estimated ? L(`نحو ${Math.round(v.seconds)} ث (تقديري)`, `~${Math.round(v.seconds)}s (estimate)`) : L(n(Math.round(v.seconds), 'second'), `${Math.round(v.seconds)}s`),
+              v.bytes ? L(`⁦${formatNumber(Math.max(1, Math.round(v.bytes / 1_000_000)))}⁩ ميغابايت`, `${formatNumber(Math.max(1, Math.round(v.bytes / 1_000_000)))} MB`) : null,
+              L('اضغط للتغيير', 'tap to change'),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </AppText>
         </View>
         <View style={styles.removeRoom} />
@@ -325,7 +339,7 @@ export function QuickForm({
           <ToggleRow
             icon="sparkle"
             title={L('موسيقى', 'Music')}
-            subtitle={kind === 'editVideo' ? L('تحل محل الصوت الأصلي', 'Replaces the original sound') : L('تناسب أجواء الفيديو', 'To match the mood')}
+            subtitle={kind === 'editVideo' ? L('بهدوء تحت صوتك، فيبقى كلامك مسموعًا', 'Quietly under your voice, so your words stay clear') : L('تناسب أجواء الفيديو', 'To match the mood')}
             value={state.music}
             onChange={(music) => onChange({ music })}
             last

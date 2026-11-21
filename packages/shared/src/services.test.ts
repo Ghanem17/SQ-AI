@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cleanParams, defaultPricing, formatUsd, planLines, quote, serviceOrder, serviceTiers, serviceTools, serviceToolKeys, startingPrice, tierModel } from './services.ts';
+import { cleanParams, defaultPricing, formatUsd, levelModel, levelQuality, planLines, quote, serviceOrder, serviceTiers, serviceTools, serviceToolKeys, startingPrice, tierModel } from './services.ts';
 
 test('every service tool has a fal endpoint and a positive price', () => {
   for (const key of serviceToolKeys) {
@@ -88,7 +88,7 @@ test('higher levels cost more for the same request', () => {
     { kind: 'adImage', prompt: 'x', aspect: '1:1' },
     { kind: 'voice', text: 'مرحبا', voice: 'brian' },
     { kind: 'copy', format: 'post', topic: 'x', details: '' },
-    { kind: 'editVideo', trimStart: null, trimEnd: null, captions: true, music: 'x' },
+    { kind: 'editVideo', trimStart: null, trimEnd: null, captions: true, music: 'x', musicMode: 'replace' },
   ]) {
     const p = cleanParams(raw);
     assert.ok(p);
@@ -147,4 +147,74 @@ test('video from photos uses its own models and lengths per level', () => {
   assert.deepEqual(tools('mid'), [['claude', 1], ['refVideo', 10], ['music', 1], ['mergeAudio', 10]]);
   // The high level makes its own sound, so no music lines.
   assert.deepEqual(tools('high'), [['claude', 1], ['refVideoPro', 12]]);
+});
+
+test('video edits keep the voice: music is mixed under it unless asked to replace the sound', () => {
+  const p = cleanParams({ kind: 'editVideo', trimStart: null, trimEnd: null, captions: false, music: 'calm oud' });
+  assert.ok(p && p.kind === 'editVideo');
+  assert.equal(p.musicMode, 'under');
+  assert.deepEqual(
+    planLines(p, 40, 'mid').map((l) => [l.tool, l.qty]),
+    [
+      ['claude', 1],
+      ['musicUnder', 40],
+    ],
+  );
+  // The high level adds only upscaling; the low and medium levels match.
+  const tools = (tier: 'low' | 'mid' | 'high') => planLines(p, 40, tier).map((l) => l.tool);
+  assert.deepEqual(tools('low'), tools('mid'));
+  assert.deepEqual(tools('high'), ['claude', 'musicUnder', 'upscale']);
+  assert.equal(levelModel(p, 'mid'), 'Sonilo');
+  assert.equal(levelQuality(p, 'mid').en, 'Same as Low for this request');
+
+  const replace = cleanParams({ kind: 'editVideo', captions: false, music: 'calm', musicMode: 'replace' });
+  assert.ok(replace);
+  assert.deepEqual(
+    planLines(replace, 40, 'low').map((l) => l.tool),
+    ['claude', 'music', 'mergeAudio'],
+  );
+  assert.equal(levelModel(replace, 'mid'), 'ElevenLabs Music');
+});
+
+test('captions of the speech add no music and stay in the spoken language', () => {
+  const p = cleanParams({ kind: 'editVideo', trimStart: null, trimEnd: null, captions: true, captionLanguage: null, music: null });
+  assert.ok(p && p.kind === 'editVideo');
+  assert.equal(p.captionLanguage, null);
+  assert.deepEqual(
+    planLines(p, 75, 'mid').map((l) => [l.tool, l.qty]),
+    [
+      ['claude', 1],
+      ['captions', 2],
+    ],
+  );
+});
+
+test('translated captions run on VEED and bill its translation surcharge', () => {
+  const p = cleanParams({ kind: 'editVideo', captions: false, captionLanguage: 'en', music: null });
+  assert.ok(p && p.kind === 'editVideo');
+  // Asking for a translation turns captions on.
+  assert.equal(p.captions, true);
+  const lines = planLines(p, 75, 'low');
+  assert.deepEqual(
+    lines.map((l) => [l.tool, l.qty]),
+    [
+      ['claude', 1],
+      ['captionsPro', 2],
+      ['captionsPro', 4],
+    ],
+  );
+  // $0.10 a minute plus $0.20 a minute for the translation.
+  const q = quote(lines.slice(1), { usdToIqd: 1, markup: 0, minPrice: 0 });
+  assert.equal(q.toolsUsd.toFixed(2), '0.60');
+  assert.equal(levelModel(p, 'low'), 'VEED');
+  const unknown = cleanParams({ kind: 'editVideo', captions: true, captionLanguage: 'klingon' });
+  assert.ok(unknown && unknown.kind === 'editVideo');
+  assert.equal(unknown.captionLanguage, null);
+});
+
+test('videos too large for the quick caption tool are captioned by VEED', () => {
+  const p = cleanParams({ kind: 'editVideo', captions: true, music: null });
+  assert.ok(p);
+  assert.equal(planLines(p, 60, 'mid', 90_000_000).find((l) => l.tool.startsWith('captions'))?.tool, 'captions');
+  assert.equal(planLines(p, 60, 'mid', 300_000_000).find((l) => l.tool.startsWith('captions'))?.tool, 'captionsPro');
 });

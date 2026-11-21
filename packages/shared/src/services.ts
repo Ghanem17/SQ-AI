@@ -30,6 +30,8 @@ export type ServiceToolKey =
   | 'music'
   | 'musicPro'
   | 'captions'
+  | 'captionsPro'
+  | 'musicUnder'
   | 'upscale'
   | 'trim'
   | 'mergeAudio';
@@ -104,6 +106,14 @@ export const serviceTools: Record<ServiceToolKey, ServiceTool> = {
     ar: 'نص مكتوب لكلامك على الفيديو، الكلمة المنطوقة ملوّنة',
     en: 'Your speech as on-screen captions, the spoken word highlighted',
   }),
+  captionsPro: t('captionsPro', 'VEED Subtitles', 'VEED', 'veed/subtitles', 0.1, U.minute, {
+    ar: 'نص مكتوب لكلامك، ويُترجم إلى لغة أخرى عند الطلب',
+    en: 'Captions of your speech, translated on request',
+  }),
+  musicUnder: t('musicUnder', 'Sonilo Video Music', 'Sonilo', 'sonilo/v1.1/video-to-video-music', 0.009, U.second, {
+    ar: 'موسيقى على إيقاع الفيديو تنخفض تحت صوتك الأصلي',
+    en: 'Music scored to the video that dips under your own voice',
+  }),
   upscale: t('upscale', 'Topaz Video Upscale', 'Topaz Labs', 'fal-ai/topaz/upscale/video', 0.01, U.second, { ar: 'رفع الدقة وتحسين الوضوح', en: 'Higher resolution and sharper detail' }),
   trim: t('trim', 'Trim', 'fal', 'fal-ai/workflow-utilities/trim-video', 0.001, U.job, { ar: 'قص البداية والنهاية', en: 'Trims the start and end' }),
   mergeAudio: t('mergeAudio', 'Audio merge', 'fal', 'fal-ai/ffmpeg-api/merge-audio-video', 0.0002, U.second, { ar: 'دمج الصوت مع الفيديو', en: 'Merges the audio into the video' }),
@@ -117,7 +127,7 @@ export const services: Record<ServiceKind, ServiceInfo> = {
   editVideo: {
     kind: 'editVideo',
     name: { ar: 'مونتاج فيديوك', en: 'Edit your video' },
-    pitch: { ar: 'قص وترجمة وموسيقى لفيديو تصوّره أنت', en: 'Trims, captions and music for your video' },
+    pitch: { ar: 'قص ونص مكتوب لكلامك، وموسيقى إن طلبتها', en: 'Trims, captions of your speech, and music if you ask' },
     needs: 'video',
   },
   adImage: {
@@ -157,6 +167,37 @@ export const serviceOrder: ServiceKind[] = ['editVideo', 'imageVideo', 'adImage'
 // How many photos a video-from-photos order can use.
 export const MAX_REFERENCE_IMAGES = 4;
 
+// The longest video and the largest file the app accepts. fal's trim tool
+// takes files up to 500 MB, so nothing larger can be edited.
+export const MAX_VIDEO_SECONDS = 180;
+export const MAX_UPLOAD_BYTES = 500_000_000;
+// The quick caption tool takes files up to 100 MB; larger videos are
+// captioned by VEED, which has no such limit.
+export const QUICK_CAPTIONS_MAX_BYTES = 100_000_000;
+
+// Languages captions can be translated into, with VEED's codes. Captions
+// otherwise stay in the language that is spoken.
+export const captionLanguages = {
+  ar: { code: 'ar-SA', name: { ar: 'العربية', en: 'Arabic' } },
+  en: { code: 'en-US', name: { ar: 'الإنجليزية', en: 'English' } },
+  ckb: { code: 'ckb-IQ', name: { ar: 'الكردية السورانية', en: 'Kurdish (Sorani)' } },
+  ku: { code: 'ku', name: { ar: 'الكردية الكرمانجية', en: 'Kurdish (Kurmanji)' } },
+  tr: { code: 'tr-TR', name: { ar: 'التركية', en: 'Turkish' } },
+  fa: { code: 'fa-IR', name: { ar: 'الفارسية', en: 'Persian' } },
+  fr: { code: 'fr-FR', name: { ar: 'الفرنسية', en: 'French' } },
+  de: { code: 'de-DE', name: { ar: 'الألمانية', en: 'German' } },
+  es: { code: 'es-ES', name: { ar: 'الإسبانية', en: 'Spanish' } },
+  ru: { code: 'ru-RU', name: { ar: 'الروسية', en: 'Russian' } },
+  zh: { code: 'zh', name: { ar: 'الصينية', en: 'Chinese' } },
+  ur: { code: 'ur-PK', name: { ar: 'الأردية', en: 'Urdu' } },
+} as const satisfies Record<string, { code: string; name: Bilingual }>;
+export type CaptionLanguage = keyof typeof captionLanguages;
+export const captionLanguageKeys = Object.keys(captionLanguages) as CaptionLanguage[];
+
+// The spoken language VEED transcribes, from the account's language: Iraqi
+// Arabic or English.
+export const spokenLanguage: Record<Lang, string> = { ar: 'ar-IQ', en: 'en-US' };
+
 export const tierNames: Record<ServiceTier, Bilingual> = {
   low: { ar: 'منخفض', en: 'Low' },
   mid: { ar: 'متوسط', en: 'Medium' },
@@ -191,9 +232,9 @@ export const tierQuality: Record<ServiceKind, Record<ServiceTier, Bilingual>> = 
     high: { ar: 'أعلى جودة في الصياغة والأفكار', en: 'The best writing and ideas' },
   },
   editVideo: {
-    low: { ar: 'تنفيذ طلباتك مع موسيقى أساسية', en: 'Your edits with basic music' },
-    mid: { ar: 'موسيقى بجودة استوديو على طول الفيديو', en: 'Studio-quality music to the video length' },
-    high: { ar: 'موسيقى استوديو مع رفع الدقة وتحسين الوضوح', en: 'Studio music plus a sharper, upscaled video' },
+    low: { ar: 'تنفيذ طلباتك كما طلبتها', en: 'Your edits as asked' },
+    mid: { ar: 'تنفيذ طلباتك مع موسيقى استوديو إن طلبتها', en: 'Your edits, with studio music if you asked for it' },
+    high: { ar: 'طلباتك مع رفع الدقة وتحسين الوضوح', en: 'Your edits plus a sharper, upscaled video' },
   },
 };
 
@@ -261,7 +302,18 @@ export type ServiceParams =
   | { kind: 'copy'; format: 'post' | 'ad' | 'plan'; topic: string; details: string }
   | { kind: 'voice'; text: string; voice: 'brian' | 'sarah' }
   | { kind: 'adImage'; prompt: string; aspect: '1:1' | '4:5' | '9:16' }
-  | { kind: 'editVideo'; trimStart: number | null; trimEnd: number | null; captions: boolean; music: string | null }
+  | {
+      kind: 'editVideo';
+      trimStart: number | null;
+      trimEnd: number | null;
+      captions: boolean;
+      // null keeps the captions in the spoken language.
+      captionLanguage: CaptionLanguage | null;
+      music: string | null;
+      // 'under' keeps the customer's voice and plays the music quietly
+      // beneath it; 'replace' swaps the original sound for the music.
+      musicMode: 'under' | 'replace';
+    }
   | { kind: 'textVideo'; prompt: string; duration: number; music: string | null }
   | { kind: 'imageVideo'; prompt: string; duration: number; music: string | null };
 
@@ -292,12 +344,17 @@ export function cleanParams(raw: unknown): ServiceParams | null {
     case 'editVideo': {
       const trimStart = num(p.trimStart);
       const trimEnd = num(p.trimEnd);
+      const captionLanguage = captionLanguageKeys.find((k) => k === p.captionLanguage) ?? null;
+      // A translation is a kind of captions, so asking for one turns them on.
+      const captions = p.captions === true || captionLanguage !== null;
       return {
         kind: 'editVideo',
         trimStart: trimStart !== null && trimStart > 0 ? trimStart : null,
         trimEnd: trimEnd !== null && trimEnd > 0 ? trimEnd : null,
-        captions: p.captions === true,
+        captions,
+        captionLanguage: captions ? captionLanguage : null,
         music: str(p.music, 400) || null,
+        musicMode: p.musicMode === 'replace' ? 'replace' : 'under',
       };
     }
     case 'textVideo':
@@ -339,9 +396,16 @@ export const tierTools = {
 
 const task = (ar: string, en: string): Bilingual => ({ ar, en });
 
+// Captions run on the quick tool unless they are translated or the video is
+// too large for it.
+export function captionTool(params: Extract<ServiceParams, { kind: 'editVideo' }>, mediaBytes = 0): 'captions' | 'captionsPro' {
+  return params.captionLanguage || mediaBytes > QUICK_CAPTIONS_MAX_BYTES ? 'captionsPro' : 'captions';
+}
+
 // The tools a request needs at a level, with quantities, derived from its
-// parameters. `mediaSeconds` is the length of the customer's video, if any.
-export function planLines(params: ServiceParams, mediaSeconds = 0, tier: ServiceTier = 'mid'): PlanLine[] {
+// parameters. `mediaSeconds` is the length of the customer's video, if any,
+// and `mediaBytes` its file size.
+export function planLines(params: ServiceParams, mediaSeconds = 0, tier: ServiceTier = 'mid', mediaBytes = 0): PlanLine[] {
   const lines: PlanLine[] = [{ tool: 'claude', qty: 1, task: task('فهم طلبك وتجهيز الخطة', 'Understanding your request') }];
   switch (params.kind) {
     case 'copy':
@@ -361,15 +425,29 @@ export function planLines(params: ServiceParams, mediaSeconds = 0, tier: Service
       const start = params.trimStart ?? 0;
       const end = params.trimEnd ?? mediaSeconds;
       const length = Math.max(1, Math.round((end || mediaSeconds || 30) - start));
+      const minutes = Math.max(1, Math.ceil(length / 60));
       if (params.trimStart !== null || params.trimEnd !== null) lines.push({ tool: 'trim', qty: 1, task: task('قص الفيديو', 'Trimming the video') });
-      // Subtitles are billed per started minute of video.
-      if (params.captions) lines.push({ tool: 'captions', qty: Math.max(1, Math.ceil(length / 60)), task: task('كتابة كلامك على الفيديو', 'Adding captions') });
-      if (params.music) {
+      if (params.captions) {
+        const tool = captionTool(params, mediaBytes);
+        const to = params.captionLanguage ? captionLanguages[params.captionLanguage].name : null;
+        // Subtitles are billed per started minute of video.
+        lines.push({
+          tool,
+          qty: minutes,
+          task: to ? task(`كتابة كلامك مترجمًا إلى ${to.ar}`, `Captions translated into ${to.en}`) : task('كتابة كلامك على الفيديو', 'Adding captions'),
+        });
+        // VEED adds twice its base rate per minute for a translation.
+        if (to) lines.push({ tool, qty: minutes * 2, task: task('رسوم الترجمة', 'Translation surcharge') });
+      }
+      if (params.music && params.musicMode === 'under') {
+        // One step composes music to the video and mixes it under the voice.
+        lines.push({ tool: 'musicUnder', qty: length, task: task('موسيقى هادئة تحت صوتك الأصلي', 'Quiet music under your own voice') });
+      } else if (params.music) {
         const pro = tierTools.music[tier] === 'musicPro';
         lines.push({
           tool: tierTools.music[tier],
-          qty: pro ? Math.max(1, Math.ceil(length / 60)) : Math.max(1, Math.ceil(length / 30)),
-          task: task('تأليف موسيقى للفيديو', 'Composing music'),
+          qty: pro ? minutes : Math.max(1, Math.ceil(length / 30)),
+          task: task('تأليف موسيقى بدل الصوت الأصلي', 'Composing music to replace the sound'),
         });
         lines.push({ tool: 'mergeAudio', qty: length, task: task('دمج الموسيقى مع الفيديو', 'Merging the music') });
       }
@@ -407,7 +485,7 @@ export function planLines(params: ServiceParams, mediaSeconds = 0, tier: Service
 // The models behind each service, low to high, as listed on the services
 // screen.
 export const serviceModels: Record<ServiceKind, string> = {
-  editVideo: 'Lyria 2 · ElevenLabs Music · Topaz',
+  editVideo: 'Sonilo · ElevenLabs Music · Topaz',
   adImage: 'Nano Banana · Nano Banana Pro',
   textVideo: 'Wan 2.2 · Kling 3 Pro · Veo 3.1',
   imageVideo: 'Kling O1 · Wan 2.7 · Kling O3 Pro',
@@ -431,6 +509,38 @@ export function tierModel(kind: ServiceKind, tier: ServiceTier): string {
     case 'editVideo':
       return tier === 'high' ? 'Topaz' : serviceTools[tierTools.music[tier]].name;
   }
+}
+
+// A video edit's levels only differ where the request uses them: the music
+// model when music replaces the sound, and upscaling at the high level.
+function editReplacesSound(params: ServiceParams): boolean {
+  return params.kind === 'editVideo' && Boolean(params.music) && params.musicMode === 'replace';
+}
+
+// The headline model of a level for one request.
+export function levelModel(params: ServiceParams, tier: ServiceTier): string {
+  if (params.kind !== 'editVideo') return tierModel(params.kind, tier);
+  if (tier === 'high') return 'Topaz';
+  if (editReplacesSound(params)) return serviceTools[tierTools.music[tier]].name;
+  if (params.music) return 'Sonilo';
+  if (params.captions) return params.captionLanguage ? 'VEED' : 'Auto Subtitle';
+  return 'Trim';
+}
+
+// What a level gives for one request, in the customer's words.
+export function levelQuality(params: ServiceParams, tier: ServiceTier): Bilingual {
+  if (params.kind !== 'editVideo' || editReplacesSound(params)) {
+    if (params.kind === 'editVideo') {
+      return {
+        low: { ar: 'موسيقى أساسية بدل الصوت الأصلي', en: 'Basic music in place of the sound' },
+        mid: { ar: 'موسيقى استوديو بدل الصوت الأصلي', en: 'Studio music in place of the sound' },
+        high: { ar: 'موسيقى استوديو مع رفع الدقة', en: 'Studio music plus upscaling' },
+      }[tier];
+    }
+    return tierQuality[params.kind][tier];
+  }
+  if (tier === 'mid') return { ar: 'مثل المستوى المنخفض لهذا الطلب', en: 'Same as Low for this request' };
+  return tierQuality.editVideo[tier];
 }
 
 // The lowest price any order can have: the low level's minimum.
