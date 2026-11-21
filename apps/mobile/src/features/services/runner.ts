@@ -2,13 +2,13 @@
 // each one's output feeding the next. The level the customer chose decides
 // which model runs each step. Progress is reported as it goes.
 
-import { photoVideoSeconds, tierTools, videoSeconds, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
+import { captionLanguages, captionTool, photoVideoSeconds, spokenLanguage, tierTools, videoSeconds, type ServiceParams, type ServiceTier, type ServiceToolKey } from '@sq/shared';
 import { AiUnavailable, postJson, unavailableText } from '@/lib/ai';
 import type { Business } from './types';
 import { uploadMedia, type PickedMedia } from './media';
-import type { JobResult } from './store';
+import type { JobResult, ServiceJob } from './store';
 
-export type StepKey = 'upload' | 'write' | 'voice' | 'design' | 'scenes' | 'music' | 'merge' | 'trim' | 'captions' | 'upscale';
+export type StepKey = 'upload' | 'write' | 'voice' | 'design' | 'scenes' | 'music' | 'merge' | 'score' | 'trim' | 'captions' | 'translate' | 'upscale';
 
 export const stepNames: Record<StepKey, { ar: string; en: string }> = {
   upload: { ar: 'رفع الملف', en: 'Uploading the file' },
@@ -18,8 +18,10 @@ export const stepNames: Record<StepKey, { ar: string; en: string }> = {
   scenes: { ar: 'توليد المشاهد', en: 'Generating the scenes' },
   music: { ar: 'تأليف الموسيقى', en: 'Composing the music' },
   merge: { ar: 'دمج الموسيقى', en: 'Merging the music' },
+  score: { ar: 'إضافة موسيقى تحت صوتك', en: 'Adding music under your voice' },
   trim: { ar: 'قص الفيديو', en: 'Trimming the video' },
   captions: { ar: 'إضافة النص المكتوب', en: 'Adding captions' },
+  translate: { ar: 'كتابة كلامك مترجمًا', en: 'Adding translated captions' },
   upscale: { ar: 'رفع الدقة', en: 'Upscaling' },
 };
 
@@ -52,9 +54,18 @@ const fileUrl = (o: unknown): string => {
   return f.url;
 };
 
+// Whether an order still has to upload the customer's files. A change to an
+// earlier result reuses the files its first version uploaded, and a changed
+// ad edits the earlier design itself.
+export function needsUpload(job: Pick<ServiceJob, 'media' | 'images' | 'sourceUrls' | 'revise' | 'kind'>): boolean {
+  if (job.sourceUrls?.length) return false;
+  if (job.kind === 'adImage' && job.revise?.imageUrl) return false;
+  return Boolean(job.media) || Boolean(job.images?.length);
+}
+
 // The steps shown to the customer while the order runs.
-export function stepsFor(params: ServiceParams, hasMedia: boolean, tier: ServiceTier): StepKey[] {
-  const steps: StepKey[] = hasMedia ? ['upload'] : [];
+export function stepsFor(params: ServiceParams, upload: boolean, tier: ServiceTier): StepKey[] {
+  const steps: StepKey[] = upload ? ['upload'] : [];
   switch (params.kind) {
     case 'copy':
       steps.push('write');
@@ -77,8 +88,8 @@ export function stepsFor(params: ServiceParams, hasMedia: boolean, tier: Service
       break;
     case 'editVideo':
       if (params.trimStart !== null || params.trimEnd !== null) steps.push('trim');
-      if (params.captions) steps.push('captions');
-      if (params.music) steps.push('music', 'merge');
+      if (params.captions) steps.push(params.captionLanguage ? 'translate' : 'captions');
+      if (params.music) steps.push(...(params.musicMode === 'under' ? (['score'] as const) : (['music', 'merge'] as const)));
       if (tier === 'high') steps.push('upscale');
       break;
   }
@@ -111,6 +122,18 @@ function videoInput(tier: ServiceTier, prompt: string, seconds: number, sound: b
   return { prompt, aspect_ratio: '9:16', duration: String(seconds), generate_audio: sound };
 }
 
+export type RunOptions = {
+  // Every photo of a video-from-photos order; `media` is the first.
+  images?: PickedMedia[];
+  // The files' fal URLs when they are already uploaded; a change to a result
+  // reuses those of the first version.
+  sourceUrls?: string[];
+  // Receives the fal URLs once the files are uploaded, to keep with the job.
+  onUploaded?: (urls: string[]) => void;
+  // A change to an earlier result: the design to edit, or the text to rewrite.
+  revise?: ServiceJob['revise'];
+};
+
 export async function runOrder(
   params: ServiceParams,
   media: PickedMedia | null,
@@ -118,34 +141,36 @@ export async function runOrder(
   tier: ServiceTier,
   lang: 'ar' | 'en',
   report: Report,
-  // Every photo of a video-from-photos order; `media` is the first.
-  images: PickedMedia[] = [],
+  { images = [], sourceUrls = [], onUploaded, revise }: RunOptions = {},
 ): Promise<JobResult> {
-  const steps = stepsFor(params, Boolean(media) || images.length > 0, tier);
+  const upload = needsUpload({ kind: params.kind, media, images, sourceUrls, revise });
+  const steps = stepsFor(params, upload, tier);
   let done = 0;
-  const step = (key: StepKey) => report(key, done / steps.length);
+  const step = (key: StepKey, part = 0) => report(key, (done + part) / steps.length);
   const next = () => {
     done += 1;
   };
 
-  let sourceUrl = '';
-  let imageUrls: string[] = [];
-  if (images.length > 0) {
+  let imageUrls: string[] = sourceUrls;
+  if (upload) {
     step('upload');
+    const files = images.length > 0 ? images : media ? [media] : [];
     imageUrls = [];
-    for (const image of images) imageUrls.push(await uploadMedia(image));
-    sourceUrl = imageUrls[0];
-    next();
-  } else if (media) {
-    step('upload');
-    sourceUrl = await uploadMedia(media);
+    // Progress runs across all the files in turn.
+    for (const [i, file] of files.entries()) {
+      imageUrls.push(await uploadMedia(file, (f) => step('upload', (i + f) / files.length)));
+    }
+    onUploaded?.(imageUrls);
     next();
   }
+  const sourceUrl = imageUrls[0] ?? '';
 
   switch (params.kind) {
     case 'copy': {
       step('write');
-      const { text } = await postJson<{ text: string }>('/api/write', { business, params, tier, lang }, 180000);
+      // A change rewrites the earlier text rather than starting over.
+      const body = revise?.text ? { business, params, tier, lang, previous: revise.text, instruction: revise.instruction } : { business, params, tier, lang };
+      const { text } = await postJson<{ text: string }>('/api/write', body, 180000);
       return { type: 'text', text };
     }
     case 'voice': {
@@ -155,7 +180,10 @@ export async function runOrder(
     }
     case 'adImage': {
       step('design');
-      const input: Record<string, unknown> = { prompt: params.prompt, image_urls: [sourceUrl], aspect_ratio: params.aspect, output_format: 'png' };
+      // A change edits the earlier design; a new ad starts from the photo.
+      const image = revise?.imageUrl ?? sourceUrl;
+      if (!image) throw new Error('upload: no photo');
+      const input: Record<string, unknown> = { prompt: params.prompt, image_urls: [image], aspect_ratio: params.aspect, output_format: 'png' };
       if (tier !== 'low') input.resolution = tier === 'high' ? '2K' : '1K';
       if (tier === 'high') input.num_images = 2;
       const r = await runTool(tierTools.image[tier], input);
@@ -164,7 +192,7 @@ export async function runOrder(
       return { type: 'image', url: urls[0], urls };
     }
     case 'imageVideo': {
-      const urls = imageUrls.length ? imageUrls : sourceUrl ? [sourceUrl] : [];
+      const urls = imageUrls;
       if (!urls.length) throw new Error('upload: no photos');
       const seconds = photoVideoSeconds(params.duration, tier);
       const withMusic = Boolean(params.music) && tier !== 'high';
@@ -200,7 +228,9 @@ export async function runOrder(
       return { type: 'video', url: video };
     }
     case 'editVideo': {
+      // Every version edits the customer's original upload.
       let video = sourceUrl;
+      if (!video) throw new Error('upload: no video');
       const start = params.trimStart ?? 0;
       const length = Math.max(1, (params.trimEnd ?? media?.seconds ?? 30) - start);
       if (params.trimStart !== null || params.trimEnd !== null) {
@@ -213,26 +243,43 @@ export async function runOrder(
         next();
       }
       if (params.captions) {
-        step('captions');
-        // Speech is transcribed in the account's language; Arabic needs a
-        // font with Arabic letters.
-        const r = await runTool('captions', {
-          video_url: video,
-          language: lang,
-          font_name: lang === 'ar' ? 'Cairo' : 'Montserrat',
-          font_weight: 'bold',
-          font_size: 80,
-          words_per_subtitle: 3,
-          position: 'bottom',
-          font_color: 'white',
-          highlight_color: 'orange',
-          stroke_color: 'black',
-          stroke_width: 3,
-        });
+        step(params.captionLanguage ? 'translate' : 'captions');
+        // Speech is transcribed in the account's language. VEED translates
+        // and takes files the quick tool cannot.
+        const r =
+          captionTool(params, media?.bytes ?? 0) === 'captionsPro'
+            ? await runTool('captionsPro', {
+                video_url: video,
+                preset: 'simple',
+                language: spokenLanguage[lang],
+                ...(params.captionLanguage ? { translation_language: captionLanguages[params.captionLanguage].code } : {}),
+                customization: { position: 'bottom' },
+              })
+            : await runTool('captions', {
+                video_url: video,
+                language: lang,
+                // Arabic needs a font with Arabic letters.
+                font_name: lang === 'ar' ? 'Cairo' : 'Montserrat',
+                font_weight: 'bold',
+                font_size: 80,
+                words_per_subtitle: 3,
+                position: 'bottom',
+                font_color: 'white',
+                highlight_color: 'orange',
+                stroke_color: 'black',
+                stroke_width: 3,
+              });
         video = fileUrl(r.video);
         next();
       }
-      if (params.music) {
+      if (params.music && params.musicMode === 'under') {
+        // The music is scored to the picture; the customer's voice is kept
+        // on top and the music dips under it.
+        step('score');
+        const r = await runTool('musicUnder', { video_url: video, prompt: params.music, keep_speech_vocal: true, num_samples: 1 });
+        video = fileUrl(r.video);
+        next();
+      } else if (params.music) {
         step('music');
         const audio = await compose(tier, params.music, length);
         next();

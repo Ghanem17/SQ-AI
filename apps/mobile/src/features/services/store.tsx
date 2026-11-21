@@ -10,15 +10,29 @@ import { getJson } from '@/lib/ai';
 
 export type JobResult = { type: 'text'; text: string } | { type: 'audio' | 'video'; url: string } | { type: 'image'; url: string; urls?: string[] };
 
+// A file the customer attached, as kept with the order.
+export type MediaRecord = { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string; bytes?: number; estimated?: boolean };
+
 export type ServiceJob = {
   id: string;
   kind: ServiceKind;
   title: string;
   params: ServiceParams;
   tier: ServiceTier;
-  media: { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string } | null;
+  media: MediaRecord | null;
   // All photos of a video-from-photos order, in order; `media` is the first.
-  images?: { uri: string; kind: 'video' | 'image'; mimeType: string; seconds: number; fileName: string }[];
+  images?: MediaRecord[];
+  // The files' fal URLs once uploaded, so later versions reuse them.
+  sourceUrls?: string[];
+  // Every change to a result is a new order in the same thread: `rootId` is
+  // the first order, `parentId` the version it changes, `version` counts from 1.
+  rootId?: string;
+  parentId?: string;
+  version?: number;
+  // The customer's own words: the request, or the change they asked for.
+  request?: string;
+  // What a change works from: the design it edits or the text it rewrites.
+  revise?: { instruction: string; imageUrl?: string; text?: string };
   quote: Quote;
   status: 'pending' | 'running' | 'done' | 'failed';
   // A runner step key while it runs.
@@ -41,7 +55,7 @@ type Services = Saved & {
   live: Partial<Record<ServiceToolKey, number>>;
   liveStatus: 'loading' | 'ok' | 'failed';
   refreshLive: () => void;
-  priceFor: (params: ServiceParams, mediaSeconds: number, tier: ServiceTier) => Quote;
+  priceFor: (params: ServiceParams, mediaSeconds: number, tier: ServiceTier, mediaBytes?: number) => Quote;
   addJob: (job: ServiceJob) => void;
   updateJob: (id: string, patch: Partial<ServiceJob>) => void;
   removeJob: (id: string) => void;
@@ -109,7 +123,7 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       setLiveStatus('loading');
       setLiveTick((t) => t + 1);
     },
-    priceFor: (params, mediaSeconds, tier) => quote(planLines(params, mediaSeconds, tier), saved.settings, { ...live, ...saved.manual }, tier),
+    priceFor: (params, mediaSeconds, tier, mediaBytes = 0) => quote(planLines(params, mediaSeconds, tier, mediaBytes), saved.settings, { ...live, ...saved.manual }, tier),
     addJob: (job) => setSaved((s) => ({ ...s, jobs: [job, ...s.jobs].slice(0, 50) })),
     updateJob: (id, patch) => setSaved((s) => ({ ...s, jobs: s.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)) })),
     removeJob: (id) => setSaved((s) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) })),
@@ -124,6 +138,23 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+// The thread an order belongs to, first version first.
+export function threadOf(jobs: ServiceJob[], job: ServiceJob): ServiceJob[] {
+  const root = job.rootId ?? job.id;
+  return jobs.filter((j) => j.id === root || j.rootId === root).sort((a, b) => (a.version ?? 1) - (b.version ?? 1) || a.createdAt - b.createdAt);
+}
+
+// One entry per thread, its latest version, newest first.
+export function latestVersions(jobs: ServiceJob[]): ServiceJob[] {
+  const seen = new Map<string, ServiceJob>();
+  for (const j of jobs) {
+    const root = j.rootId ?? j.id;
+    const kept = seen.get(root);
+    if (!kept || (j.version ?? 1) > (kept.version ?? 1)) seen.set(root, j);
+  }
+  return [...seen.values()].sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function useServices(): Services {

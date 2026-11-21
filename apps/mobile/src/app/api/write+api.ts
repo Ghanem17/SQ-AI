@@ -21,13 +21,19 @@ function writerModel(tier: unknown): string | undefined {
 export async function POST(request: Request): Promise<Response> {
   if (!hasAccess(request)) return denied();
   try {
-    const body = (await request.json()) as { business?: unknown; params?: unknown; tier?: unknown };
+    const body = (await request.json()) as { business?: unknown; params?: unknown; tier?: unknown; previous?: unknown; instruction?: unknown };
     const p = cleanParams(body.params);
     if (!p || p.kind !== 'copy') return Response.json({ error: 'Bad request' }, { status: 400 });
+    // A change rewrites the customer's earlier text instead of starting over.
+    const previous = typeof body.previous === 'string' ? body.previous.trim().slice(0, 6000) : '';
+    const instruction = typeof body.instruction === 'string' ? body.instruction.trim().slice(0, 600) : '';
+    const task = previous
+      ? `Task: ${formats[p.format]}\nRewrite the previous text below, applying only the requested change and keeping everything else that still fits.\nRequested change: ${instruction || p.details || 'improve it'}\nPrevious text:\n${previous}`
+      : `Task: ${formats[p.format]}\nTopic: ${p.topic}\nDetails: ${p.details || 'none'}`;
     const text = await chat(
       [
         { role: 'system', content: writerSystem(readBusiness(body.business)) },
-        { role: 'user', content: `Task: ${formats[p.format]}\nTopic: ${p.topic}\nDetails: ${p.details || 'none'}` },
+        { role: 'user', content: task },
       ],
       { maxTokens: p.format === 'plan' ? 2500 : 900, temperature: 0.8, model: writerModel(body.tier) },
     );

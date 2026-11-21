@@ -38,7 +38,7 @@ export function OrderRow({ job, last }: { job: ServiceJob; last?: boolean }) {
           {job.title || pick(services[job.kind].name)}
         </AppText>
         <AppText variant="small" color={c.muted} numberOfLines={1}>
-          {`${pick(tierNames[job.tier])} · ⁦${job.id}⁩ · ⁦${formatTime(job.createdAt)}⁩`}
+          {[(job.version ?? 1) > 1 ? L(`نسخة ${job.version}`, `Version ${job.version}`) : null, pick(tierNames[job.tier]), `⁦${job.id}⁩`, `⁦${formatTime(job.createdAt)}⁩`].filter(Boolean).join(' · ')}
         </AppText>
       </View>
       <View style={styles.end}>

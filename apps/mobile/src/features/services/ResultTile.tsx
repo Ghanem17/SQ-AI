@@ -118,7 +118,7 @@ function Media({ job }: { job: ServiceJob }) {
 
 export function ResultTile({ job, width, mediaHeight }: { job: ServiceJob; width?: number; mediaHeight?: number }) {
   const { c, elev } = useTheme();
-  const { pick, lang, rtl } = useI18n();
+  const { pick, lang, rtl, L } = useI18n();
   const status = jobStatus[job.status];
   const pct = Math.round(job.progress * 100);
   const showBadge = job.status !== 'done';
@@ -131,6 +131,9 @@ export function ResultTile({ job, width, mediaHeight }: { job: ServiceJob; width
       style={[styles.tile, { backgroundColor: c.card, borderColor: c.line }, elev.card, width ? { width } : styles.fill]}>
       <View style={[styles.media, mediaHeight ? { height: mediaHeight } : styles.mediaRatio, { borderBottomColor: c.line }]}>
         <Media job={job} />
+        {(job.version ?? 1) > 1 && (
+          <Badge small tone="pri" icon="refresh" label={L(`نسخة ${job.version}`, `Version ${job.version}`)} style={[styles.badge, rtl ? { left: 8 } : { right: 8 }]} />
+        )}
         {showBadge && (
           <Badge
             small

@@ -14,7 +14,7 @@ import { Appear, Badge, Card, Chevron, IconBadge, IconButton, ListCard, ListRow,
 import { ExampleRow } from '@/features/services/examples';
 import { OrderRow } from '@/features/services/OrderRow';
 import { ResultTile } from '@/features/services/ResultTile';
-import { useServices } from '@/features/services/store';
+import { latestVersions, useServices } from '@/features/services/store';
 import { useI18n } from '@/i18n';
 import { useSession } from '@/state/session';
 import { useStudio } from '@/state/studio';
@@ -57,8 +57,10 @@ export default function HomeScreen() {
   const current = steps.findIndex((s) => !s.done);
   // Finished orders lead as a gallery; the others stay listed with their
   // status until they finish.
-  const results = jobs.filter((j) => j.status === 'done' && j.result).slice(0, 10);
-  const latest = jobs.filter((j) => j.status !== 'done').slice(0, 3);
+  // One tile per order thread: its latest version.
+  const threads = latestVersions(jobs);
+  const results = threads.filter((j) => j.status === 'done' && j.result).slice(0, 10);
+  const latest = threads.filter((j) => j.status !== 'done').slice(0, 3);
 
   const quick: { icon: IconName; label: string; href: Href }[] = [
     { icon: 'camera', label: L('صوّر ريلًا', 'Shoot reel'), href: '/camera' },

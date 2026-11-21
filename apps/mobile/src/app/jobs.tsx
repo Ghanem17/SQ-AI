@@ -5,7 +5,7 @@ import { formatIQD, formatNumber } from '@sq/shared';
 import { Button } from '@/components/Button';
 import { Card, EmptyState, GUTTER, KeyValue, ScrollScreen, TopBar } from '@/components/ui';
 import { ResultTile } from '@/features/services/ResultTile';
-import { useServices } from '@/features/services/store';
+import { latestVersions, useServices } from '@/features/services/store';
 import { useI18n } from '@/i18n';
 
 const GAP = 12;
@@ -43,7 +43,8 @@ export default function JobsScreen() {
             />
           </Card>
           <View style={styles.grid}>
-            {jobs.map((j) => (
+            {/* Each order shows its latest version; its thread keeps them all. */}
+            {latestVersions(jobs).map((j) => (
               <ResultTile key={j.id} job={j} width={tile} />
             ))}
           </View>
