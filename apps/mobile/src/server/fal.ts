@@ -74,8 +74,9 @@ export async function pollJob(statusUrl: unknown, responseUrl: unknown): Promise
 }
 
 // A one-time upload link: the phone sends the file straight to fal storage.
-export async function uploadLink(fileName: string, contentType: string) {
-  const res = await fetch(`${REST}/storage/upload/initiate?storage_type=fal-cdn-v3`, {
+// Large files go up in parts to a multipart link, as fal's own client does.
+export async function uploadLink(fileName: string, contentType: string, multipart = false) {
+  const res = await fetch(`${REST}/storage/upload/${multipart ? 'initiate-multipart' : 'initiate'}?storage_type=fal-cdn-v3`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({ content_type: contentType, file_name: fileName }),

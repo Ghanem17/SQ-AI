@@ -6,15 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   MAX_REFERENCE_IMAGES,
+  captionLanguages,
   font,
   formatIQD,
   radius,
   serviceOrder,
-  serviceTiers,
   services,
-  tierModel,
   tierNames,
-  tierQuality,
   type Quote,
   type ServiceKind,
   type ServiceParams,
@@ -25,13 +23,15 @@ import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
 import { Screen } from '@/components/Screen';
-import { Badge, Card, Footer, GUTTER, IconBadge, IconButton, ModelChip, Note, RadioCard, SectionTitle, TopBar, ui } from '@/components/ui';
+import { Badge, Card, Footer, GUTTER, IconBadge, IconButton, Note, SectionTitle, TopBar, ui } from '@/components/ui';
 import { ExampleStrip } from '@/features/services/examples';
 import { WhyPrice } from '@/features/services/WhyPrice';
-import { QuickForm, initialQuick, quickMessage, quickReady, type QuickState } from '@/features/services/QuickForm';
+import { LevelPicker } from '@/features/services/LevelPicker';
+import { QuickForm, initialQuickFor, quickMessage, quickReady, type QuickState } from '@/features/services/QuickForm';
+import { SourceSheet } from '@/features/services/SourceSheet';
 import { useI18n } from '@/i18n';
 import { AiUnavailable, aiErrorText, postJson, useAiStatus, useBusiness } from '@/lib/ai';
-import { pickMedia, pickPhotos, type PickedMedia } from '@/features/services/media';
+import { pickErrorText, pickMedia, type PickSource, type PickedMedia } from '@/features/services/media';
 import { serviceIcons } from '@/features/services/OrderRow';
 import { useServices } from '@/features/services/store';
 import { useTheme } from '@/theme/theme';
@@ -70,8 +70,16 @@ function brief(params: ServiceParams, L: (a: string, e: string) => string, custo
     case 'editVideo': {
       const parts = [
         params.trimStart !== null || params.trimEnd !== null ? L('قص الفيديو', 'Trim the video') : null,
-        params.captions ? L('كتابة الكلام على الفيديو', 'Add captions') : null,
-        params.music ? L(`موسيقى: ${params.music}`, `Music: ${params.music}`) : null,
+        params.captions
+          ? params.captionLanguage
+            ? L(`كتابة الكلام مترجمًا إلى ${captionLanguages[params.captionLanguage].name.ar}`, `Captions translated into ${captionLanguages[params.captionLanguage].name.en}`)
+            : L('كتابة الكلام على الفيديو', 'Add captions')
+          : null,
+        params.music
+          ? params.musicMode === 'replace'
+            ? L(`موسيقى بدل الصوت: ${params.music}`, `Music replacing the sound: ${params.music}`)
+            : L(`موسيقى هادئة تحت صوتك: ${params.music}`, `Quiet music under your voice: ${params.music}`)
+          : null,
       ].filter(Boolean);
       return parts.length ? parts.join(' · ') : L('مونتاج الفيديو المرفق', 'Edit the attached video');
     }
@@ -106,10 +114,12 @@ export default function OrderScreen() {
     },
   ]);
   const [text, setText] = useState(service ? pick(openers[service]) : '');
-  const [quick, setQuick] = useState<QuickState>(initialQuick);
+  const [quick, setQuick] = useState<QuickState>(() => initialQuickFor(service));
   // Attachments waiting to be sent: one video, or up to four photos.
   const [media, setMedia] = useState<PickedMedia[]>([]);
   const [attachOpen, setAttachOpen] = useState(false);
+  // The gallery-or-files sheet, for the chat or for the quick form.
+  const [sheet, setSheet] = useState<{ kind: 'video' | 'image'; max: number; for: 'chat' | 'form' } | null>(null);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
   // The quote opens on its own page once the assistant has a plan; `origin`
@@ -132,37 +142,30 @@ export default function OrderScreen() {
     return () => clearTimeout(t);
   }, [turns, plan, busy, reduceMotion, view]);
 
-  const attach = async (kind: 'video' | 'image') => {
+  // Opens the sheet that asks where the file comes from.
+  const attach = (kind: 'video' | 'image') => {
     setAttachOpen(false);
-    const permissionNote = L('نحتاج إلى إذن الوصول إلى الصور لتختار الملف.', 'We need access to your photos to pick the file.');
     if (kind === 'image') {
-      const kept = media.filter((m) => m.kind === 'image');
-      const room = MAX_REFERENCE_IMAGES - kept.length;
+      const room = MAX_REFERENCE_IMAGES - media.filter((m) => m.kind === 'image').length;
       if (room <= 0) {
         setNote(L(`يمكنك إرفاق ${n(MAX_REFERENCE_IMAGES, 'photo')} كحد أقصى.`, `You can attach up to ${n(MAX_REFERENCE_IMAGES, 'photo')}.`));
         return;
       }
-      const photos = await pickPhotos(room);
-      if (!photos) return;
-      if ('error' in photos) {
-        setNote(permissionNote);
-        return;
-      }
-      setMedia([...kept, ...photos].slice(0, MAX_REFERENCE_IMAGES));
-      setNote(null);
+      setSheet({ kind, max: room, for: 'chat' });
       return;
     }
-    const picked = await pickMedia('video');
+    setSheet({ kind, max: 1, for: 'chat' });
+  };
+
+  const attachFrom = async (kind: 'video' | 'image', source: PickSource, max: number) => {
+    const picked = await pickMedia(source, kind, max);
     if (!picked) return;
     if ('error' in picked) {
-      setNote(
-        picked.error === 'permission'
-          ? permissionNote
-          : L('الفيديو أطول من 3 دقائق. قصّه أو اختر فيديو أقصر.', 'The video is longer than 3 minutes. Trim it or choose a shorter one.'),
-      );
+      setNote(pickErrorText(picked.error, L));
       return;
     }
-    setMedia([picked]);
+    if (kind === 'image') setMedia([...media.filter((m) => m.kind === 'image'), ...picked].slice(0, MAX_REFERENCE_IMAGES));
+    else setMedia(picked.slice(0, 1));
     setNote(null);
   };
 
@@ -234,38 +237,47 @@ export default function OrderScreen() {
     ask([turns[0], mine], 'form');
   };
 
-  const addQuick = async () => {
+  const addQuick = () => {
     if (!service) return;
-    const permissionNote = L('نحتاج إلى إذن الوصول إلى الصور لتختار الملف.', 'We need access to your photos to pick the file.');
     if (service === 'editVideo') {
-      const picked = await pickMedia('video');
-      if (!picked) return;
-      if ('error' in picked) {
-        setNote(
-          picked.error === 'permission'
-            ? permissionNote
-            : L('الفيديو أطول من 3 دقائق. قصّه أو اختر فيديو أقصر.', 'The video is longer than 3 minutes. Trim it or choose a shorter one.'),
-        );
-        return;
-      }
-      setQuick((q) => ({ ...q, media: [picked] }));
-      setNote(null);
+      setSheet({ kind: 'video', max: 1, for: 'form' });
       return;
     }
     // An ad uses one photo, so a new pick replaces it.
     const max = service === 'imageVideo' ? MAX_REFERENCE_IMAGES : 1;
     const kept = service === 'imageVideo' ? quick.media.filter((m) => m.kind === 'image') : [];
-    const room = max - kept.length;
-    if (room <= 0) return;
-    const photos = await pickPhotos(room);
-    if (!photos) return;
-    if ('error' in photos) {
-      setNote(permissionNote);
+    if (max - kept.length <= 0) return;
+    setSheet({ kind: 'image', max: max - kept.length, for: 'form' });
+  };
+
+  const addQuickFrom = async (source: PickSource, kind: 'video' | 'image', room: number) => {
+    if (!service) return;
+    const picked = await pickMedia(source, kind, room);
+    if (!picked) return;
+    if ('error' in picked) {
+      setNote(pickErrorText(picked.error, L));
       return;
     }
-    setQuick((q) => ({ ...q, media: [...kept, ...photos].slice(0, max) }));
+    if (kind === 'video') setQuick((q) => ({ ...q, media: picked.slice(0, 1) }));
+    else {
+      const max = service === 'imageVideo' ? MAX_REFERENCE_IMAGES : 1;
+      const kept = service === 'imageVideo' ? quick.media.filter((m) => m.kind === 'image') : [];
+      setQuick((q) => ({ ...q, media: [...kept, ...picked].slice(0, max) }));
+    }
     setNote(null);
   };
+
+  const pickFromSheet = (source: PickSource) => {
+    const open = sheet;
+    setSheet(null);
+    if (!open) return;
+    // The system picker opens once the sheet has closed.
+    setTimeout(() => {
+      if (open.for === 'form') addQuickFrom(source, open.kind, open.max);
+      else attachFrom(open.kind, source, open.max);
+    }, 250);
+  };
+  const sourceSheet = <SourceSheet kind={sheet?.kind ?? null} max={sheet?.max} onPick={pickFromSheet} onClose={() => setSheet(null)} />;
 
   // What the order uses: the latest video, or the latest photos (up to four
   // for a video from photos, one for an ad).
@@ -276,9 +288,19 @@ export default function OrderScreen() {
   const fromPhotos = plan?.params.kind === 'imageVideo';
   const orderMedia = needs === 'video' ? lastVideo : needs === 'image' ? (fromPhotos ? (photos[0] ?? null) : (photos[photos.length - 1] ?? null)) : null;
   const missingMedia = Boolean(needs && !orderMedia);
+  const seconds = orderMedia?.seconds ?? 0;
+  const bytes = orderMedia?.bytes ?? 0;
   const quotes: Record<ServiceTier, Quote> | null = plan
-    ? { low: priceFor(plan.params, orderMedia?.seconds ?? 0, 'low'), mid: priceFor(plan.params, orderMedia?.seconds ?? 0, 'mid'), high: priceFor(plan.params, orderMedia?.seconds ?? 0, 'high') }
+    ? { low: priceFor(plan.params, seconds, 'low', bytes), mid: priceFor(plan.params, seconds, 'mid', bytes), high: priceFor(plan.params, seconds, 'high', bytes) }
     : null;
+  // The customer's own words for the request, kept with the order.
+  const requestText = (kind: ServiceKind) =>
+    origin === 'form'
+      ? quick.desc.trim() || pick(services[kind].pitch)
+      : turns
+          .filter((t) => t.from === 'me')
+          .map((t) => t.text)
+          .join(' · ');
   const q = quotes?.[tier] ?? null;
 
   const approve = () => {
@@ -293,6 +315,8 @@ export default function OrderScreen() {
       media: needs && orderMedia ? orderMedia : null,
       images: fromPhotos ? photos : undefined,
       quote: q,
+      request: requestText(plan.params.kind),
+      version: 1,
       status: 'pending',
       step: '',
       progress: 0,
@@ -335,17 +359,8 @@ export default function OrderScreen() {
                 {plan.title}
               </AppText>
               <AppText size={13} lineHeight={20} color={c.muted} numberOfLines={3}>
-                {brief(
-                  plan.params,
-                  L,
-                  // From the form, the customer's own words are its description.
-                  origin === 'form'
-                    ? quick.desc.trim() || pick(services[kind].pitch)
-                    : turns
-                        .filter((t) => t.from === 'me')
-                        .map((t) => t.text)
-                        .join(' · '),
-                )}
+                {/* From the form, the customer's own words are its description. */}
+                {brief(plan.params, L, requestText(kind))}
               </AppText>
               {orderMedia && (
                 <View style={styles.mediaRow}>
@@ -377,24 +392,7 @@ export default function OrderScreen() {
               )}
             </Note>
           )}
-          <View accessibilityRole="radiogroup" style={styles.tiers}>
-            {serviceTiers.map((tr) => (
-              <RadioCard key={tr} selected={tr === tier} onPress={() => setTier(tr)} label={`${pick(tierNames[tr])}، ${tierModel(kind, tr)}، ${formatIQD(quotes[tr].totalIqd)}`}>
-                <View style={styles.tierHead}>
-                  <View style={styles.tierName}>
-                    <AppText variant="rowTitle">{pick(tierNames[tr])}</AppText>
-                    <ModelChip label={tierModel(kind, tr)} />
-                  </View>
-                  <AppText weight="bold" size={15} lineHeight={22}>
-                    {formatIQD(quotes[tr].totalIqd)}
-                  </AppText>
-                </View>
-                <AppText variant="small" color={c.muted} numberOfLines={1} style={styles.tierQuality}>
-                  {pick(tierQuality[kind][tr])}
-                </AppText>
-              </RadioCard>
-            ))}
-          </View>
+          <LevelPicker params={plan.params} quotes={quotes} tier={tier} onChange={setTier} />
 
           <WhyPrice quote={q} open={showWhy} onToggle={() => setShowWhy((v) => !v)} />
 
@@ -457,6 +455,7 @@ export default function OrderScreen() {
           <ScrollView contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <ExampleStrip kind={service} />
             <QuickForm kind={service} state={quick} onChange={(patch) => setQuick((q) => ({ ...q, ...patch }))} onAdd={addQuick} />
+            {sourceSheet}
             {note && (
               <Note tone="bad" icon="alert">
                 {note}
@@ -513,6 +512,7 @@ export default function OrderScreen() {
         }
       />
       <KeyboardAvoidingView style={ui.flex} behavior="padding">
+        {sourceSheet}
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
           {turns.map((t) => (
             <Animated.View key={t.id} entering={reduceMotion ? undefined : FadeIn.duration(200)} style={[styles.msg, t.from === 'me' ? styles.mine : styles.theirs]}>
@@ -564,7 +564,7 @@ export default function OrderScreen() {
         <View style={[styles.composer, { borderTopColor: c.line, backgroundColor: c.nav, paddingBottom: insets.bottom + 10 }]}>
           {attachOpen && (
             <View style={styles.attachRow}>
-              <Button label={L('فيديو من المعرض', 'Video from gallery')} icon="video" variant="secondary" small style={ui.flex} onPress={() => attach('video')} />
+              <Button label={L('فيديو', 'Video')} icon="video" variant="secondary" small style={ui.flex} onPress={() => attach('video')} />
               <Button label={L('صور (حتى 4)', 'Photos (up to 4)')} icon="image" variant="secondary" small style={ui.flex} onPress={() => attach('image')} />
             </View>
           )}
@@ -620,10 +620,6 @@ const styles = StyleSheet.create({
   request: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
   mediaRow: { marginTop: 6 },
   edit: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginTop: -4, marginEnd: -6 },
-  tiers: { gap: 8 },
-  tierHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tierName: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', rowGap: 4 },
-  tierQuality: { marginTop: 3 },
   testNote: { marginTop: 4 },
   totalBar: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   thread: { padding: GUTTER, gap: 12 },
