@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "SQ AI uses your photo library so you can pick a video or photo to edit or design, and to save results in the SQ AI album.",
+    "NSPhotoLibraryAddUsageDescription": "SQ AI saves your finished photos and videos to your gallery, in the SQ AI album.",
+    "NSCameraUsageDescription": "SQ AI uses the camera to film your reel shots.",
+    "NSMicrophoneUsageDescription": "SQ AI uses the microphone to record your shots' sound."
+  }
+}

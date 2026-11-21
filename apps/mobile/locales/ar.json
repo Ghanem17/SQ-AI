@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "يستخدم SQ AI الاستوديو لتختار فيديو أو صورة تريد مونتاجها أو تصميمها، ولحفظ النتائج في ألبوم SQ AI.",
+    "NSPhotoLibraryAddUsageDescription": "يحفظ SQ AI الصور والفيديوهات الجاهزة في معرض جهازك داخل ألبوم SQ AI.",
+    "NSCameraUsageDescription": "يستخدم SQ AI الكاميرا لتصوير لقطات الريل.",
+    "NSMicrophoneUsageDescription": "يستخدم SQ AI الميكروفون لتسجيل صوت اللقطة."
+  }
+}

@@ -1,6 +1,7 @@
 // Shows a finished order large: the image, video, voice-over or text, with
 // one primary action that hands it to Instagram, WhatsApp and the rest
-// («انشر أو شارك») and a secondary one that keeps a copy («احفظ»).
+// («انشر أو شارك») and a secondary one that saves it straight to the
+// phone's gallery («احفظ»).
 
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Clipboard from 'expo-clipboard';
@@ -16,10 +17,11 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/PressableScale';
-import { Card, Segmented } from '@/components/ui';
+import { Card, Note, Segmented } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import { Waveform } from './ResultTile';
+import { ALBUM, SaveDenied, saveToDevice, type SaveOutcome } from './save';
 import type { JobResult, ServiceJob } from './store';
 
 type FileType = 'audio' | 'image' | 'video';
@@ -42,27 +44,6 @@ async function shareFile(type: FileType, url: string) {
   const uri = await localCopy(type, url, FileSystem.cacheDirectory);
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: mime[type] });
   else await Linking.openURL(url);
-}
-
-// Keeps a copy: a download in the browser; on a phone the file is kept in
-// the app's documents and the system sheet offers "Save to Photos/Files".
-async function saveFile(type: FileType, url: string, title: string) {
-  if (Platform.OS === 'web') {
-    try {
-      const blob = await (await fetch(url)).blob();
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = href;
-      a.download = `sq-${Date.now()}.${ext[type]}`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(href), 4000);
-    } catch {
-      await Linking.openURL(url);
-    }
-    return;
-  }
-  const uri = await localCopy(type, url, FileSystem.documentDirectory);
-  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: mime[type], dialogTitle: title, UTI: type === 'image' ? 'public.png' : undefined });
 }
 
 function VideoResult({ url }: { url: string }) {
@@ -127,14 +108,29 @@ function imageRatio(job: ServiceJob): number {
   return job.params.aspect === '4:5' ? 4 / 5 : job.params.aspect === '9:16' ? 9 / 16 : 1;
 }
 
+// What the customer is told after saving.
+function savedText(outcome: SaveOutcome, L: (a: string, e: string) => string): string {
+  switch (outcome) {
+    case 'gallery':
+      return L(`حُفظ في المعرض، في ألبوم «${ALBUM}».`, `Saved to your gallery, in the “${ALBUM}” album.`);
+    case 'music':
+      return L(`حُفظ في ملفات الموسيقى على جهازك، في مجلد «${ALBUM}».`, `Saved to your phone's music files, in the “${ALBUM}” folder.`);
+    case 'shared':
+      return L('لا يحفظ معرض الصور على iPhone الملفات الصوتية، لذا اخترنا قائمة المشاركة. اختر منها «حفظ في الملفات».', 'The iPhone photo library does not keep audio, so the share sheet opened. Choose “Save to Files” there.');
+    case 'downloaded':
+      return L('نُزّل الملف على جهازك.', 'The file was downloaded to your device.');
+  }
+}
+
 export function ResultView({ job, result }: { job: ServiceJob; result: JobResult }) {
   const { c } = useTheme();
   const { L } = useI18n();
   const [busy, setBusy] = useState<'share' | 'save' | null>(null);
+  const [saved, setSaved] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [version, setVersion] = useState(0);
 
-  const run = async (which: 'share' | 'save', task: () => Promise<unknown>) => {
+  const run = async (which: 'share', task: () => Promise<unknown>) => {
     setBusy(which);
     try {
       await task();
@@ -169,7 +165,24 @@ export function ResultView({ job, result }: { job: ServiceJob; result: JobResult
 
   const urls = result.type === 'image' ? (result.urls?.length ? result.urls : [result.url]) : [result.url];
   const url = urls[Math.min(version, urls.length - 1)];
-  const saveTitle = L('احفظ', 'Save');
+  const save = async () => {
+    setBusy('save');
+    setSaved(null);
+    try {
+      setSaved({ tone: 'ok', text: savedText(await saveToDevice(result.type, url), L) });
+    } catch (e) {
+      console.warn('[save]', e);
+      setSaved({
+        tone: 'bad',
+        text:
+          e instanceof SaveDenied
+            ? L('لم يُحفظ الملف: اسمح لـ SQ AI بإضافة الصور من إعدادات جهازك ثم أعد المحاولة.', 'Not saved: allow SQ AI to add photos in your device settings, then try again.')
+            : L('تعذر حفظ الملف. تحقق من اتصالك وأعد المحاولة.', 'Could not save the file. Check your connection and try again.'),
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
   return (
     <View style={styles.wrap}>
       {result.type === 'image' && (
@@ -191,11 +204,16 @@ export function ResultView({ job, result }: { job: ServiceJob; result: JobResult
       <Button label={busy === 'share' ? L('جارٍ التحضير…', 'Preparing…') : L('انشر أو شارك', 'Share')} icon="share" loading={busy === 'share'} onPress={() => run('share', () => shareFile(result.type, url))} />
       <Button
         variant="secondary"
-        label={busy === 'save' ? L('جارٍ الحفظ…', 'Saving…') : saveTitle}
-        icon="download"
+        label={busy === 'save' ? L('جارٍ الحفظ…', 'Saving…') : saved?.tone === 'ok' ? L('حُفظ في جهازك', 'Saved') : L('احفظ', 'Save')}
+        icon={saved?.tone === 'ok' ? 'check' : 'download'}
         loading={busy === 'save'}
-        onPress={() => run('save', () => saveFile(result.type, url, saveTitle))}
+        onPress={save}
       />
+      {saved && (
+        <Note tone={saved.tone} icon={saved.tone === 'ok' ? 'check' : 'alert'}>
+          {saved.text}
+        </Note>
+      )}
       <AppText size={11} lineHeight={16} color={c.placeholder} center>
         {L('يبقى الملف على خادم المعالجة مدة محدودة، فاحفظه على جهازك.', 'The file stays on the processing server for a limited time, so save it to your device.')}
       </AppText>

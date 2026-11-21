@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.samaqasioun.sqai",
       "supportsTablet": false,
       "infoPlist": {
-        "ExpoLocalization_forcesRTL": true
+        "ExpoLocalization_forcesRTL": true,
+        "CFBundleAllowMixedLocalizations": true
       }
     },
     "android": {
@@ -74,6 +75,15 @@
           "photosPermission": "يستخدم SQ AI الاستوديو لتختار فيديو أو صورة تريد مونتاجها أو تصميمها.",
           "cameraPermission": "يستخدم SQ AI الكاميرا لتصوير لقطات الريل."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "يستخدم SQ AI الاستوديو لتختار فيديو أو صورة تريد مونتاجها أو تصميمها.",
+          "savePhotosPermission": "يحفظ SQ AI الصور والفيديوهات الجاهزة في معرض جهازك داخل ألبوم SQ AI.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": []
+        }
       ]
     ],
     "experiments": {
@@ -91,6 +101,10 @@
         "projectId": "edc7dcb8-a895-4cc7-9dbf-8aae13b5b3bf"
       }
     },
-    "owner": "ghanimouss-team"
+    "owner": "ghanimouss-team",
+    "locales": {
+      "ar": "./locales/ar.json",
+      "en": "./locales/en.json"
+    }
   }
 }
