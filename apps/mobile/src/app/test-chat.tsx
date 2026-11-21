@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatIQD, radius } from '@sq/shared';
@@ -82,7 +82,7 @@ export default function TestChatScreen() {
           ) : undefined
         }
       />
-      <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={ui.flex} behavior="padding">
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
           <Note icon="info">
             {L(

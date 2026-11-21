@@ -214,9 +214,22 @@ export async function runOrder(
       }
       if (params.captions) {
         step('captions');
-        const r = await runTool('captions', { video_url: video, font_size: 30, txt_color: 'white', stroke_width: 2 });
-        if (typeof r.video_url !== 'string') throw new Error('No video in result');
-        video = r.video_url;
+        // Speech is transcribed in the account's language; Arabic needs a
+        // font with Arabic letters.
+        const r = await runTool('captions', {
+          video_url: video,
+          language: lang,
+          font_name: lang === 'ar' ? 'Cairo' : 'Montserrat',
+          font_weight: 'bold',
+          font_size: 80,
+          words_per_subtitle: 3,
+          position: 'bottom',
+          font_color: 'white',
+          highlight_color: 'orange',
+          stroke_color: 'black',
+          stroke_width: 3,
+        });
+        video = fileUrl(r.video);
         next();
       }
       if (params.music) {

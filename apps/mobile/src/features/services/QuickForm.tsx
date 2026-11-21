@@ -3,6 +3,7 @@
 // one message to the order assistant that goes straight to the quote.
 
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { MAX_REFERENCE_IMAGES, radius, services, type ServiceKind } from '@sq/shared';
@@ -143,10 +144,17 @@ function RemoveButton({ onPress, label }: { onPress: () => void; label: string }
   );
 }
 
-// The service's files as large tiles with thumbnails.
+// The service's files as large tiles with thumbnails. Tiles hold only an
+// image, so their size is set in pixels from the measured width: percentage
+// widths with an aspect ratio collapse to nothing on Android.
 function Attachments({ kind, media, onAdd, onRemove }: { kind: ServiceKind; media: PickedMedia[]; onAdd: () => void; onRemove: (i: number) => void }) {
   const { c } = useTheme();
   const { L, n, rtl } = useI18n();
+  const [width, setWidth] = useState(0);
+  const measure = (e: { nativeEvent: { layout: { width: number } } }) => setWidth(Math.round(e.nativeEvent.layout.width));
+  const cellWidth = width ? Math.floor((width - GRID_GAP) / 2) : 0;
+  const cellSize = cellWidth ? { width: cellWidth, height: Math.round(cellWidth * 0.75) } : styles.cell;
+  const singleSize = width ? { width, height: Math.round(width * 0.75) } : styles.single;
   if (kind === 'editVideo') {
     const v = media.find((m) => m.kind === 'video');
     if (!v) return <AddTile tall icon="video" label={L('اختر الفيديو من المعرض', 'Choose the video from your gallery')} sub={L('حتى 3 دقائق', 'Up to 3 minutes')} onPress={onAdd} />;
@@ -173,10 +181,17 @@ function Attachments({ kind, media, onAdd, onRemove }: { kind: ServiceKind; medi
     const p = photos[0];
     if (!p) return <AddTile tall icon="image" label={L('أضف صورة المنتج', 'Add the product photo')} sub={L('صورة واضحة على خلفية بسيطة', 'A clear photo on a plain background')} onPress={onAdd} />;
     return (
-      <PressableScale accessibilityRole="button" accessibilityLabel={L('غيّر الصورة', 'Change the photo')} onPress={onAdd} pressedScale={0.99} style={[styles.single, { backgroundColor: c.tile }]}>
-        <Image source={{ uri: p.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        <RemoveButton label={L('إزالة الصورة', 'Remove the photo')} onPress={() => onRemove(0)} />
-      </PressableScale>
+      <View onLayout={measure}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={L('غيّر الصورة', 'Change the photo')}
+          onPress={onAdd}
+          pressedScale={0.99}
+          style={[styles.singleBox, singleSize, { backgroundColor: c.tile }]}>
+          <Image source={{ uri: p.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <RemoveButton label={L('إزالة الصورة', 'Remove the photo')} onPress={() => onRemove(0)} />
+        </PressableScale>
+      </View>
     );
   }
   // imageVideo: up to four photos in a two-column grid.
@@ -184,9 +199,9 @@ function Attachments({ kind, media, onAdd, onRemove }: { kind: ServiceKind; medi
     return <AddTile tall icon="image" label={L(`أضف حتى ${n(MAX_REFERENCE_IMAGES, 'photo')} لمنتجك`, `Add up to ${n(MAX_REFERENCE_IMAGES, 'photo')} of your product`)} sub={L('من زوايا مختلفة إن أمكن', 'From different angles if you can')} onPress={onAdd} />;
   }
   return (
-    <View style={styles.grid}>
+    <View style={styles.grid} onLayout={measure}>
       {photos.map((p, i) => (
-        <View key={`${p.uri}${i}`} style={[styles.cell, { backgroundColor: c.tile }]}>
+        <View key={`${p.uri}${i}`} style={[styles.cellBox, cellSize, { backgroundColor: c.tile }]}>
           <Image source={{ uri: p.uri }} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityLabel={L(`الصورة ${i + 1}`, `Photo ${i + 1}`)} />
           <View style={[styles.cellNum, rtl ? styles.right : styles.left]}>
             <AppText weight="semibold" size={11} lineHeight={15} color="#F5F2EC">
@@ -197,7 +212,7 @@ function Attachments({ kind, media, onAdd, onRemove }: { kind: ServiceKind; medi
         </View>
       ))}
       {photos.length < MAX_REFERENCE_IMAGES && (
-        <View style={styles.cellWrap}>
+        <View style={cellWidth ? cellSize : styles.cellWrap}>
           <AddTile icon="plus" label={L('أضف صورة', 'Add a photo')} sub={L(`${photos.length} من ${MAX_REFERENCE_IMAGES}`, `${photos.length} of ${MAX_REFERENCE_IMAGES}`)} onPress={onAdd} />
         </View>
       )}
@@ -321,6 +336,8 @@ export function QuickForm({
   );
 }
 
+const GRID_GAP = 10;
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   form: { gap: 16 },
@@ -331,7 +348,9 @@ const styles = StyleSheet.create({
   addIcon: { width: 44, height: 44, borderRadius: radius.control, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   videoTile: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 96, borderRadius: radius.tier, padding: 14 },
   single: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.tier, overflow: 'hidden' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
+  cellBox: { borderRadius: radius.tier, overflow: 'hidden' },
+  singleBox: { borderRadius: radius.tier, overflow: 'hidden' },
   cell: { width: '48.5%', aspectRatio: 4 / 3, borderRadius: radius.tier, overflow: 'hidden' },
   cellWrap: { width: '48.5%', aspectRatio: 4 / 3 },
   left: { left: 8 },

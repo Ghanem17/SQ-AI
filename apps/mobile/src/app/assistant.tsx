@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -131,7 +131,7 @@ export default function AssistantScreen() {
           ) : undefined
         }
       />
-      <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={ui.flex} behavior="padding">
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
           {entries.map((e) => (
             <Animated.View key={e.id} entering={reduceMotion ? undefined : FadeIn.duration(220)} style={styles.block}>

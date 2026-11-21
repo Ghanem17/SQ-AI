@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance, type TextInputInstance } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, type ScrollViewInstance, type TextInputInstance } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -453,7 +453,7 @@ export default function OrderScreen() {
     return (
       <Screen edges={['top']}>
         <TopBar title={pick(services[service].name)} subtitle={L('دون اشتراك، تدفع ثمن الطلب فقط', 'No subscription, pay per order')} mode="close" />
-        <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={ui.flex} behavior="padding">
           <ScrollView contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <ExampleStrip kind={service} />
             <QuickForm kind={service} state={quick} onChange={(patch) => setQuick((q) => ({ ...q, ...patch }))} onAdd={addQuick} />
@@ -512,7 +512,7 @@ export default function OrderScreen() {
           ) : undefined
         }
       />
-      <KeyboardAvoidingView style={ui.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={ui.flex} behavior="padding">
         <ScrollView ref={scroll} contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
           {turns.map((t) => (
             <Animated.View key={t.id} entering={reduceMotion ? undefined : FadeIn.duration(200)} style={[styles.msg, t.from === 'me' ? styles.mine : styles.theirs]}>

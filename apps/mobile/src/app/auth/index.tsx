@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 
 import { checkPhone, defaultCountry, font, formatNational, paletteNames, palettes, radius, type AccountType, type Country, type PaletteName } from '@sq/shared';
@@ -94,7 +94,7 @@ export default function AuthScreen() {
         <IconButton icon="back" label={all.common.back} onPress={() => (router.canGoBack() ? router.back() : router.replace('/onboarding'))} />
         <LangSwitch />
       </View>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Monogram size={44} />
           <View style={styles.titles}>

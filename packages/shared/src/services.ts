@@ -100,7 +100,10 @@ export const serviceTools: Record<ServiceToolKey, ServiceTool> = {
   voiceV3: t('voiceV3', 'ElevenLabs v3', 'ElevenLabs', 'fal-ai/elevenlabs/tts/eleven-v3', 0.1, U.chars, { ar: 'أكثر الأصوات تعبيرًا وإحساسًا', en: 'The most expressive voice' }),
   music: t('music', 'Lyria 2', 'Google', 'fal-ai/lyria2', 0.1, U.clip, { ar: 'موسيقى مؤلفة للفيديو', en: 'Composed music for the video' }),
   musicPro: t('musicPro', 'ElevenLabs Music', 'ElevenLabs', 'fal-ai/elevenlabs/music', 0.6, U.minute, { ar: 'موسيقى بجودة استوديو على طول الفيديو', en: 'Studio-quality music to the video length' }),
-  captions: t('captions', 'Auto Caption', 'fal', 'fal-ai/auto-caption', 0.1, U.video, { ar: 'نص مكتوب لكلامك على الفيديو', en: 'Your speech as on-screen captions' }),
+  captions: t('captions', 'Auto Subtitle', 'fal', 'fal-ai/workflow-utilities/auto-subtitle', 0.03, U.minute, {
+    ar: 'نص مكتوب لكلامك على الفيديو، الكلمة المنطوقة ملوّنة',
+    en: 'Your speech as on-screen captions, the spoken word highlighted',
+  }),
   upscale: t('upscale', 'Topaz Video Upscale', 'Topaz Labs', 'fal-ai/topaz/upscale/video', 0.01, U.second, { ar: 'رفع الدقة وتحسين الوضوح', en: 'Higher resolution and sharper detail' }),
   trim: t('trim', 'Trim', 'fal', 'fal-ai/workflow-utilities/trim-video', 0.001, U.job, { ar: 'قص البداية والنهاية', en: 'Trims the start and end' }),
   mergeAudio: t('mergeAudio', 'Audio merge', 'fal', 'fal-ai/ffmpeg-api/merge-audio-video', 0.0002, U.second, { ar: 'دمج الصوت مع الفيديو', en: 'Merges the audio into the video' }),
@@ -359,7 +362,8 @@ export function planLines(params: ServiceParams, mediaSeconds = 0, tier: Service
       const end = params.trimEnd ?? mediaSeconds;
       const length = Math.max(1, Math.round((end || mediaSeconds || 30) - start));
       if (params.trimStart !== null || params.trimEnd !== null) lines.push({ tool: 'trim', qty: 1, task: task('قص الفيديو', 'Trimming the video') });
-      if (params.captions) lines.push({ tool: 'captions', qty: 1, task: task('كتابة كلامك على الفيديو', 'Adding captions') });
+      // Subtitles are billed per started minute of video.
+      if (params.captions) lines.push({ tool: 'captions', qty: Math.max(1, Math.ceil(length / 60)), task: task('كتابة كلامك على الفيديو', 'Adding captions') });
       if (params.music) {
         const pro = tierTools.music[tier] === 'musicPro';
         lines.push({
